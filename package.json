@@ -1,0 +1,18 @@
+{
+  "name": "NetText",
+  "scripts": {
+    "dev": "nuxt"
+  },
+  "dependencies": {
+    "@feathersjs/feathers": "^3.3.1",
+    "@feathersjs/socketio-client": "^1.2.1",
+    "@nuxtjs/vuetify": "^0.5.2",
+    "babylonjs": "^3.3.0",
+    "d3": "^5.8.0",
+    "feathers-vuex": "^1.6.2",
+    "jquery": "^3.3.1",
+    "nuxt": "^2.4.2",
+    "nuxt-dropzone": "^0.2.8",
+    "socket.io-client": "^2.2.0"
+  }
+}

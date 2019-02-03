@@ -1,0 +1,52 @@
+<template>
+  <v-btn
+    :loading="loading"
+    :disabled="loading"
+    class="jbtn-file"
+  >
+    {{text ? text : ''}}
+    <input id="selectFotos" type="file" @change="upload">
+  </v-btn>
+</template>
+
+<script>
+import Dropzone from 'nuxt-dropzone'
+import 'nuxt-dropzone/dropzone.css'
+
+export default {
+  components: {
+    Dropzone
+  },
+  data () {
+    return {
+      text: 'accepted formats: gml (gdf is being implemented) ',
+      loading: false
+    }
+  },
+  methods: {
+    upload (e) {
+      this.loading = true
+      let reader = new FileReader()
+      let file = e.target.files[0]
+      console.log('raw', e, e.path[0].files[0].name)
+      reader.readAsText(file)
+      reader.addEventListener('load', () => {
+        console.log(reader)
+        this.$store.dispatch('networks/create', {
+          data: reader.result,
+          layer: 0,
+          coarsen_method: 'none',
+          uncoarsened_network: null,
+          title: 'a title',
+          description: 'a description',
+          filename: e.path[0].files[0].name,
+          user: this.user._id
+        }).then((res) => {
+          this.loading = false
+        })
+      })
+    }
+  }
+}
+</script>
+
