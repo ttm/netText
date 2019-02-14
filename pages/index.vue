@@ -1,3 +1,7 @@
 <template>
-<h1>Hello</h1>
+  <div>
+    <v-btn color="red" to="evolution">Evolution</v-btn>
+    <v-btn color="pink" to="text">Text</v-btn>
+    <v-btn color="purple" to="multilevel">Multilevel</v-btn>
+  </div>
 </template>
