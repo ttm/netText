@@ -4,9 +4,9 @@
 <v-expansion-panel>
   <v-expansion-panel-content>
     <div slot="header">Visualization settings. Name of the loaded settings: <b>{{ sname }}</b>,
-    <span v-if="network_data.ntransactions">nodes: {{network_data.nodes.length}},
+    <span v-if="network_data.nodes">nodes: {{network_data.nodes.length}},
     edges: {{network_data.edges.length}},
-    messages/transactions: {{network_data.ntransactions}}</span>
+    messages/transactions: {{network_data.transactions.length}}</span>
     </div>
   <div style="border:2px solid black; padding: 4px">
 <v-layout align-center justify-start row ma-1 pa-1>
@@ -85,7 +85,7 @@
         <v-flex class="px-3">
           <v-range-slider
             v-model="message_range"
-            :max="message_max"
+            :max="message_range[1]"
             :min="0"
           ></v-range-slider>
         </v-flex>
@@ -294,7 +294,7 @@ export default {
       int_perc: 15,
       per_perc: 80,
       window_size: 5,
-      message_max: 0,
+      current_message: 0,
       status: {
         render: 1,
         loaded: 1,
@@ -314,8 +314,6 @@ export default {
     },
     loadNetwork (net) {
       this.network = net
-      this.message_max = net.data.length
-      this.message_range[1] = net.data.length
       $.get(
         `http://127.0.0.1:5000/evolvingNet/someNetId/`,
         {},
@@ -325,14 +323,13 @@ export default {
     absorbNetworksData (data) {
       window.mdata = data
       this.network_data = data
+      this.message_range[1] = data.nodes.length
     },
     loadSecMethod (sec) {
       this.sec_method = sec
     },
     percChange () {
-      console.log('calculou')
       let leftover = 100 - this.hubs_perc - this.int_perc
-      window.selff = this
       if (leftover >= 0) {
         this.per_perc = leftover
       } else {
@@ -341,9 +338,7 @@ export default {
       }
     },
     percChangePer () {
-      console.log('calculou')
       let leftover = 100 - this.hubs_perc - this.per_perc
-      window.selff = this
       if (leftover >= 0) {
         this.int_perc = leftover
       } else {
@@ -357,6 +352,103 @@ export default {
     pause () {
       this.status.playing = 0
     },
+    positionNodes () {
+      // apply the 5/15/80
+      this.nodepos = {}
+      let nhubs = Math.round(this.network_data.nodes.length * this.hubs_perc / 100)
+      let nint = Math.round(this.network_data.nodes.length * this.int_perc / 100)
+      let nper = this.network_data.nodes.length - nhubs - nint
+
+      let sine_ampl = .3
+
+      let step_hubsx = 1 / nhubs
+      let step_hubsy = Math.PI / nhubs
+      let hMaterial = new BABYLON.StandardMaterial("hMaterial", this.scene);
+      hMaterial.diffuseColor = new BABYLON.Color3(1.0, 0.2, 0.7)
+      for (let n = 0; n < nhubs; n++) {
+        let sphere = BABYLON.MeshBuilder.CreateSphere(
+          'sphere_h'+n,
+          {segments: 1, updatable: 1, diameter: 0.2},
+          this.scene
+        )
+        let x = 1 - step_hubsx * n
+        let y = sine_ampl * Math.sin(step_hubsy * n)
+        this.nodepos[n] = new BABYLON.Vector3(
+          x,
+          y,
+          0
+        )
+        sphere.position = this.nodepos[n]
+        sphere.material = hMaterial
+      }
+
+      let step_intx = 1 / (nint - 1)
+      let step_inty = Math.PI / (nint - 1)
+      let iMaterial = new BABYLON.StandardMaterial("iMaterial", this.scene);
+      iMaterial.diffuseColor = new BABYLON.Color3(0, 1, 0.7)
+      for (let n = 0; n < nint; n++) {
+        let sphere = BABYLON.MeshBuilder.CreateSphere(
+          'sphere_i'+n,
+          {segments: 1, updatable: 1, diameter: 0.2},
+          this.scene
+        )
+        let x = - step_intx * n
+        let y = sine_ampl * Math.sin(step_inty * n + Math.PI)
+        this.nodepos[n+nhubs] = new BABYLON.Vector3(
+          x,
+          y,
+          0
+        )
+        sphere.position = this.nodepos[n+nhubs]
+        sphere.material = iMaterial
+      }
+      let step_perx = 0.7 / (nper)
+      let step_pery = 0.5 / (nper)
+      let pMaterial = new BABYLON.StandardMaterial("pMaterial", this.scene);
+      pMaterial.diffuseColor = new BABYLON.Color3(0, 0, 1)
+      for (let n = 0; n < nper; n++) {
+        let sphere = BABYLON.MeshBuilder.CreateSphere(
+          'sphere_p'+n,
+          {segments: 1, updatable: 1, diameter: 0.05},
+          this.scene
+        )
+        let x = - 0.7 + step_perx * n
+        let y = sine_ampl * 0.5  + step_pery * n
+        this.nodepos[n+nhubs+nint] = new BABYLON.Vector3(
+          x,
+          y,
+          0
+        )
+        sphere.position = this.nodepos[n+nhubs+nint]
+        sphere.material = pMaterial
+        window.sphere = sphere
+      }
+    },
+    loadEdges (to_update) {
+      let edges = this.network_data.transactions.slice(this.current_message, this.current_message + this.window_size)
+      if (!this.current_edges) {
+        this.current_edges = {}
+      }
+      edges.forEach( e => {
+        console.log(e)
+        let name = 'line' + e[0] + '-' + e[1]
+        if (this.current_edges[name]) {
+          console.log('already exist')
+          this.current_edges[name].edgesWidth++
+        } else {
+          let xy1 = this.nodepos[e[0]]
+          let xy2 = this.nodepos[e[1]]
+          console.log('create new', xy1, xy2)
+          let line = BABYLON.MeshBuilder.CreateLines(
+            name,
+            {points: [xy1, xy2], updatable: 1},
+            this.scene
+          )
+          this.current_edges[name] = line
+        }
+      });
+      this.current_message += this.window_size
+    },
     loadBabylon () {
       this.canvas = document.getElementById('renderCanvas') // Get the canvas element
       this.engine = new BABYLON.Engine(this.canvas, true) // Generate the BABYLON 3D engine
@@ -365,24 +457,35 @@ export default {
 
       // Add a camera to the scene and attach it to the canvas
       let camera = new BABYLON.ArcRotateCamera('Camera', Math.PI / 2, Math.PI / 2, 2, BABYLON.Vector3.Zero(), this.scene)
+      // let camera = new BABYLON.ArcRotateCamera('Camera', 0, 0, 2, BABYLON.Vector3.Zero(), this.scene)
       camera.setTarget(BABYLON.Vector3.Zero())
       camera.attachControl(this.canvas, true)
 
       // Add lights to the scene
       new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(1, 1, 0), this.scene)
-      let sphere = BABYLON.MeshBuilder.CreateSphere('sphere', {segments: 1}, this.scene)
-      // sphere.position = new BABYLON.Vector3(0.5, 0.5, 0.5)
-      let selff = this
+      this.positionNodes()
+      this.current_edges = {}
+      this.loadEdges()
+      let _this = this
+      this.last_time = new Date()
       this.engine.runRenderLoop(function () {
-        selff.scene.render()
+        _this.current_time = new Date()
+        let elapsed = _this.current_time - _this.last_time
+        let to_update = _this.messages_second * elapsed / 1000
+        if (to_update) {
+          _this.loadEdges(to_update)
+          _this.last_time = new Date()
+        }
+        _this.scene.render()
       })
       window.addEventListener('resize', function () {
-        selff.engine.resize()
+        _this.engine.resize()
       })
     },
     loadCanvas () {
       console.log('ok load canvas')
       this.fetchAnalysisData()
+      this.loadBabylon()
     },
     fetchAnalysisData () {
       $.get(
@@ -398,7 +501,8 @@ export default {
   mounted () {
     window.enet = enet
     this.loadNetwork(this.network)
-    this.loadBabylon()
+    //this.loadBabylon()
+    window.__this = this
   }
 }
 </script>
