@@ -402,8 +402,8 @@ export default {
         sphere.position = this.nodepos[n+nhubs]
         sphere.material = iMaterial
       }
-      let step_perx = 0.7 / (nper)
-      let step_pery = 0.5 / (nper)
+      let step_perx = 1.3 / nper
+      let step_pery = 0.3 / nper
       let pMaterial = new BABYLON.StandardMaterial("pMaterial", this.scene);
       pMaterial.diffuseColor = new BABYLON.Color3(0, 0, 1)
       for (let n = 0; n < nper; n++) {
@@ -412,8 +412,8 @@ export default {
           {segments: 1, updatable: 1, diameter: 0.05},
           this.scene
         )
-        let x = - 0.7 + step_perx * n
-        let y = sine_ampl * 0.5  + step_pery * n
+        let x = - 0.9 + step_perx * n
+        let y = sine_ampl * 0.8  + step_pery * n
         this.nodepos[n+nhubs+nint] = new BABYLON.Vector3(
           x,
           y,
@@ -430,6 +430,10 @@ export default {
         this.current_message,
         this.current_message + msgs_to_update
       )
+      let mcolors = []
+      for (let i = 0; i < 6; i++) {
+        mcolors.push(new BABYLON.Color4(0, i * 1/6, 0, 1))
+      }
       edges.forEach( e => {
         let name = 'line' + e[0] + '-' + e[1]
         if (this.current_edges[name]) {
@@ -439,11 +443,20 @@ export default {
           console.log('new link', name)
           let xy1 = this.nodepos[e[0]]
           let xy2 = this.nodepos[e[1]]
+          let control = new BABYLON.Vector3(
+            xy1.x**2 + xy2.x**2,
+            xy2.y**2 + xy2.y**2,
+            0
+          )
+          let bez = BABYLON.Curve3.CreateQuadraticBezier(xy1, control, xy2, 5)
+          let points_ = bez.getPoints()
+          console.log('control', control, points_.length, mcolors, points_.length, mcolors.length)
           let line = BABYLON.MeshBuilder.CreateLines(
             name,
-            {points: [xy1, xy2], updatable: 1},
+            {points: points_, colors: mcolors, updatable: 1},
             this.scene
           )
+          line.enableEdgesRendering()
           this.current_edges[name] = line
         }
       });
