@@ -293,8 +293,7 @@ export default {
       hubs_perc: 5,
       int_perc: 15,
       per_perc: 80,
-      window_size: 5,
-      current_message: 0,
+      window_size: 15,
       status: {
         render: 1,
         loaded: 1,
@@ -321,6 +320,7 @@ export default {
       )
     },
     absorbNetworksData (data) {
+      // data.transactions = data.transactions.slice(0,100)
       window.mdata = data
       this.network_data = data
       this.message_range[1] = data.nodes.length
@@ -424,21 +424,21 @@ export default {
         window.sphere = sphere
       }
     },
-    loadEdges (to_update) {
-      let edges = this.network_data.transactions.slice(this.current_message, this.current_message + this.window_size)
-      if (!this.current_edges) {
-        this.current_edges = {}
-      }
+    loadEdges (msgs_to_update) { // create and delete edges
+      // edges creation
+      let edges = this.network_data.transactions.slice(
+        this.current_message,
+        this.current_message + msgs_to_update
+      )
       edges.forEach( e => {
-        console.log(e)
         let name = 'line' + e[0] + '-' + e[1]
         if (this.current_edges[name]) {
-          console.log('already exist')
-          this.current_edges[name].edgesWidth++
+          console.log('already exists', name)
+          this.current_edges[name].edgesWidth += 10
         } else {
+          console.log('new link', name)
           let xy1 = this.nodepos[e[0]]
           let xy2 = this.nodepos[e[1]]
-          console.log('create new', xy1, xy2)
           let line = BABYLON.MeshBuilder.CreateLines(
             name,
             {points: [xy1, xy2], updatable: 1},
@@ -447,11 +447,29 @@ export default {
           this.current_edges[name] = line
         }
       });
-      this.current_message += this.window_size
+      // edges to delete
+      let from = Math.max(0, this.current_message - this.window_size - msgs_to_update)
+      let to = Math.max(0, this.current_message - this.window_size)
+      this.current_message += msgs_to_update
+      let edges_delete = this.network_data.transactions.slice(
+        this.deleted_messages,
+        to
+      )
+      edges_delete.forEach( e => {
+        let name = 'line' + e[0] + '-' + e[1]
+        console.log('dispose or make thinner', name)
+        if (this.current_edges[name].edgesWidth > 1) {
+          this.current_edges[name].edgesWidth -= 10
+        } else {
+          this.current_edges[name].dispose()
+        }
+      })
+      this.deleted_messages += edges_delete.length
     },
     loadBabylon () {
       this.canvas = document.getElementById('renderCanvas') // Get the canvas element
       this.engine = new BABYLON.Engine(this.canvas, true) // Generate the BABYLON 3D engine
+      this.engine.stopRenderLoop()
       // Create the scene space
       this.scene = new BABYLON.Scene(this.engine)
 
@@ -465,16 +483,18 @@ export default {
       new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(1, 1, 0), this.scene)
       this.positionNodes()
       this.current_edges = {}
-      this.loadEdges()
+      this.current_message = 0
+      this.deleted_messages = 0
+      this.loadEdges(this.window_size)
       let _this = this
       this.last_time = new Date()
       this.engine.runRenderLoop(function () {
         _this.current_time = new Date()
         let elapsed = _this.current_time - _this.last_time
-        let to_update = _this.messages_second * elapsed / 1000
-        if (to_update) {
-          _this.loadEdges(to_update)
+        let msgs_to_update = _this.messages_second * elapsed / 1000
+        if (msgs_to_update) {
           _this.last_time = new Date()
+          _this.loadEdges(msgs_to_update)
         }
         _this.scene.render()
       })
