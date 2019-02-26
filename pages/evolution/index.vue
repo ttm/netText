@@ -69,7 +69,7 @@
     </v-menu>
   </v-flex>
 
-  <v-layout align-center justify-start row>
+  <v-layout align-center justify-start row v-if="network_data.transactions">
     messages:
         <v-flex
           shrink
@@ -85,7 +85,7 @@
         <v-flex class="px-3">
           <v-range-slider
             v-model="message_range"
-            :max="message_range[1]"
+            :max="network_data.transactions.length"
             :min="0"
           ></v-range-slider>
         </v-flex>
@@ -323,7 +323,7 @@ export default {
       // data.transactions = data.transactions.slice(0,100)
       window.mdata = data
       this.network_data = data
-      this.message_range[1] = data.nodes.length
+      this.message_range[1] = data.transactions.length
     },
     loadSecMethod (sec) {
       this.sec_method = sec
@@ -432,8 +432,9 @@ export default {
       )
       let mcolors = []
       for (let i = 0; i < 6; i++) {
-        mcolors.push(new BABYLON.Color4(0, i * 1/6, 0, 1))
+        mcolors.push(new BABYLON.Color4(0, 0, i * 1/6, 1))
       }
+      window.mcolors = mcolors
       edges.forEach( e => {
         let name = 'line' + e[0] + '-' + e[1]
         if (this.current_edges[name]) {
