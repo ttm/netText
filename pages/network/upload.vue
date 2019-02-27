@@ -40,7 +40,8 @@ export default {
           title: 'a title',
           description: 'a description',
           filename: e.path[0].files[0].name,
-          user: this.user._id
+          // user: this.user._id
+          user: '5c51162561e2414b1f85ac0b'
         }).then((res) => {
           this.loading = false
         })

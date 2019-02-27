@@ -175,23 +175,45 @@
 </v-expansion-panel>
 <v-expansion-panel>
   <v-expansion-panel-content>
-      <div slot="header">Controls (FPS: {{ frames_second }}, messages/s: {{ messages_second }}, window size: {{ window_size }})</div>
+    <div slot="header">Controls (window size: {{ window_size }}, separation {{window_sep}}, messages/s: {{ messages_second }})</div>
     <div style="border:2px solid black; padding: 4px">
           <v-layout row ml-4>
             <v-flex class="pr-3">
               <v-slider
-                v-model="frames_second"
-                :max="100"
-                :min="0.1"
-                :label="'frames per second'"
-                :step="0.1"
+                v-model="window_size"
+                :max="1000"
+                :min="1"
+                :label="'window size'"
+                :step="1"
                 ma-0
                 pa-0
               ></v-slider>
             </v-flex>
             <v-flex shrink style="width: 60px">
               <v-text-field
-                v-model="frames_second"
+                v-model="window_size"
+                class="mt-0"
+                hide-details
+                single-line
+                type="number"
+              ></v-text-field>
+            </v-flex>
+          </v-layout>
+          <v-layout row ml-4>
+            <v-flex class="pr-3">
+              <v-slider
+                v-model="window_sep"
+                :max="1000"
+                :min="1"
+                :label="'messages separation between snapshots'"
+                :step="1"
+                ma-0
+                pa-0
+              ></v-slider>
+            </v-flex>
+            <v-flex shrink style="width: 60px">
+              <v-text-field
+                v-model="window_sep"
                 class="mt-0"
                 hide-details
                 single-line
@@ -214,28 +236,6 @@
             <v-flex shrink style="width: 60px">
               <v-text-field
                 v-model="messages_second"
-                class="mt-0"
-                hide-details
-                single-line
-                type="number"
-              ></v-text-field>
-            </v-flex>
-          </v-layout>
-          <v-layout row ml-4>
-            <v-flex class="pr-3">
-              <v-slider
-                v-model="window_size"
-                :max="1000"
-                :min="1"
-                :label="'window size'"
-                :step="1"
-                ma-0
-                pa-0
-              ></v-slider>
-            </v-flex>
-            <v-flex shrink style="width: 60px">
-              <v-text-field
-                v-model="window_size"
                 class="mt-0"
                 hide-details
                 single-line
@@ -276,6 +276,23 @@ const enet = require('~/static/here.json')
 import * as BABYLON from 'babylonjs'
 import $ from 'jquery'
 
+function mkArrow(v1, v2) {
+  let theta = Math.PI * 5 / 6
+  let a = v2.subtract(v1)
+  let b = new BABYLON.Vector3(0,-100,0)
+  let c = BABYLON.Vector3.Cross(a, b)
+  c.normalize()
+  let f = BABYLON.Vector3.Cross(c, a)
+
+  let g = a.scale(Math.cos(theta)).add(f.scale(Math.sin(theta)))
+  let g_ = g.normalize().scale(0.1)
+
+  return v2.add(g_)
+  // find c = a x b normalized
+  // find f = c x a
+  // make g = cos(theta) a + sin(theta) f
+}
+
 export default {
   data () {
     return {
@@ -288,7 +305,7 @@ export default {
       message_range: [0, 0],
       sec_methods: ['Erdös', 'Percentages'],
       sec_method: 'Erdös',
-      frames_second: 10,
+      window_sep: 10,
       messages_second: 30,
       hubs_perc: 5,
       int_perc: 15,
@@ -317,6 +334,13 @@ export default {
         `http://127.0.0.1:5000/evolvingNet/someNetId/`,
         {},
         this.absorbNetworksData
+      )
+    },
+    testPost () {
+      $.post(
+        `http://127.0.0.1:5000/postTest/`,
+        {see: 'this', and: 'thisother', num: 5}
+      ).done( data => { console.log('post returned', data) }
       )
     },
     absorbNetworksData (data) {
@@ -352,8 +376,30 @@ export default {
     pause () {
       this.status.playing = 0
     },
+    updateNodes () {
+      let num = Math.random()
+      this.spheres[0][0].scaling = new BABYLON.Vector3(num, num, num)
+      this.spheres[0][0].material.diffuseColor = new BABYLON.Color3(num, num, num)
+      this.spheres[0][1].material.diffuseColor = new BABYLON.Color3(num, 0, 0)
+      if (Math.random() < 0.04) {
+        this.spheres[0][2].dispose()
+        if (Math.random() < 0.5) {
+          this.spheres[0][2] = new BABYLON.MeshBuilder.CreateBox('box'+2, {size: 0.04}, this.scene)
+        } else {
+          this.spheres[0][2] = new BABYLON.MeshBuilder.CreateSphere('sphere'+2, {diameter: 0.07}, this.scene)
+        }
+        this.spheres[0][2].position = this.nodepos[2]
+        this.spheres[0][2].material = new BABYLON.StandardMaterial("hMaterial" + 2, this.scene)
+        this.spheres[0][2].material.diffuseColor = new BABYLON.Color3(num, 1 - num, 0)
+      }
+    },
     positionNodes () {
-      // apply the 5/15/80
+      let zfreq = 2
+      let zamp = 0.5
+      let zfreq_per = 2
+      let zamp_per = 0.1
+      let zdisp_per = 0.2
+
       this.nodepos = {}
       let nhubs = Math.round(this.network_data.nodes.length * this.hubs_perc / 100)
       let nint = Math.round(this.network_data.nodes.length * this.int_perc / 100)
@@ -363,8 +409,9 @@ export default {
 
       let step_hubsx = 1 / nhubs
       let step_hubsy = Math.PI / nhubs
-      let hMaterial = new BABYLON.StandardMaterial("hMaterial", this.scene);
+      let hMaterial = new BABYLON.StandardMaterial("hMaterial", this.scene)
       hMaterial.diffuseColor = new BABYLON.Color3(1.0, 0.2, 0.7)
+      let spheres = [ [], [], [] ] // for hubs, int and peripherals
       for (let n = 0; n < nhubs; n++) {
         let sphere = BABYLON.MeshBuilder.CreateSphere(
           'sphere_h'+n,
@@ -376,10 +423,11 @@ export default {
         this.nodepos[n] = new BABYLON.Vector3(
           x,
           y,
-          0
+          zamp*Math.sin(2 * Math.PI * n / (nhubs + nint - 1))
         )
         sphere.position = this.nodepos[n]
-        sphere.material = hMaterial
+        sphere.material = new BABYLON.StandardMaterial("hMaterial" + n, this.scene)
+        spheres[0].push(sphere)
       }
 
       let step_intx = 1 / (nint - 1)
@@ -397,10 +445,11 @@ export default {
         this.nodepos[n+nhubs] = new BABYLON.Vector3(
           x,
           y,
-          0
+          zamp*Math.sin(2 * Math.PI * (n + nhubs) / (nhubs + nint - 1))
         )
         sphere.position = this.nodepos[n+nhubs]
-        sphere.material = iMaterial
+        sphere.material = new BABYLON.StandardMaterial("iMaterial" + n, this.scene)
+        spheres[1].push(sphere)
       }
       let step_perx = 1.3 / nper
       let step_pery = 0.3 / nper
@@ -413,14 +462,16 @@ export default {
           this.scene
         )
         let x = - 0.9 + step_perx * n
-        let y = sine_ampl * 0.8  + step_pery * n
+        let y = sine_ampl * 0.8  + step_pery * n + zamp_per * Math.cos( 2 * Math.PI * n / (nper -1) )
         this.nodepos[n+nhubs+nint] = new BABYLON.Vector3(
           x,
           y,
-          0
+          zdisp_per + zamp_per * Math.sin( 2 * Math.PI * n / (nper -1) )
         )
         sphere.position = this.nodepos[n+nhubs+nint]
-        sphere.material = pMaterial
+        sphere.material = new BABYLON.StandardMaterial("pMaterial" + n, this.scene)
+        spheres[2].push(sphere)
+        this.spheres = spheres
         window.sphere = sphere
       }
     },
@@ -434,6 +485,11 @@ export default {
       for (let i = 0; i < 6; i++) {
         mcolors.push(new BABYLON.Color4(0, 0, i * 1/6, 1))
       }
+      let mcolors2 = [
+        new BABYLON.Color4(0, 0, 1, 1),
+        new BABYLON.Color4(0, 1, 0, 1),
+        new BABYLON.Color4(1, 0, 0, 1)
+      ]
       window.mcolors = mcolors
       edges.forEach( e => {
         let name = 'line' + e[0] + '-' + e[1]
@@ -444,6 +500,7 @@ export default {
           console.log('new link', name)
           let xy1 = this.nodepos[e[0]]
           let xy2 = this.nodepos[e[1]]
+          let arrowpoint = mkArrow(xy1, xy2)
           let control = new BABYLON.Vector3(
             xy1.x**2 + xy2.x**2,
             xy2.y**2 + xy2.y**2,
@@ -451,13 +508,14 @@ export default {
           )
           let bez = BABYLON.Curve3.CreateQuadraticBezier(xy1, control, xy2, 5)
           let points_ = bez.getPoints()
+          let points2_ = [xy1, xy2, arrowpoint]
           console.log('control', control, points_.length, mcolors, points_.length, mcolors.length)
           let line = BABYLON.MeshBuilder.CreateLines(
             name,
-            {points: points_, colors: mcolors, updatable: 1},
+            {points: points2_, colors: mcolors2, updatable: 1},
             this.scene
           )
-          line.enableEdgesRendering()
+          // line.enableEdgesRendering()
           this.current_edges[name] = line
         }
       });
@@ -509,6 +567,7 @@ export default {
         if (msgs_to_update) {
           _this.last_time = new Date()
           _this.loadEdges(msgs_to_update)
+          _this.updateNodes()
         }
         _this.scene.render()
       })
@@ -537,6 +596,9 @@ export default {
     this.loadNetwork(this.network)
     //this.loadBabylon()
     window.__this = this
+    window.mbab = BABYLON
+    window.mkArrow = mkArrow
+    window.tpost = this.testPost
   }
 }
 </script>
