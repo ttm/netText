@@ -339,7 +339,14 @@ export default {
     testPost () {
       $.post(
         `http://127.0.0.1:5000/postTest/`,
-        {see: 'this', and: 'thisother', num: 5}
+        // {see: 'this', and: 'thisother', num: 5}
+        {
+          network: this.network.name,
+          message_range: this.message_range,
+          sec_method: this.sec_method,
+          window_size: this.window_size,
+          window_sep: this.window_sep
+        }
       ).done( data => { console.log('post returned', data) }
       )
     },
