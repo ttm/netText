@@ -1,14 +1,6 @@
 <template>
   <v-container justify-center>
     <h1>Evolving networks</h1>
-<v-expansion-panel>
-  <v-expansion-panel-content>
-    <div slot="header">Visualization settings. Name of the loaded settings: <b>{{ sname }}</b>,
-    <span v-if="network_data.nodes">nodes: {{network_data.nodes.length}},
-    edges: {{network_data.edges.length}},
-    messages/transactions: {{network_data.transactions.length}}</span>
-    </div>
-  <div style="border:2px solid black; padding: 4px">
 <v-layout align-center justify-start row ma-1 pa-1>
     Load settings:
     <v-menu offset-y>
@@ -45,6 +37,14 @@
     >Clone settings</v-btn>
     </v-flex>
 </v-layout>
+<v-expansion-panel>
+  <v-expansion-panel-content>
+    <div slot="header">Visualization settings. Name of the loaded settings: <b>{{ sname }}</b>,
+    <span v-if="network_data.nodes">nodes: {{network_data.nodes.length}},
+    edges: {{network_data.edges.length}},
+    messages/transactions: {{network_data.transactions.length}}</span>
+    </div>
+  <div style="border:2px solid black; padding: 4px">
 <v-card flat dark>
 <v-layout align-center justify-start pa-1 row>
   <v-flex xs2 ml-2>
@@ -293,6 +293,12 @@ function mkArrow(v1, v2) {
   // make g = cos(theta) a + sin(theta) f
 }
 
+const mcolors2 = [
+  new BABYLON.Color4(0, 0, 1, 1),
+  new BABYLON.Color4(0, 1, 0, 1),
+  new BABYLON.Color4(1, 0, 0, 1)
+]
+
 export default {
   data () {
     return {
@@ -342,13 +348,16 @@ export default {
         // {see: 'this', and: 'thisother', num: 5}
         {
           network: this.network.name,
-          message_range: this.message_range,
           sec_method: this.sec_method,
+          message_range: this.message_range,
           window_size: this.window_size,
           window_sep: this.window_sep
         }
-      ).done( data => { console.log('post returned', data) }
-      )
+      ).done( data => { 
+        this.net_snapshots = data 
+        console.log('post returned', data) 
+        this.loadBabylon()
+      })
     },
     absorbNetworksData (data) {
       // data.transactions = data.transactions.slice(0,100)
@@ -408,9 +417,13 @@ export default {
       let zdisp_per = 0.2
 
       this.nodepos = {}
-      let nhubs = Math.round(this.network_data.nodes.length * this.hubs_perc / 100)
-      let nint = Math.round(this.network_data.nodes.length * this.int_perc / 100)
-      let nper = this.network_data.nodes.length - nhubs - nint
+      // let nnodes = this.net_snapshots.networks[0].nodes.length
+      // let nhubs = Math.round(nnodes * this.hubs_perc / 100)
+      // let nint = Math.round(nnodes * this.int_perc / 100)
+      // let nper = nnodes - nhubs - nint
+      let nhubs = this.net_snapshots.stats[0].hip[0].length
+      let nint = this.net_snapshots.stats[0].hip[1].length
+      let nper = this.net_snapshots.stats[0].hip[2].length
 
       let sine_ampl = .3
 
@@ -418,23 +431,24 @@ export default {
       let step_hubsy = Math.PI / nhubs
       let hMaterial = new BABYLON.StandardMaterial("hMaterial", this.scene)
       hMaterial.diffuseColor = new BABYLON.Color3(1.0, 0.2, 0.7)
-      let spheres = [ [], [], [] ] // for hubs, int and peripherals
+      let spheres = [ {}, {}, {} ] // for hubs, int and peripherals
       for (let n = 0; n < nhubs; n++) {
+        let hid = this.net_snapshots.stats[0].hip[0][n]
         let sphere = BABYLON.MeshBuilder.CreateSphere(
-          'sphere_h'+n,
+          'sphere_h'+hid,
           {segments: 1, updatable: 1, diameter: 0.2},
           this.scene
         )
         let x = 1 - step_hubsx * n
         let y = sine_ampl * Math.sin(step_hubsy * n)
-        this.nodepos[n] = new BABYLON.Vector3(
+        this.nodepos[hid] = new BABYLON.Vector3(
           x,
           y,
           zamp*Math.sin(2 * Math.PI * n / (nhubs + nint - 1))
         )
-        sphere.position = this.nodepos[n]
+        sphere.position = this.nodepos[hid]
         sphere.material = new BABYLON.StandardMaterial("hMaterial" + n, this.scene)
-        spheres[0].push(sphere)
+        spheres[0][hid] = sphere
       }
 
       let step_intx = 1 / (nint - 1)
@@ -442,48 +456,79 @@ export default {
       let iMaterial = new BABYLON.StandardMaterial("iMaterial", this.scene);
       iMaterial.diffuseColor = new BABYLON.Color3(0, 1, 0.7)
       for (let n = 0; n < nint; n++) {
+        let iid = this.net_snapshots.stats[0].hip[1][n]
         let sphere = BABYLON.MeshBuilder.CreateSphere(
-          'sphere_i'+n,
+          'sphere_i'+iid,
           {segments: 1, updatable: 1, diameter: 0.2},
           this.scene
         )
         let x = - step_intx * n
         let y = sine_ampl * Math.sin(step_inty * n + Math.PI)
-        this.nodepos[n+nhubs] = new BABYLON.Vector3(
+        this.nodepos[iid] = new BABYLON.Vector3(
           x,
           y,
           zamp*Math.sin(2 * Math.PI * (n + nhubs) / (nhubs + nint - 1))
         )
-        sphere.position = this.nodepos[n+nhubs]
+        sphere.position = this.nodepos[iid]
         sphere.material = new BABYLON.StandardMaterial("iMaterial" + n, this.scene)
-        spheres[1].push(sphere)
+        spheres[1][iid] = sphere
       }
+
       let step_perx = 1.3 / nper
       let step_pery = 0.3 / nper
       let pMaterial = new BABYLON.StandardMaterial("pMaterial", this.scene);
       pMaterial.diffuseColor = new BABYLON.Color3(0, 0, 1)
       for (let n = 0; n < nper; n++) {
+        let pid = this.net_snapshots.stats[0].hip[2][n]
         let sphere = BABYLON.MeshBuilder.CreateSphere(
-          'sphere_p'+n,
+          'sphere_p'+pid,
           {segments: 1, updatable: 1, diameter: 0.05},
           this.scene
         )
         let x = - 0.9 + step_perx * n
         let y = sine_ampl * 0.8  + step_pery * n + zamp_per * Math.cos( 2 * Math.PI * n / (nper -1) )
-        this.nodepos[n+nhubs+nint] = new BABYLON.Vector3(
+        this.nodepos[pid] = new BABYLON.Vector3(
           x,
           y,
           zdisp_per + zamp_per * Math.sin( 2 * Math.PI * n / (nper -1) )
         )
-        sphere.position = this.nodepos[n+nhubs+nint]
+        sphere.position = this.nodepos[pid]
         sphere.material = new BABYLON.StandardMaterial("pMaterial" + n, this.scene)
-        spheres[2].push(sphere)
-        this.spheres = spheres
-        window.sphere = sphere
+        spheres[2][pid] = sphere
       }
+      this.spheres = spheres
+    },
+    loadEdges2 () {
+      if (this.cur_net >= this.net_snapshots.networks.length) {
+        return
+      }
+      let edges = this.net_snapshots.networks[this.cur_net].edges
+      this.old_edges.forEach( e => {
+        e.dispose()
+      })
+      this.old_edges = []
+      edges.forEach( e => {
+        let name = 'line' + e[0] + '-' + e[1]
+        let xy1 = this.nodepos[e[0]]
+        let xy2 = this.nodepos[e[1]]
+        let arrowpoint = mkArrow(xy1, xy2)
+        let points2_ = [xy1, xy2, arrowpoint]
+        let line = BABYLON.MeshBuilder.CreateLines(
+          name,
+          {points: points2_, colors: mcolors2, updatable: 1},
+          this.scene
+        )
+        // line.enableEdgesRendering()
+        line.edgesWidth = 2 + (e[2].weight-1)*10
+        // this.old_edges.push(e)
+        // this.current_edges[name] = line
+        this.old_edges.push(line)
+      });
+      this.cur_net++
     },
     loadEdges (msgs_to_update) { // create and delete edges
       // edges creation
+      // used for the dummy network (for tests)
       let edges = this.network_data.transactions.slice(
         this.current_message,
         this.current_message + msgs_to_update
@@ -497,7 +542,6 @@ export default {
         new BABYLON.Color4(0, 1, 0, 1),
         new BABYLON.Color4(1, 0, 0, 1)
       ]
-      window.mcolors = mcolors
       edges.forEach( e => {
         let name = 'line' + e[0] + '-' + e[1]
         if (this.current_edges[name]) {
@@ -564,17 +608,27 @@ export default {
       this.current_edges = {}
       this.current_message = 0
       this.deleted_messages = 0
-      this.loadEdges(this.window_size)
+      // this.loadEdges(this.window_size)
+      this.cur_net = 1
+      this.old_edges = []
+      this.loadEdges2()
       let _this = this
       this.last_time = new Date()
+      this.init_time = new Date()
       this.engine.runRenderLoop(function () {
         _this.current_time = new Date()
         let elapsed = _this.current_time - _this.last_time
-        let msgs_to_update = _this.messages_second * elapsed / 1000
-        if (msgs_to_update) {
+        let elapsed_ = _this.current_time - _this.init_time
+        // calculation with elapsed_, message_sep,
+        // messages_sec and cur_net
+        // let msgs_to_update = _this.messages_second * elapsed / 1000
+        let msgs_to_update = _this.messages_second * elapsed_ / 1000
+        let msgs_to_update_ = msgs_to_update - (_this.cur_net -1) * _this.window_sep
+        if (msgs_to_update_ > 0) {
           _this.last_time = new Date()
-          _this.loadEdges(msgs_to_update)
-          _this.updateNodes()
+          // _this.loadEdges(msgs_to_update)
+          _this.loadEdges2()
+          // _this.updateNodes()
         }
         _this.scene.render()
       })
@@ -583,9 +637,8 @@ export default {
       })
     },
     loadCanvas () {
-      console.log('ok load canvas')
-      this.fetchAnalysisData()
-      this.loadBabylon()
+      // this.fetchAnalysisData()
+      this.testPost()
     },
     fetchAnalysisData () {
       $.get(
