@@ -311,12 +311,14 @@ export default {
       message_range: [0, 0],
       sec_methods: ['Erdös', 'Percentages'],
       sec_method: 'Erdös',
+      window_size: 150,
       window_sep: 10,
       messages_second: 30,
       hubs_perc: 5,
       int_perc: 15,
       per_perc: 80,
-      window_size: 15,
+      min_size: 0.01,
+      size_inc: 0.005,
       status: {
         render: 1,
         loaded: 1,
@@ -392,6 +394,46 @@ export default {
     pause () {
       this.status.playing = 0
     },
+    setSizeColor(sec) {
+      let stats = this.net_snapshots.stats[this.cur_net]
+      let hip = stats.hip[sec]
+      let nodes = this.net_snapshots.networks[this.cur_net].nodes
+      let pre = ['h', 'i', 'p'][sec]
+      let mtype = [3, 6, 0][sec]
+      hip.forEach( n => {
+        let poly = this.spheres[n]
+        let name = poly.name
+        poly.dispose()
+        let nn = nodes.indexOf(n)
+        let deg = stats.degree[nn]
+        let clust = stats.clust[nn]
+        let msize = this.min_size + this.size_inc * deg
+        console.log('msize', msize, deg)
+        poly = BABYLON.MeshBuilder.CreatePolyhedron(
+          pre+'sphere'+n,
+          // {type: 3, updatable: 1, size: 0.01 + 0.001*deg},
+          {type: mtype, updatable: 1, size: msize},
+          this.scene
+        )
+        poly.position = this.nodepos[n]
+        poly.material = new BABYLON.StandardMaterial(pre + "Material" + n, this.scene)
+        poly.material.diffuseColor = new BABYLON.Color3(1, 1 - clust, 1 - clust)
+        this.spheres[n] = poly
+        // poly.type = 3
+        // poly.options.size = 1
+        
+      })
+    },
+    updateNodes2 () {
+      // delete meshes made before
+      if (this.cur_net >= this.net_snapshots.networks.length) {
+        return
+      }
+      this.setSizeColor(0)
+      this.setSizeColor(1)
+      this.setSizeColor(2)
+
+    },
     updateNodes () {
       let num = Math.random()
       this.spheres[0][0].scaling = new BABYLON.Vector3(num, num, num)
@@ -431,12 +473,12 @@ export default {
       let step_hubsy = Math.PI / nhubs
       let hMaterial = new BABYLON.StandardMaterial("hMaterial", this.scene)
       hMaterial.diffuseColor = new BABYLON.Color3(1.0, 0.2, 0.7)
-      let spheres = [ {}, {}, {} ] // for hubs, int and peripherals
+      let spheres = {}  // for hubs, int and peripherals
       for (let n = 0; n < nhubs; n++) {
         let hid = this.net_snapshots.stats[0].hip[0][n]
-        let sphere = BABYLON.MeshBuilder.CreateSphere(
+        let sphere = BABYLON.MeshBuilder.CreatePolyhedron(
           'sphere_h'+hid,
-          {segments: 1, updatable: 1, diameter: 0.2},
+          {type: 3, updatable: 1, size: this.min_size},
           this.scene
         )
         let x = 1 - step_hubsx * n
@@ -448,7 +490,7 @@ export default {
         )
         sphere.position = this.nodepos[hid]
         sphere.material = new BABYLON.StandardMaterial("hMaterial" + n, this.scene)
-        spheres[0][hid] = sphere
+        spheres[hid] = sphere
       }
 
       let step_intx = 1 / (nint - 1)
@@ -457,9 +499,9 @@ export default {
       iMaterial.diffuseColor = new BABYLON.Color3(0, 1, 0.7)
       for (let n = 0; n < nint; n++) {
         let iid = this.net_snapshots.stats[0].hip[1][n]
-        let sphere = BABYLON.MeshBuilder.CreateSphere(
+        let sphere = BABYLON.MeshBuilder.CreatePolyhedron(
           'sphere_i'+iid,
-          {segments: 1, updatable: 1, diameter: 0.2},
+          {type: 6, updatable: 1, size: this.min_size},
           this.scene
         )
         let x = - step_intx * n
@@ -471,7 +513,7 @@ export default {
         )
         sphere.position = this.nodepos[iid]
         sphere.material = new BABYLON.StandardMaterial("iMaterial" + n, this.scene)
-        spheres[1][iid] = sphere
+        spheres[iid] = sphere
       }
 
       let step_perx = 1.3 / nper
@@ -480,9 +522,9 @@ export default {
       pMaterial.diffuseColor = new BABYLON.Color3(0, 0, 1)
       for (let n = 0; n < nper; n++) {
         let pid = this.net_snapshots.stats[0].hip[2][n]
-        let sphere = BABYLON.MeshBuilder.CreateSphere(
+        let sphere = BABYLON.MeshBuilder.CreatePolyhedron(
           'sphere_p'+pid,
-          {segments: 1, updatable: 1, diameter: 0.05},
+          {type: 0, updatable: true, size: this.min_size},
           this.scene
         )
         let x = - 0.9 + step_perx * n
@@ -494,7 +536,7 @@ export default {
         )
         sphere.position = this.nodepos[pid]
         sphere.material = new BABYLON.StandardMaterial("pMaterial" + n, this.scene)
-        spheres[2][pid] = sphere
+        spheres[pid] = sphere
       }
       this.spheres = spheres
     },
@@ -612,6 +654,7 @@ export default {
       this.cur_net = 1
       this.old_edges = []
       this.loadEdges2()
+      this.updateNodes2()
       let _this = this
       this.last_time = new Date()
       this.init_time = new Date()
@@ -629,6 +672,7 @@ export default {
           // _this.loadEdges(msgs_to_update)
           _this.loadEdges2()
           // _this.updateNodes()
+          _this.updateNodes2()
         }
         _this.scene.render()
       })
