@@ -278,6 +278,7 @@ import $ from 'jquery'
 
 function mkArrow(v1, v2) {
   let theta = Math.PI * 5 / 6
+  theta = Math.PI
   let a = v2.subtract(v1)
   let b = new BABYLON.Vector3(0,-100,0)
   let c = BABYLON.Vector3.Cross(a, b)
@@ -291,6 +292,19 @@ function mkArrow(v1, v2) {
   // find c = a x b normalized
   // find f = c x a
   // make g = cos(theta) a + sin(theta) f
+}
+
+function mkPoints(p1, p2, mesh) {
+  // make p2_ with p2 - size of polyhedron
+  // let dir = new BABYLON.Vector3(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z)
+  let dir = p2.subtract(p1)
+  console.log(p2, p1, dir, mesh.position)
+  let ray = new BABYLON.Ray(p1, dir)
+  let inter = ray.intersectsMesh(mesh)
+  window.minter.push([ray, mesh, inter, p1, p2])
+  let p2_ = inter.pickedPoint
+  // let arrowpoint = mkArrow(p1, p2_)
+  return [p1, p2_] //, arrowpoint]
 }
 
 const mcolors2 = [
@@ -318,11 +332,15 @@ export default {
       int_perc: 15,
       per_perc: 80,
       min_size: 0.01,
-      size_inc: 0.005,
+      size_inc: 0.003,
       status: {
         render: 1,
         loaded: 1,
         playing: 0,
+      },
+      hub_markers: {
+        ysep: 0.2,
+        alpha: 0.4
       },
       network_data: {}
     }
@@ -408,7 +426,7 @@ export default {
         let deg = stats.degree[nn]
         let clust = stats.clust[nn]
         let msize = this.min_size + this.size_inc * deg
-        console.log('msize', msize, deg)
+        // console.log('msize', msize, deg)
         poly = BABYLON.MeshBuilder.CreatePolyhedron(
           pre+'sphere'+n,
           // {type: 3, updatable: 1, size: 0.01 + 0.001*deg},
@@ -483,14 +501,29 @@ export default {
         )
         let x = 1 - step_hubsx * n
         let y = sine_ampl * Math.sin(step_hubsy * n)
+        let z = zamp*Math.sin(2 * Math.PI * n / (nhubs + nint - 1))
         this.nodepos[hid] = new BABYLON.Vector3(
           x,
           y,
-          zamp*Math.sin(2 * Math.PI * n / (nhubs + nint - 1))
+          z
         )
         sphere.position = this.nodepos[hid]
         sphere.material = new BABYLON.StandardMaterial("hMaterial" + n, this.scene)
         spheres[hid] = sphere
+        // create boxes
+        let box = BABYLON.MeshBuilder.CreateBox('box' + n,
+          {size: 0.1, height: 0.01},
+          this.scene
+        )
+        box.position = new BABYLON.Vector3(
+          x,
+          y - this.hub_markers.ysep,
+          z
+        )
+        box.material = new BABYLON.StandardMaterial("mMaterial" + n, this.scene)
+        box.material.diffuseColor = new BABYLON.Color3(0, 1, 0)
+        box.material.alpha = this.hub_markers.alpha
+
       }
 
       let step_intx = 1 / (nint - 1)
@@ -555,13 +588,17 @@ export default {
         let xy2 = this.nodepos[e[1]]
         let arrowpoint = mkArrow(xy1, xy2)
         let points2_ = [xy1, xy2, arrowpoint]
+        // let points__ = mkPoints(xy1, xy2, this.spheres[e[1]])  // for edge to only tough the surface of mesh
         let line = BABYLON.MeshBuilder.CreateLines(
           name,
+          // {points: points__, colors: mcolors2, updatable: 1},
           {points: points2_, colors: mcolors2, updatable: 1},
           this.scene
         )
         // line.enableEdgesRendering()
-        line.edgesWidth = 2 + (e[2].weight-1)*10
+        line.enableEdgesRendering()
+        line.edgesWidth = (e[2].weight-1)*2
+        line.edgesColor = new BABYLON.Color4(0,1,1,.3)
         // this.old_edges.push(e)
         // this.current_edges[name] = line
         this.old_edges.push(line)
@@ -642,7 +679,9 @@ export default {
       let camera = new BABYLON.ArcRotateCamera('Camera', Math.PI / 2, Math.PI / 2, 2, BABYLON.Vector3.Zero(), this.scene)
       // let camera = new BABYLON.ArcRotateCamera('Camera', 0, 0, 2, BABYLON.Vector3.Zero(), this.scene)
       camera.setTarget(BABYLON.Vector3.Zero())
-      camera.attachControl(this.canvas, true)
+      camera.attachControl(this.canvas, false)
+      camera.wheelPrecision = 100
+      this.camera = camera
 
       // Add lights to the scene
       new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(1, 1, 0), this.scene)
@@ -653,8 +692,8 @@ export default {
       // this.loadEdges(this.window_size)
       this.cur_net = 1
       this.old_edges = []
-      this.loadEdges2()
       this.updateNodes2()
+      this.loadEdges2()
       let _this = this
       this.last_time = new Date()
       this.init_time = new Date()
@@ -696,6 +735,7 @@ export default {
     }
   },
   mounted () {
+    window.minter = []
     window.enet = enet
     this.loadNetwork(this.network)
     //this.loadBabylon()
