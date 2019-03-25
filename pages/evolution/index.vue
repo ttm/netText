@@ -265,6 +265,14 @@
     <v-icon v-if="!status.playing">play_arrow</v-icon>
     <v-icon v-else>pause</v-icon>
   </v-btn>
+    <textarea
+      name="infoareaname"
+      width="100%"
+      style="width:100%;height:80px;border:solid 1px black"
+      id="netinfoarea"
+      box
+      label="information about the network (editable)"
+    ></textarea>
   </v-container>
 </template>
 
@@ -375,6 +383,11 @@ export default {
         }
       ).done( data => { 
         this.net_snapshots = data 
+        this.textinfo.value = '~ total stats ~\n'
+        this.textinfo.value += 'nodes: ' + data.networks[0].nodes.length
+        this.textinfo.value += ', edges: ' + data.networks[0].edges.length
+        this.textinfo.value += ', frames: ' + (data.networks.length - 1)
+        this.textinfo.value = '\n~ picked stats ~'
         console.log('post returned', data) 
         this.loadBabylon()
       })
@@ -436,6 +449,24 @@ export default {
         poly.position = this.nodepos[n]
         poly.material = new BABYLON.StandardMaterial(pre + "Material" + n, this.scene)
         poly.material.diffuseColor = new BABYLON.Color3(1, 1 - clust, 1 - clust)
+        poly.actionManager = new BABYLON.ActionManager(this.scene)
+        poly.mdata = {
+          clust: clust,
+          degree: deg
+        }
+        poly.actionManager.registerAction(
+          new BABYLON.ExecuteCodeAction(
+            // BABYLON.ActionManager.OnPointerOverTrigger,
+            BABYLON.ActionManager.OnRightPickTrigger,
+            this.onOver
+          )
+        )
+        poly.actionManager.registerAction(
+          new BABYLON.ExecuteCodeAction(
+            BABYLON.ActionManager.OnPointerOutTrigger,
+            this.onOut
+          )
+        )
         this.spheres[n] = poly
         // poly.type = 3
         // poly.options.size = 1
@@ -468,6 +499,38 @@ export default {
         this.spheres[0][2].material = new BABYLON.StandardMaterial("hMaterial" + 2, this.scene)
         this.spheres[0][2].material.diffuseColor = new BABYLON.Color3(num, 1 - num, 0)
       }
+    },
+    onOut (meshEvent) {
+      while (document.getElementById("mybut")) {
+        document.getElementById("mybut").parentNode.removeChild(document.getElementById("mybut"));
+      }
+    },
+    onOver (meshEvent) {
+        var but = document.createElement("span");
+        // but.textContent = " ";
+        but.setAttribute("id", "mybut");
+        // but.zIndex = 0;
+        var sty = but.style;
+        sty.position = "absolute";
+        sty.lineHeight = "1.2em";
+        sty.paddingLeft = "10px";
+        sty.paddingRight = "10px";
+        sty.color = "#ffff00";
+        sty.border = "5pt ridge blue";
+        sty.borderRadius = "12px";
+        sty.backgroundColor = "none";
+        sty.fontSize = "24pt";
+        sty.top = this.scene.pointerY + "px";
+        sty.top = this.canvas.offsetTop + this.scene.pointerY + "px";
+        sty.left = this.canvas.width + this.scene.pointerX + "px";
+        sty.left = this.scene.pointerX + "px";
+        sty.cursor = "pointer";
+        but.setAttribute("onclick", "alert('ouch!')");
+        document.body.appendChild(but);
+        but.textContent = meshEvent.meshUnderPointer.name;
+        but.textContent = meshEvent.meshUnderPointer.mdata.clust;
+        // console.log(meshEvent);
+        // console.log(wsc);
     },
     positionNodes () {
       let zfreq = 2
@@ -669,11 +732,15 @@ export default {
       this.deleted_messages += edges_delete.length
     },
     loadBabylon () {
-      this.canvas = document.getElementById('renderCanvas') // Get the canvas element
       this.engine = new BABYLON.Engine(this.canvas, true) // Generate the BABYLON 3D engine
       this.engine.stopRenderLoop()
       // Create the scene space
       this.scene = new BABYLON.Scene(this.engine)
+      this.scene.onDispose = function() {
+        while (document.getElementById("mybut")) {
+          document.getElementById("mybut").parentNode.removeChild(document.getElementById("mybut"))
+        }
+      }
 
       // Add a camera to the scene and attach it to the canvas
       let camera = new BABYLON.ArcRotateCamera('Camera', Math.PI / 2, Math.PI / 2, 2, BABYLON.Vector3.Zero(), this.scene)
@@ -735,14 +802,27 @@ export default {
     }
   },
   mounted () {
-    window.minter = []
-    window.enet = enet
     this.loadNetwork(this.network)
     //this.loadBabylon()
     window.__this = this
-    window.mbab = BABYLON
-    window.mkArrow = mkArrow
-    window.tpost = this.testPost
+    this.canvas = document.getElementById('renderCanvas') // Get the canvas element
+    this.textinfo = document.getElementById('netinfoarea')
+    var self = this
+    window.addEventListener('keypress', function (e) {
+      console.log(e, e.code)
+      if (e.code == 'KeyI') {
+        self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
+        let mmesh = self.pickResult.pickedMesh
+        if (mmesh && mmesh.mdata) {
+          let mdata = mmesh.mdata
+          self.textinfo.value += '\n'
+          self.textinfo.value += 'frame: ' + self.cur_net
+          self.textinfo.value += ', node: ' + mmesh.name
+          self.textinfo.value += ', degree: ' + mdata.degree + ', clust: ' + mdata.clust
+          self.textinfo.scrollTop = self.textinfo.scrollHeight
+        }
+      }
+    })
   }
 }
 </script>
