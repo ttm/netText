@@ -272,7 +272,7 @@
       id="netinfoarea"
       box
       label="information about the network (editable)"
-    ></textarea>
+    >statistics:</textarea>
   </v-container>
 </template>
 
@@ -383,11 +383,22 @@ export default {
         }
       ).done( data => { 
         this.net_snapshots = data 
-        this.textinfo.value = '~ total stats ~\n'
-        this.textinfo.value += 'nodes: ' + data.networks[0].nodes.length
+        this.textinfo.value += '\n~ total stats ~\n'
+        this.textinfo.value += 'frames: ' + (data.networks.length - 1)
+        this.textinfo.value += ', nodes: ' + data.networks[0].nodes.length
         this.textinfo.value += ', edges: ' + data.networks[0].edges.length
-        this.textinfo.value += ', frames: ' + (data.networks.length - 1)
-        this.textinfo.value = '\n~ picked stats ~'
+
+        let st = data.stats[0]
+        this.textinfo.value += '\ndegree mean, std: ' + st.degree_mean + ', ' + st.degree_std
+        this.textinfo.value += '\nclustering mean, std: ' + st.clust_mean + ', ' + st.clust_std
+
+        this.textinfo.value += '\ndegree mean (mean, std): ' + st.degree_mean_mean + ', ' + st.degree_mean_std
+        this.textinfo.value += '\ndegree std (mean, std): ' + st.degree_std_mean + ', ' + st.degree_std_std
+
+        this.textinfo.value += '\nclust mean (mean std): ' + st.clust_mean_mean + ', ' + st.clust_mean_std
+        this.textinfo.value += '\nclust std (mean, std): ' + st.clust_std_mean + ', ' + st.clust_std_std
+
+        this.textinfo.value += '\n~ picked stats ~'
         console.log('post returned', data) 
         this.loadBabylon()
       })
@@ -481,7 +492,6 @@ export default {
       this.setSizeColor(0)
       this.setSizeColor(1)
       this.setSizeColor(2)
-
     },
     updateNodes () {
       let num = Math.random()
@@ -821,6 +831,14 @@ export default {
           self.textinfo.value += ', degree: ' + mdata.degree + ', clust: ' + mdata.clust
           self.textinfo.scrollTop = self.textinfo.scrollHeight
         }
+      } else if (e.code == 'KeyS') {
+          let st = self.net_snapshots.stats[self.cur_net]
+          self.textinfo.value += '\n'
+          self.textinfo.value += 'frame: ' + self.cur_net
+          self.textinfo.value += ', degree mean, std: ' + st.degree_mean + ', ' + st.degree_std
+          self.textinfo.value += ', clust mean, std: ' + st.clust_mean + ', ' + st.clust_std
+          self.textinfo.value += ', hip: ' + st.hip.map( s => s.length )
+          self.textinfo.scrollTop = self.textinfo.scrollHeight
       }
     })
   }
