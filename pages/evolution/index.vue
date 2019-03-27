@@ -362,7 +362,7 @@ export default {
         , height = window.innerHeight - margin.top - margin.bottom; // Use the window's height
 
       // The number of datapoints
-      var n = this.net_snapshots.networks.length
+      var n = this.net_snapshots.networks.length - 1
 
       let self = this
 
@@ -454,6 +454,40 @@ export default {
               console.log('hub', a) 
             })
             .on("mouseout", function() {  }) 
+      svg.append('line')
+        .attr('class', 'frameline')
+        .attr('x1', xScale(20))
+        .attr('x2', xScale(20))
+        .attr('y1', yScale(0))
+        .attr('y2', yScale(1))
+        .style("stroke-width", 2)
+        .style("stroke", "red")
+        .style("fill", "none")
+
+      svg.append("text")
+        .attr("class", "x label")
+        .attr("text-anchor", "end")
+        .attr("x", width * 0.5)
+        .attr("y", height * 1.08)
+        .text("frame")
+
+      svg.append("text")
+        .attr("class", "y label")
+        .attr("text-anchor", "end")
+        .attr("x", - height * 0.4)
+        .attr("y", - width * 0.03)
+        .attr("transform", "rotate(-90)")
+        // .attr("dy", "- 3.75em")
+        .text("fraction")
+      this.xScale = xScale
+      this.dims = [width, height]
+
+    },
+    updateFrameline () {
+      let self = this
+      d3.select('.frameline')
+        .attr('x1', self.xScale(self.cur_net - 1))
+        .attr('x2', self.xScale(self.cur_net - 1))
     },
     loadSettings (set) {
       this.setting = set
@@ -501,9 +535,9 @@ export default {
 
         this.textinfo.value += '\n~ picked stats ~'
         console.log('post returned', data) 
-        this.loadBabylon()
         this.mkTimelineData()
         this.mkLineChart()
+        this.loadBabylon()
       })
     },
     mkTimelineData () {
@@ -610,6 +644,7 @@ export default {
       this.setSizeColor(0)
       this.setSizeColor(1)
       this.setSizeColor(2)
+      this.updateFrameline()
     },
     updateNodes () {
       let num = Math.random()
@@ -893,20 +928,22 @@ export default {
       this.last_time = new Date()
       this.init_time = new Date()
       this.engine.runRenderLoop(function () {
-        _this.current_time = new Date()
-        let elapsed = _this.current_time - _this.last_time
-        let elapsed_ = _this.current_time - _this.init_time
-        // calculation with elapsed_, message_sep,
-        // messages_sec and cur_net
-        // let msgs_to_update = _this.messages_second * elapsed / 1000
-        let msgs_to_update = _this.messages_second * elapsed_ / 1000
-        let msgs_to_update_ = msgs_to_update - (_this.cur_net -1) * _this.window_sep
-        if (msgs_to_update_ > 0) {
-          _this.last_time = new Date()
-          // _this.loadEdges(msgs_to_update)
-          _this.loadEdges2()
-          // _this.updateNodes()
-          _this.updateNodes2()
+        if (_this.status.playing) {
+          _this.current_time = new Date()
+          let elapsed = _this.current_time - _this.last_time
+          let elapsed_ = _this.current_time - _this.init_time
+          // calculation with elapsed_, message_sep,
+          // messages_sec and cur_net
+          // let msgs_to_update = _this.messages_second * elapsed / 1000
+          let msgs_to_update = _this.messages_second * elapsed_ / 1000
+          let msgs_to_update_ = msgs_to_update - (_this.cur_net -1) * _this.window_sep
+          if (msgs_to_update_ > 0) {
+            _this.last_time = new Date()
+            // _this.loadEdges(msgs_to_update)
+            _this.loadEdges2()
+            // _this.updateNodes()
+            _this.updateNodes2()
+          }
         }
         _this.scene.render()
       })
@@ -970,6 +1007,7 @@ export default {
     height  : 50%;
     touch-action: none;
 }
+
 .line {
     fill: none;
     stroke: #ffab00;
