@@ -256,6 +256,7 @@
       <v-btn
         color="red"
         @click="loadCanvas()"
+        :disabled="status.loaded ? true : false"
       >
         load canvas
       </v-btn>
@@ -264,6 +265,9 @@
   <v-btn outline icon @click="status.playing ? pause() : play_()" :disabled="!status.loaded">
     <v-icon v-if="!status.playing">play_arrow</v-icon>
     <v-icon v-else>pause</v-icon>
+  </v-btn>
+  <v-btn outline icon @click="rewind()">
+    <v-icon>fast_rewind</v-icon>
   </v-btn>
     <textarea
       name="infoareaname"
@@ -345,7 +349,8 @@ export default {
       size_inc: 0.003,
       status: {
         render: 1,
-        loaded: 1,
+        rendered: 0,
+        loaded: 0,
         playing: 0,
       },
       hub_markers: {
@@ -359,7 +364,8 @@ export default {
     mkLineChart () {
       var margin = {top: 50, right: 350, bottom: 50, left: 50}
         , width = window.innerWidth - margin.left - margin.right // Use the window's width 
-        , height = window.innerHeight - margin.top - margin.bottom; // Use the window's height
+        // , height = window.innerHeight - margin.top - margin.bottom; // Use the window's height
+        , height = 200 - margin.top - margin.bottom; // Use the window's height
 
       // The number of datapoints
       var n = this.net_snapshots.networks.length - 1
@@ -428,10 +434,19 @@ export default {
           .attr("cy", function(d) { return yScale(d) })
           .attr("r", 5)
             .on("mouseover", function(a, b, c) { 
-              console.log('hub', a) 
+              self.highlightNodes('hubs')
             })
-            .on("mouseout", function() {  }) 
+            .on("mouseout", function() {
+              self.highlightSpheresOff()
+            }) 
 
+      d3.select('svg').on("click", function() { 
+        let coords = d3.mouse(this)
+        let xcoord = Math.round(xScale.invert(coords[0]) - 1)
+        console.log('click', coords, xcoord)
+        self.cur_net = xcoord
+      })
+      window.XS = xScale
       svg.selectAll(".dot2")
         .data(self.inter_timeline)
         .enter().append("circle") // Uses the enter().append() method
@@ -440,9 +455,12 @@ export default {
           .attr("cy", function(d) { return yScale(d) })
           .attr("r", 5)
             .on("mouseover", function(a, b, c) { 
-              console.log('hub', a) 
+              console.log('inter', a) 
+              self.highlightNodes('inter')
             })
-            .on("mouseout", function() {  }) 
+            .on("mouseout", function() {
+              self.highlightSpheresOff()
+            }) 
       svg.selectAll(".dot3")
         .data(self.per_timeline)
         .enter().append("circle") // Uses the enter().append() method
@@ -451,9 +469,12 @@ export default {
           .attr("cy", function(d) { return yScale(d) })
           .attr("r", 5)
             .on("mouseover", function(a, b, c) { 
-              console.log('hub', a) 
+              console.log('per', a) 
+              self.highlightNodes('per')
             })
-            .on("mouseout", function() {  }) 
+            .on("mouseout", function() {
+              self.highlightSpheresOff()
+            }) 
       svg.append('line')
         .attr('class', 'frameline')
         .attr('x1', xScale(20))
@@ -482,6 +503,30 @@ export default {
       this.xScale = xScale
       this.dims = [width, height]
 
+    },
+    highlightNodes (sec, offset = -1) {
+      this.status.highlight_sec = sec
+      let stats = this.net_snapshots.stats[this.cur_net + offset]
+      let sec_ = {'hubs': 0, 'inter': 1, 'per': 2}[sec]
+      let hip = stats.hip[sec_]
+      let nodes = this.net_snapshots.networks[this.cur_net].nodes
+      this.highlightSpheres = []
+      hip.forEach( n => {
+        // make transparent green sphere
+        let diameter = this.spheres[n].getBoundingInfo().boundingSphere.radius * 2
+        let sphere = BABYLON.MeshBuilder.CreateSphere("sphere" + n, {diameter: diameter * 1.02}, this.scene);
+        sphere.position = this.spheres[n].position
+        sphere.material = this.highlightMaterial
+        this.highlightSpheres.push(sphere)
+      })
+    },
+    highlightSpheresOff () {
+      this.highlightSpheres.forEach( s => {
+        console.log('dipose', s)
+        s.dispose()
+      })
+      delete this.highlightSpheres
+      delete this.status.highlight_sec
     },
     updateFrameline () {
       let self = this
@@ -615,19 +660,22 @@ export default {
         poly.actionManager = new BABYLON.ActionManager(this.scene)
         poly.mdata = {
           clust: clust,
-          degree: deg
+          degree: deg,
+          sec: pre
         }
         poly.actionManager.registerAction(
           new BABYLON.ExecuteCodeAction(
-            // BABYLON.ActionManager.OnPointerOverTrigger,
-            BABYLON.ActionManager.OnRightPickTrigger,
-            this.onOver
+            BABYLON.ActionManager.OnPointerOverTrigger,
+            // BABYLON.ActionManager.OnRightPickTrigger,
+            // this.onOver
+            this.highlightLine
           )
         )
         poly.actionManager.registerAction(
           new BABYLON.ExecuteCodeAction(
             BABYLON.ActionManager.OnPointerOutTrigger,
-            this.onOut
+            // this.onOut
+            this.restoreLine
           )
         )
         this.spheres[n] = poly
@@ -667,6 +715,26 @@ export default {
       while (document.getElementById("mybut")) {
         document.getElementById("mybut").parentNode.removeChild(document.getElementById("mybut"));
       }
+    },
+    rewind () {
+      this.cur_net = 1
+    },
+    highlightLine (meshEvent) {
+      let sec = ''
+      if (typeof(meshEvent) !== 'string') {
+        sec = {'h': '', 'i': 2, 'p': 3}[meshEvent.meshUnderPointer.mdata.sec]
+        console.log('msec', sec)
+      } else {
+        sec = meshEvent
+      }
+      d3.select('.line' + sec).style('stroke', '#000000')
+      this.status.highlight_line = sec
+    },
+    restoreLine (meshEvent) {
+      d3.select('.line').style('stroke', '#ffab00')
+      d3.select('.line2').style('stroke', '#00abff')
+      d3.select('.line3').style('stroke', '#00ffab')
+      delete this.status.highlight_line
     },
     onOver (meshEvent) {
         var but = document.createElement("span");
@@ -943,6 +1011,16 @@ export default {
             _this.loadEdges2()
             // _this.updateNodes()
             _this.updateNodes2()
+            if (_this.status.highlight_sec) {
+              let sec = _this.status.highlight_sec
+              _this.highlightSpheresOff()
+              _this.highlightNodes(sec, 0)
+            }
+            if (_this.status.highlight_line) {
+              let sec = _this.status.highlight_line
+              _this.restoreLine()
+              _this.highlightLine('foo')
+            }
           }
         }
         _this.scene.render()
@@ -950,6 +1028,10 @@ export default {
       window.addEventListener('resize', function () {
         _this.engine.resize()
       })
+      this.highlightMaterial = new BABYLON.StandardMaterial("highMaterial", this.scene)
+      this.highlightMaterial.diffuseColor = new BABYLON.Color3(0, 1, 1)
+      this.highlightMaterial.alpha = 0.3
+      this.status.loaded = 1
     },
     loadCanvas () {
       // this.fetchAnalysisData()
