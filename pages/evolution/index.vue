@@ -552,7 +552,7 @@ export default {
     },
     testPost () {
       $.post(
-        `http://127.0.0.1:5000/postTest/`,
+        `http://127.0.0.1:5000/postTest2/`,
         // {see: 'this', and: 'thisother', num: 5}
         {
           network: this.network.name,
