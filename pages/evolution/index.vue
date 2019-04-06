@@ -136,7 +136,7 @@
     <v-text-field
       :label="'hubs'"
       :left="true"
-      v-model="hubs_perc"
+      v-model="hip_perc.h"
       type="number"
       min="0"
       max="100"
@@ -147,18 +147,19 @@
     <v-text-field
       :label="'intermediary'"
       :left="true"
-      v-model="int_perc"
+      v-model="hip_perc.i"
       type="number"
       min="0"
       max="100"
       v-on:input="percChange()"
+      :key="compKey"
     ></v-text-field>
     </v-flex>
     <v-flex xs2 ml-2>
     <v-text-field
       :label="'periphery'"
       :left="true"
-      v-model="per_perc"
+      v-model="hip_perc.p"
       type="number"
       min="0"
       max="100"
@@ -338,13 +339,18 @@ export default {
       newname: '',
       message_range: [0, 0],
       sec_methods: ['Erdös', 'Percentages'],
+      // sec_method: 'Percentages',
       sec_method: 'Erdös',
       window_size: 150,
       window_sep: 10,
       messages_second: 30,
       hubs_perc: 5,
       int_perc: 15,
-      per_perc: 80,
+      hip_perc: {
+        h: 5,
+        i: 15,
+        p: 80
+      },
       min_size: 0.01,
       size_inc: 0.003,
       status: {
@@ -357,7 +363,8 @@ export default {
         ysep: 0.2,
         alpha: 0.4
       },
-      network_data: {}
+      network_data: {},
+      compKey: 0
     }
   },
   methods: {
@@ -552,14 +559,20 @@ export default {
     },
     testPost () {
       $.post(
-        `http://127.0.0.1:5000/postTest2/`,
+        // `http://rfabbri.vicg.icmc.usp.br:5000/postTest2/`,
+        `http://127.0.0.1:5000/postTest3/`,
         // {see: 'this', and: 'thisother', num: 5}
         {
           network: this.network.name,
           sec_method: this.sec_method,
           message_range: this.message_range,
           window_size: this.window_size,
-          window_sep: this.window_sep
+          window_sep: this.window_sep,
+          hip_perc: [
+            this.hip_perc.h,
+            this.hip_perc.i,
+            this.hip_perc.p
+          ]
         }
       ).done( data => { 
         this.net_snapshots = data 
@@ -610,21 +623,24 @@ export default {
       this.sec_method = sec
     },
     percChange () {
-      let leftover = 100 - this.hubs_perc - this.int_perc
+      let leftover = 100 - this.hip_perc.h - this.hip_perc.i
       if (leftover >= 0) {
-        this.per_perc = leftover
+        this.hip_perc.p = leftover
       } else {
-        this.per_perc = 0
-        this.int_perc = 100 - this.hubs_perc
+        console.log('< 0 po')
+        this.hip_perc.p = 0
+        this.hip_perc.i = 100 - this.hip_perc.h
+        this.compKey += 1
+        // this.hip_perc.h = 100 - this.hip_perc.i
       }
     },
     percChangePer () {
-      let leftover = 100 - this.hubs_perc - this.per_perc
+      let leftover = 100 - this.hip_perc.h - this.hip_perc.p
       if (leftover >= 0) {
-        this.int_perc = leftover
+        this.hip_perc.i = leftover
       } else {
-        this.int_perc = 0
-        this.hubs_perc = 100 - this.per_perc
+        this.hip_perc.i = 0
+        this.hip_perc.h = 100 - this.hip_perc.p
       }
     },
     play_ () {

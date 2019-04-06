@@ -2,6 +2,9 @@ export default {
   // server : {
   //   port: 80
   // },
+  server: {
+    host: '0.0.0.0', // default: localhost
+  },
   modules: [
     '@nuxtjs/vuetify'
   ],
