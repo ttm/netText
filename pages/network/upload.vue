@@ -10,13 +10,8 @@
 </template>
 
 <script>
-import Dropzone from 'nuxt-dropzone'
-import 'nuxt-dropzone/dropzone.css'
 
 export default {
-  components: {
-    Dropzone
-  },
   data () {
     return {
       text: 'accepted formats: gml (gdf is being implemented) ',
@@ -30,6 +25,7 @@ export default {
       let file = e.target.files[0]
       console.log('raw', e, e.path[0].files[0].name)
       reader.readAsText(file)
+      let self = this
       reader.addEventListener('load', () => {
         console.log(reader)
         this.$store.dispatch('networks/create', {
@@ -44,10 +40,12 @@ export default {
           user: '5c51162561e2414b1f85ac0b'
         }).then((res) => {
           this.loading = false
+          this.text = 'file ' + e.path[0].files[0].name + 'loaded. Reload page to load more files'
         })
       })
     }
   }
 }
+// vim: ft=vue
 </script>
 

@@ -1,20 +1,15 @@
 <template>
-  <v-container justify-center
-      style="background:#FFFFFF">
-    <div>
+  <v-container justify-center>
       <h1>Analysis settings</h1>
-<v-container text-xs-center>
-<v-card flat dark>
-  <v-layout align-center justify-center row fill-height>
+<v-layout align-center justify-center row fill-height>
     <v-flex xs4 order-md2 order-xs2 center>
-    <p>Select network</p>
     <v-menu offset-y>
       <v-btn
         slot="activator"
         color="primary"
         dark
       >
-        {{ network ? network.filename : 'Select' }}
+        {{ network ? network.filename : 'Select network' }}
       </v-btn>
       <v-list>
         <v-list-tile
@@ -28,7 +23,7 @@
     </v-menu>
     </v-flex>
     <v-flex xs12 sm6 md3 order-md1 order-xs1>
-    <p>Select settings</p>
+    Load settings:
     <v-menu offset-y>
       <v-btn
         slot="activator"
@@ -56,14 +51,19 @@
       ></v-text-field>
       <v-btn v-if="name && name !== 'new'" color="success" @click="cloneSettings(set)">Clone settings</v-btn>
     </v-flex>
-  </v-layout>
-</v-card>
-</v-container>
-<v-container text-xs-center>
+</v-layout>
+<v-expansion-panel>
+  <v-expansion-panel-content>
+    <div slot="header">settings in general
+    <span v-if="analysis_set">nodes: {{network_data.nodes.length}},
+    edges: {{network_data.edges.length}},
+    messages/transactions: {{network_data.transactions.length}}</span>
+    </div>
+<div style="border:2px solid black; padding: 4px">
 <v-card flat dark>
   <v-layout align-center justify-center row fill-height>
-    <v-flex xs4 order-md1 order-xs1 center>
-    <p>Layout algorithm</p>
+    <v-flex xs2 order-md1 order-xs1 center>
+    Layout algorithm:
     <v-menu offset-y>
       <v-btn
         slot="activator"
@@ -83,15 +83,15 @@
       </v-list>
     </v-menu>
     </v-flex>
-    <v-flex xs4 order-md2 order-xs2>
-    <p>Dimensions of layout: {{ dimensions || 'null' }}</p>
+    <v-flex xs3 order-md2 order-xs2>
+    Dimensions of layout: {{ dimensions || 'null' }}
     <v-radio-group v-model="dimensions">
       <v-radio :label="'2'" :value="2"></v-radio>
       <v-radio :label="'3'" :value="3"></v-radio>
     </v-radio-group>
     </v-flex>
-    <v-flex xs4 order-md3 order-xs3>
-    <p> Draw links: {{ links ? 'yes' : 'no' }}</p>
+    <v-flex xs2 order-md3 order-xs3>
+    Draw links: {{ links ? 'yes' : 'no' }}
     <v-radio-group v-model="links">
       <v-radio :label="'Yes'" :value="true"></v-radio>
       <v-radio :label="'No'" :value="false"></v-radio>
@@ -99,12 +99,11 @@
     </v-flex>
   </v-layout>
 </v-card>
-</v-container>
-<v-container text-xs-center>
+<v-flex mt-1>
 <v-card flat dark>
-  <v-layout align-center justify-center row fill-height>
+  <v-layout align-center justify-center row fill-height pa-1>
     <v-flex xs4 order-md1 order-xs1 center>
-      <p>Coarsening method</p>
+      Coarsening method:
       <v-menu offset-y>
         <v-btn
           slot="activator"
@@ -136,12 +135,22 @@
     </v-flex>
   </v-layout>
 </v-card>
-</v-container>
-<v-container text-xs-center>
+</v-flex>
+</div>
+  </v-expansion-panel-content>
+</v-expansion-panel>
+<v-expansion-panel>
+  <v-expansion-panel-content>
+    <div slot="header">control
+    <span v-if="analysis_set">nodes: {{network_data.nodes.length}},
+    edges: {{network_data.edges.length}},
+    messages/transactions: {{network_data.transactions.length}}</span>
+    </div>
+<div style="border:2px solid black; padding: 4px">
 <v-card flat dark>
-  <v-layout align-center justify-center row fill-height>
-    <v-flex xs4 order-md1 order-xs1 center>
-      <p>Axis of coarsened networks</p>
+  <v-layout align-center justify-center row pa-1>
+    <v-flex xs5 order-md1 order-xs1 center>
+      Axis of coarsened networks:
         <v-menu offset-y>
           <v-btn
             slot="activator"
@@ -173,25 +182,9 @@
     </v-flex>
   </v-layout>
 </v-card>
-</v-container>
-<v-container text-xs-center>
-<v-card flat dark>
-  Histograms
-  <v-layout>
-    <v-container fluid>
-      <v-layout row wrap class="light--text">
-        <v-flex xs6>
-          <v-checkbox v-model="hist.degree" label="degree" value></v-checkbox>
-        </v-flex>
-        <v-flex xs6>
-          <v-checkbox v-model="hist.clust" label="clustering coefficient" value></v-checkbox>
-        </v-flex>
-      </v-layout>
-    </v-container>
-  </v-layout>
-</v-card>
-</v-container>
-    </div>
+</div>
+  </v-expansion-panel-content>
+</v-expansion-panel>
   </v-container>
 </template>
 
@@ -199,6 +192,7 @@
 export default {
   data () {
     return {
+      analysis_set: 0,
       layouts: [
         'circular',
         'fruch',
@@ -227,7 +221,7 @@ export default {
       ],
       networks: [],
       network: '',
-      name: '',
+      name: 'new',
       newname: '',
       settings: [],
       hist: {
@@ -281,5 +275,17 @@ export default {
 }
 </script>
 
-<style> *{ text-transform: none !important; } </style>
+<style>
+.v-input--selection-controls {
+    margin-top: 0px;
+  }
+.v-input--selection-controls:not(.v-input--hide-details) .v-input__slot {
+    margin-bottom: 0px;
+}
+.v-messages {
+    min-height: 2px;
+}
+*{ text-transform: none !important; }
+/* vim: set ft=vue: */
+</style>
 

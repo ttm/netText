@@ -1148,4 +1148,6 @@ export default {
   fill: none;
   stroke: steelblue;
 }
+*{ text-transform: none !important; }
+/* vim: set ft=vue: */
 </style>

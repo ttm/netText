@@ -109,5 +109,5 @@ export default {
     }
   }
 }
+// vim: ft=vue
 </script>
-
