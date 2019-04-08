@@ -31,7 +31,7 @@
         :degree="$refs.netsettings.hist.degree"
         :clust="$refs.netsettings.hist.clust"
       />
-<v-card flat dark center justify-center>
+<div style="border:1px solid black; padding: 4px">
   Histograms
   <v-layout>
       <v-layout row wrap class="light--text">
@@ -43,7 +43,7 @@
         </v-flex>
       </v-layout>
   </v-layout>
-</v-card>
+</div>
   </div>
 </template>
 

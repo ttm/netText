@@ -19,6 +19,9 @@
         >
           <v-list-tile-title color="primary">{{ net.filename }}</v-list-tile-title>
         </v-list-tile>
+        <v-list-tile>
+    <input id="selectFotos" type="file" @change="upload">
+        </v-list-tile>
       </v-list>
     </v-menu>
     </v-flex>
@@ -232,6 +235,32 @@ export default {
     // method, sep, axis
   },
   methods: {
+    upload (e) {
+      this.loading = true
+      let reader = new FileReader()
+      let file = e.target.files[0]
+      console.log('raw', e, e.path[0].files[0].name)
+      reader.readAsText(file)
+      let self = this
+      reader.addEventListener('load', () => {
+        console.log(reader)
+        this.$store.dispatch('networks/create', {
+          data: reader.result,
+          layer: 0,
+          coarsen_method: 'none',
+          uncoarsened_network: null,
+          title: 'a title',
+          description: 'a description',
+          filename: e.path[0].files[0].name,
+          // user: this.user._id
+          user: '5c51162561e2414b1f85ac0b'
+        }).then((res) => {
+          this.loading = false
+          this.text = 'file ' + e.path[0].files[0].name + 'loaded. Reload page to load more files'
+          this.findNetworks()
+        })
+      })
+    },
     findNetworks () {
       this.$store.dispatch('networks/find').then(() => {
         let networks_ = this.$store.getters['networks/list']
