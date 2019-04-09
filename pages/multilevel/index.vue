@@ -109,6 +109,8 @@ export default {
         this.$store.dispatch('ansettings/update', [set._id, tobj])
       }
     }
+  },
+  mounted () {
   }
 }
 // vim: ft=vue

@@ -34,12 +34,33 @@ export default {
       {},
       this.stablishScene
     )
+    let self = this
+    window.addEventListener('keypress', function (e) {
+      console.log(e, e.code)
+      if (e.code == 'KeyI') {
+        self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
+        let mmesh = self.pickResult.pickedMesh
+        window.mmesh = mmesh
+        if (mmesh && mmesh.mdata) {
+          let mdata = mmesh.mdata
+          self.textinfo.value += '\n'
+          self.textinfo.value += 'frame: ' + self.cur_net
+          self.textinfo.value += ', node: ' + mmesh.name
+          self.textinfo.value += ', degree: ' + mdata.degree + ', clust: ' + mdata.clust
+          self.textinfo.scrollTop = self.textinfo.scrollHeight
+        }
+      } else if (e.code == 'KeyS') {
+      }
+    })
+
+
   },
   methods: {
     stablishScene2 (network) {
       console.log('ok man', network)
     },
     stablishScene (network) {
+      window.mnet = network
       this.createScene(network)
 
       let selff = this
@@ -57,6 +78,7 @@ export default {
       // Add a camera to the scene and attach it to the canvas
       var camera = new BABYLON.ArcRotateCamera('Camera', Math.PI / 2, Math.PI / 2, 2, BABYLON.Vector3.Zero(), this.scene)
       camera.attachControl(this.canvas, true)
+      camera.wheelPrecision = 100
 
       // Add lights to the scene
       let ll = new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(0, 1, 0), this.scene)
@@ -74,6 +96,9 @@ export default {
           let node = nodes[i]
           let sphere = BABYLON.MeshBuilder.CreateSphere('sphere' + i, {diameter: 0.02}, this.scene)
           sphere.position = new BABYLON.Vector3(node[0], node[1], node[2] + j * 0.3)
+          sphere.nodeid = i
+          sphere.degree = networks[j].degrees[i]
+          sphere.clust = networks[j].clust[i]
           spheres.push(sphere)
         }
         let links = 1

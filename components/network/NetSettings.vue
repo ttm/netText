@@ -206,9 +206,9 @@ export default {
         'spring'
       ],
       layout: 'kamada',
-      dimensions: 2,
+      dimensions: 3,
       links: true,
-      layers: 5,
+      layers: 2,
       methods: [
         'kclicks',
         'label propagation',
