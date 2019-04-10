@@ -249,6 +249,21 @@
   </v-layout>
 </div>
   </div>
+    <v-snackbar
+      v-model="snackbar"
+      :multi-line="true"
+      :timeout="6000"
+      :top="true"
+    >
+      {{ snacktext }}
+      <v-btn
+        color="pink"
+        flat
+        @click="snackbar = false"
+      >
+        Close
+      </v-btn>
+    </v-snackbar>
 </span>
 </template>
 
@@ -277,6 +292,8 @@ export default {
   },
   data () {
     return {
+      snackbar: false,
+      snacktext: 'msnacktext',
       dialog: false,
       draw_net: false,
       draw_hist: false,
@@ -337,7 +354,7 @@ export default {
       } else {
         this.draw_net = true
         $.get(
-          `http://127.0.0.1:5000/netlevelsDB/${this.network._id}/${this.layout}/${this.dimensions}/${this.layers}/${methods[this.method]}/${this.separation}/${axis_[this.axis]}/`,
+          `http://127.0.0.1:5000/netlevelsDB/${this.network._id}/${this.layout}/${this.dimensions}/${this.layers}/${methods[this.method]}/${axis_[this.axis]}/`,
           {},
           this.stablishScene
         )
@@ -348,6 +365,10 @@ export default {
       this.engine = new BABYLON.Engine(this.canvas, true) // Generate the BABYLON 3D engine
 
       this.scene = new BABYLON.Scene(this.engine)
+      this.standard_material = new BABYLON.StandardMaterial("sMaterial", this.scene)
+      // this.standardMaterial.diffuseColor = new BABYLON.Color3(1, 1 - clust, 1 - clust)
+      this.highlight_material = new BABYLON.StandardMaterial("hMaterial", this.scene)
+      this.highlight_material.diffuseColor = new BABYLON.Color3(1, 0, 0)
 
       var camera = new BABYLON.ArcRotateCamera('Camera', Math.PI / 2, Math.PI / 2, 2, BABYLON.Vector3.Zero(), this.scene)
       camera.attachControl(this.canvas, true)
@@ -367,9 +388,14 @@ export default {
           let node = nodes[i]
           let sphere = BABYLON.MeshBuilder.CreateSphere('sphere' + i, {diameter: 0.02, updatable: 1}, this.scene)
           sphere.position = new BABYLON.Vector3(node[0], node[1], node[2] + j * this.separation)
-          sphere.nodeid = i
-          sphere.degree = networks[j].degrees[i]
-          sphere.clust = networks[j].clust[i]
+          sphere.material = this.standard_material
+          sphere.mdata = {
+            id: i,
+            layer: j,
+            degree: networks[j].degrees[i],
+            clust: networks[j].clust[i],
+            neighbors: []
+          }
           spheres[spheres.length - 1].push(sphere)
         }
         let links = 1
@@ -377,9 +403,12 @@ export default {
           for (let i = 0; i < edges.length; i++) {
             let pos1 = nodes[edges[i][0]]
             let pos2 = nodes[edges[i][1]]
+            spheres[spheres.length - 1][edges[i][0]].mdata.neighbors.push(edges[i][1])
+            spheres[spheres.length - 1][edges[i][1]].mdata.neighbors.push(edges[i][0])
             let pos1_ = new BABYLON.Vector3(pos1[0], pos1[1], pos1[2] + j * this.separation)
             let pos2_ = new BABYLON.Vector3(pos2[0], pos2[1], pos2[2] + j * this.separation)
             var line = BABYLON.MeshBuilder.CreateLines('line' + i, {points: [pos1_, pos2_], updatable: 1}, this.scene)
+            line.isPickable = false
             lines[lines.length - 1].push(line)
           }
         }
@@ -406,15 +435,31 @@ export default {
           self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
           let mmesh = self.pickResult.pickedMesh
           window.mmesh = mmesh
-          if (mmesh && mmesh.mdata) {
-            let mdata = mmesh.mdata
-            self.textinfo.value += '\n'
-            self.textinfo.value += 'frame: ' + self.cur_net
-            self.textinfo.value += ', node: ' + mmesh.name
-            self.textinfo.value += ', degree: ' + mdata.degree + ', clust: ' + mdata.clust
-            self.textinfo.scrollTop = self.textinfo.scrollHeight
-          }
+          self.snacktext = mmesh.mdata
+          self.snackbar = 1
         } else if (e.code == 'KeyS') {
+        } else if (e.code == 'KeyC') {
+          self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
+          let mmesh = self.pickResult.pickedMesh
+          window.mmesh = mmesh
+          // color the neighbors
+          if (self.colored) {
+            // restore usual colors on vertices
+            self.colored_nodes.ids.forEach( i => {
+              self.spheres[self.colored_nodes.layer][i].material = self.standard_material
+            })
+            self.colored = false
+            self.snackbar = 0
+          } else {
+            // make funny colors for neighbors
+            self.snacktext = mmesh.mdata.neighbors
+            self.snackbar = 1
+            mmesh.mdata.neighbors.forEach( i => {
+              self.spheres[mmesh.mdata.layer][i].material = self.highlight_material
+            })
+            self.colored_nodes = {ids: mmesh.mdata.neighbors, layer: mmesh.mdata.layer}
+            self.colored = true
+          }
         }
       })
     },
@@ -517,6 +562,7 @@ export default {
     }
   },
   mounted () {
+    window.__this = this
   },
   created () {
     this.findNetworks()
