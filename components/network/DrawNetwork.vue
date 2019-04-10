@@ -52,8 +52,6 @@ export default {
       } else if (e.code == 'KeyS') {
       }
     })
-
-
   },
   methods: {
     stablishScene2 (network) {
