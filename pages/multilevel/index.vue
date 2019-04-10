@@ -1,22 +1,44 @@
 <template>
   <div class="text-xs-left">
       <NetSettings ref="netsettings"/>
-      <v-btn
-        slot="activator"
-        color="green lighten-2"
-        dark
-        @click="renderNetwork()"
-      >
-        Render network
-      </v-btn>
-      <v-btn
-        slot="activator"
-        color="green lighten-2"
-        dark
-        @click="renderHistograms()"
-      >
-        Render histograms
-      </v-btn>
+      <v-layout row ml-4>
+        <v-btn
+          slot="activator"
+          color="green lighten-2"
+          dark
+          @click="renderNetwork()"
+        >
+          Render network
+        </v-btn>
+        <v-btn
+          slot="activator"
+          color="green lighten-2"
+          dark
+          @click="renderHistograms()"
+        >
+          Render histograms
+        </v-btn>
+        <v-flex class="pr-3">
+          <v-slider
+            v-model="separation"
+            :max="4"
+            :min="0"
+            :label="'separation'"
+            :step="0.01"
+            ma-0
+            pa-0
+          ></v-slider>
+        </v-flex>
+        <v-flex shrink style="width: 60px">
+          <v-text-field
+            v-model="separation"
+            class="mt-0"
+            hide-details
+            single-line
+            type="number"
+          ></v-text-field>
+        </v-flex>
+      </v-layout>
       <DrawNetworks v-if="draw_net" 
         :layout="$refs.netsettings.layout"
         :dimensions="$refs.netsettings.dimensions"
@@ -65,6 +87,7 @@ export default {
       dialog: false,
       draw_net: false,
       draw_hist: false,
+      separation: 0.3,
       hist: {
         degree: 0,
         clust: 0
