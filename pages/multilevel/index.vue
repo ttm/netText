@@ -127,16 +127,6 @@
         </v-list>
       </v-menu>
     </v-flex>
-    <v-flex xs4 order-md2 order-xs2 center>
-      <v-text-field
-        :label="'Layers'"
-        :left="true"
-        v-model="layers"
-        type="number"
-        style="width:80px"
-        min="0"
-      ></v-text-field>
-    </v-flex>
   </v-layout>
 </v-card>
 </v-flex>
@@ -229,6 +219,24 @@
             type="number"
           ></v-text-field>
         </v-flex>
+        <v-divider
+          class="mx-3"
+          inset
+          vertical
+        ></v-divider>
+        <v-flex>
+          <v-text-field
+            :label="'Layers'"
+            :left="true"
+            v-model="layers"
+            type="number"
+            style="width:80px"
+            min="1"
+            class="mt-0"
+            background-color="#aaffff"
+            onChange="altLayers(this)"
+          ></v-text-field>
+        </v-flex>
       </v-layout>
       <canvas id="renderCanvas" touch-action="none" v-if="draw_net"></canvas>
       <DrawHistograms v-if="draw_hist"
@@ -315,7 +323,7 @@ export default {
       layout: 'kamada',
       dimensions: 3,
       links: true,
-      layers: 2,
+      layers: 1,
       methods: [
         'kclicks',
         'label propagation',
@@ -354,7 +362,7 @@ export default {
       } else {
         this.draw_net = true
         $.get(
-          `http://127.0.0.1:5000/netlevelsDB/${this.network._id}/${this.layout}/${this.dimensions}/${this.layers}/${methods[this.method]}/${axis_[this.axis]}/`,
+          `http://127.0.0.1:5000/netlevelDB/${this.network._id}/${this.layout}/${this.dimensions}/0/${methods[this.method]}/${axis_[this.axis]}/`,
           {},
           this.stablishScene
         )
@@ -379,7 +387,7 @@ export default {
 
       let spheres = []
       let lines = []
-      let networks = network
+      let networks = [network]
       for (let j = 0; j < networks.length; j++) {
         let nodes = networks[j].nodes
         let edges = networks[j].edges
@@ -388,7 +396,7 @@ export default {
 
         for (let i = 0; i < nodes.length; i++) {
           let node = nodes[i]
-          let sphere = BABYLON.MeshBuilder.CreateSphere('sphere' + i, {diameter: 0.02, updatable: 1}, this.scene)
+          let sphere = BABYLON.MeshBuilder.CreateSphere(j + 'sphere' + i, {diameter: 0.02, updatable: 1}, this.scene)
           sphere.position = new BABYLON.Vector3(node[0], node[1], node[2] + j * this.separation)
           sphere.material = this.standard_material
           sphere.mdata = {
@@ -434,6 +442,7 @@ export default {
         selff.engine.resize()
       })
       this.mkKeyShortcuts()
+      this.nlayers = 1
     },
     mkKeyShortcuts () {
       let self = this
@@ -500,6 +509,88 @@ export default {
           }
         }
       })
+    },
+    altLayers (val) {
+      console.log(val, 'tval man')
+      this.nlayers_new = parseInt(val.value)
+      this.updateLayers()
+    },
+    updateLayers () {
+      if (this.networks.length < this.nlayers_new) {
+        // get networks and plot them
+        for (let i = this.networks.length + 1; i <= this.nlayers_new; i++) {
+          $.get(
+            `http://127.0.0.1:5000/netlevelDB/${this.network._id}/${this.layout}/${this.dimensions}/${i}/${methods[this.method]}/${axis_[this.axis]}/`,
+            {},
+            this.addLayer
+          )
+        }
+      } else {
+        // plot or remove layers as needed
+        this.updateLayersVisibility()
+      }
+    },
+    updateLayersVisibility () {
+      for (let j = 0; j < this.nlayers_new; j++) {
+        this.spheres[j].forEach( e => {
+          e.visibility = 1
+        })
+      }
+      for (let j = this.nlayers_new; j < this.networks.length; j++) {
+        this.spheres[j].forEach( e => {
+          e.visibility = 0
+        })
+      }
+      this.nlayers = this.nlayers_new
+    },
+    addLayer (network) {
+      this.networks.push(network)
+      let spheres = this.spheres
+      let lines = this.lines
+      let networks = this.networks
+      let nodes = network.nodes
+      let edges = network.edges
+
+      spheres.push([])
+      lines.push([])
+
+      let j = this.nlayers
+      for (let i = 0; i < nodes.length; i++) {
+        let node = nodes[i]
+        let sphere = BABYLON.MeshBuilder.CreateSphere(j + 'sphere' + i, {diameter: 0.02, updatable: 1}, this.scene)
+        sphere.position = new BABYLON.Vector3(node[0], node[1], node[2] + j * this.separation)
+        sphere.material = this.standard_material
+        sphere.mdata = {
+          id: i,
+          layer: j,
+          degree: networks[j].degrees[i],
+          clust: networks[j].clust[i],
+          children: networks[j].children[i],
+          neighbors: []
+        }
+        spheres[spheres.length - 1].push(sphere)
+        if (spheres.length > 1) {
+          sphere.mdata.children.forEach( child => {
+            spheres[spheres.length - 2][child].mdata.tparent = i
+          })
+        }
+      }
+      let links = 1
+      for (let i = 0; i < edges.length; i++) {
+        let pos1 = nodes[edges[i][0]]
+        let pos2 = nodes[edges[i][1]]
+        spheres[spheres.length - 1][edges[i][0]].mdata.neighbors.push(edges[i][1])
+        spheres[spheres.length - 1][edges[i][1]].mdata.neighbors.push(edges[i][0])
+        if (links === 1) {
+          let pos1_ = new BABYLON.Vector3(pos1[0], pos1[1], pos1[2] + j * this.separation)
+          let pos2_ = new BABYLON.Vector3(pos2[0], pos2[1], pos2[2] + j * this.separation)
+          var line = BABYLON.MeshBuilder.CreateLines('line' + i, {points: [pos1_, pos2_], updatable: 1}, this.scene)
+          line.isPickable = false
+          lines[lines.length - 1].push(line)
+        }
+      }
+
+      this.nlayers++
     },
     saveAnalysis () {
       this.dialog = false
@@ -603,6 +694,7 @@ export default {
   },
   mounted () {
     window.__this = this
+    window.altLayers = this.altLayers
   },
   created () {
     this.findNetworks()
