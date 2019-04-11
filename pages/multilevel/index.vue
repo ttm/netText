@@ -369,6 +369,8 @@ export default {
       // this.standardMaterial.diffuseColor = new BABYLON.Color3(1, 1 - clust, 1 - clust)
       this.highlight_material = new BABYLON.StandardMaterial("hMaterial", this.scene)
       this.highlight_material.diffuseColor = new BABYLON.Color3(1, 0, 0)
+      this.phighlight_material = new BABYLON.StandardMaterial("pMaterial", this.scene)
+      this.phighlight_material.diffuseColor = new BABYLON.Color3(0, 1, 0)
 
       var camera = new BABYLON.ArcRotateCamera('Camera', Math.PI / 2, Math.PI / 2, 2, BABYLON.Vector3.Zero(), this.scene)
       camera.attachControl(this.canvas, true)
@@ -394,17 +396,23 @@ export default {
             layer: j,
             degree: networks[j].degrees[i],
             clust: networks[j].clust[i],
+            children: networks[j].children[i],
             neighbors: []
           }
           spheres[spheres.length - 1].push(sphere)
+          if (spheres.length > 1) {
+            sphere.mdata.children.forEach( child => {
+              spheres[spheres.length - 2][child].mdata.tparent = i
+            })
+          }
         }
         let links = 1
-        if (links === 1) {
-          for (let i = 0; i < edges.length; i++) {
-            let pos1 = nodes[edges[i][0]]
-            let pos2 = nodes[edges[i][1]]
-            spheres[spheres.length - 1][edges[i][0]].mdata.neighbors.push(edges[i][1])
-            spheres[spheres.length - 1][edges[i][1]].mdata.neighbors.push(edges[i][0])
+        for (let i = 0; i < edges.length; i++) {
+          let pos1 = nodes[edges[i][0]]
+          let pos2 = nodes[edges[i][1]]
+          spheres[spheres.length - 1][edges[i][0]].mdata.neighbors.push(edges[i][1])
+          spheres[spheres.length - 1][edges[i][1]].mdata.neighbors.push(edges[i][0])
+          if (links === 1) {
             let pos1_ = new BABYLON.Vector3(pos1[0], pos1[1], pos1[2] + j * this.separation)
             let pos2_ = new BABYLON.Vector3(pos2[0], pos2[1], pos2[2] + j * this.separation)
             var line = BABYLON.MeshBuilder.CreateLines('line' + i, {points: [pos1_, pos2_], updatable: 1}, this.scene)
@@ -431,14 +439,14 @@ export default {
       let self = this
       window.addEventListener('keypress', function (e) {
         console.log(e, e.code)
-        if (e.code == 'KeyI') {
+        if (e.key == 'i') {
           self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
           let mmesh = self.pickResult.pickedMesh
           window.mmesh = mmesh
           self.snacktext = mmesh.mdata
           self.snackbar = 1
         } else if (e.code == 'KeyS') {
-        } else if (e.code == 'KeyC') {
+        } else if (e.key == 'c') {
           self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
           let mmesh = self.pickResult.pickedMesh
           window.mmesh = mmesh
@@ -459,6 +467,36 @@ export default {
             })
             self.colored_nodes = {ids: mmesh.mdata.neighbors, layer: mmesh.mdata.layer}
             self.colored = true
+          }
+        } else if (e.key == 'C') {
+          // color parents and children
+          self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
+          let mmesh = self.pickResult.pickedMesh
+          window.mmesh = mmesh
+          // color the neighbors
+          if (self.pcolored) {
+            // restore usual colors on vertices
+            self.pcolored_nodes.ids.forEach( i => {
+              self.spheres[self.pcolored_nodes.layer - 1][i].material = self.standard_material
+            })
+            if (!(typeof self.pcolored_nodes.tparent === 'undefined')) {
+              self.spheres[self.pcolored_nodes.layer + 1][self.pcolored_nodes.tparent].material = self.standard_material
+            }
+            self.pcolored = false
+            self.snackbar = 0
+          } else {
+            // make funny colors for neighbors
+            self.snacktext = mmesh.mdata.children
+            self.snackbar = 1
+            mmesh.mdata.children.forEach( i => {
+              self.spheres[mmesh.mdata.layer - 1][i].material = self.phighlight_material
+            })
+            self.pcolored_nodes = {ids: mmesh.mdata.children, layer: mmesh.mdata.layer}
+            if (!(typeof mmesh.mdata.tparent === 'undefined')) {
+              self.spheres[mmesh.mdata.layer + 1][mmesh.mdata.tparent].material = self.phighlight_material
+              self.pcolored_nodes.tparent = mmesh.mdata.tparent
+            }
+            self.pcolored = true
           }
         }
       })
@@ -520,6 +558,8 @@ export default {
       this.$store.dispatch('ansettings/find').then(() => {
         this.settings = this.$store.getters['ansettings/list']
         this.settings.push({name: 'new'})
+        this.loadSettings(this.settings[0])
+        this.renderNetwork()
       })
     },
     loadSettings (set) {
