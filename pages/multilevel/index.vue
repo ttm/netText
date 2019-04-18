@@ -300,6 +300,7 @@ export default {
   },
   data () {
     return {
+      diameter: 0.06,
       snackbar: false,
       snacktext: 'msnacktext',
       dialog: false,
@@ -379,6 +380,8 @@ export default {
       this.highlight_material.diffuseColor = new BABYLON.Color3(1, 0, 0)
       this.phighlight_material = new BABYLON.StandardMaterial("pMaterial", this.scene)
       this.phighlight_material.diffuseColor = new BABYLON.Color3(0, 1, 0)
+      this.mhighlight_material = new BABYLON.StandardMaterial("mMaterial", this.scene)
+      this.mhighlight_material.diffuseColor = new BABYLON.Color3(0, 0, 1)
 
       var camera = new BABYLON.ArcRotateCamera('Camera', Math.PI / 2, Math.PI / 2, 2, BABYLON.Vector3.Zero(), this.scene)
       camera.attachControl(this.canvas, true)
@@ -396,7 +399,7 @@ export default {
 
         for (let i = 0; i < nodes.length; i++) {
           let node = nodes[i]
-          let sphere = BABYLON.MeshBuilder.CreateSphere(j + 'sphere' + i, {diameter: 0.02, updatable: 1}, this.scene)
+          let sphere = BABYLON.MeshBuilder.CreateSphere(j + 'sphere' + i, {diameter: this.diameter, updatable: 1}, this.scene)
           sphere.position = new BABYLON.Vector3(node[0], node[1], node[2] + j * this.separation)
           sphere.material = this.standard_material
           sphere.mdata = {
@@ -507,6 +510,37 @@ export default {
             }
             self.pcolored = true
           }
+        } else if (e.key === 'm') {
+          // place marker on node to guide coarsening
+          self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
+          let mmesh = self.pickResult.pickedMesh
+          window.mmesh = mmesh
+          if (!mmesh.mdata.coarsening_pivot) {
+            mmesh.mdata.coarsening_pivot = 1
+          } else {
+            delete mmesh.mdata.coarsening_pivot
+          }
+        } else if (e.key === 'M') {
+          if (self.mcolored) {
+            self.mcolored_nodes.forEach( n => {
+              self.spheres[n.layer][n._id].material = self.standard_material
+            })
+            delete self.mcolored_nodes
+            self.mcolored = 0
+          } else {
+            self.mcolored_nodes = []
+            for (let j = 0; j < self.spheres.length; j++) {
+              for (let i = 0; i < self.spheres[j].length; i++) {
+                if (self.spheres[j][i].mdata.coarsening_pivot) {
+                  self.spheres[j][i].material = self.mhighlight_material
+                  self.mcolored_nodes.push({
+                    layer: j, _id: i
+                  })
+                }
+              }
+            }
+            self.mcolored = 1
+          }
         }
       })
     },
@@ -520,7 +554,7 @@ export default {
         // get networks and plot them
         for (let i = this.networks.length + 1; i <= this.nlayers_new; i++) {
           $.get(
-            `http://127.0.0.1:5000/netlevelDB/${this.network._id}/${this.layout}/${this.dimensions}/${i}/${methods[this.method]}/${axis_[this.axis]}/`,
+            `http://127.0.0.1:5000/netlevelDB/${this.network._id}/${this.layout}/${this.dimensions}/${i - 1}/${methods[this.method]}/${axis_[this.axis]}/`,
             {},
             this.addLayer
           )
@@ -554,11 +588,12 @@ export default {
       spheres.push([])
       lines.push([])
 
-      let j = this.nlayers
+      let j_ = this.nlayers
+      let j = j_
       for (let i = 0; i < nodes.length; i++) {
         let node = nodes[i]
-        let sphere = BABYLON.MeshBuilder.CreateSphere(j + 'sphere' + i, {diameter: 0.02, updatable: 1}, this.scene)
-        sphere.position = new BABYLON.Vector3(node[0], node[1], node[2] + j * this.separation)
+        let sphere = BABYLON.MeshBuilder.CreateSphere(j + 'sphere' + i, {diameter: this.diameter, updatable: 1}, this.scene)
+        sphere.position = new BABYLON.Vector3(node[0], node[1], node[2] + j_ * this.separation)
         sphere.material = this.standard_material
         sphere.mdata = {
           id: i,
@@ -594,23 +629,24 @@ export default {
     },
     saveAnalysis () {
       this.dialog = false
-      let set = this.$refs.netsettings
-      let aname = set.newname ? set.newname : set.name
+      // let set = this.$refs.netsettings
+      let aname = this.newname ? this.newname : this.name
       let tobj = {
-        layout: set.layout,
-        dimensions: set.dimensions,
-        links: set.links,
-        layers: set.layers,
-        method: set.method,
-        separation: set.separation,
-        network: set.network._id,
+        layout: this.layout,
+        dimensions: this.dimensions,
+        links: this.links,
+        // layers: 1,
+        method: this.method,
+        separation: this.separation,
+        network: this.network._id,
         name: aname,
-        axis: set.axis
+        axis: this.axis
       }
-      if (set.newname) {
+      if (this.newname) {
         this.$store.dispatch('ansettings/create', tobj)
       } else {
-        this.$store.dispatch('ansettings/update', [set._id, tobj])
+        // pensar como resolver esse
+        this.$store.dispatch('ansettings/update', [this._id, tobj])
       }
     },
     upload (e) {
@@ -659,7 +695,8 @@ export default {
       this.layout = set.layout
       this.dimensions = set.dimensions
       this.links = set.links
-      this.layers = set.layers
+      // this.layers = set.layers
+      this.layers = 1
       this.method = set.method
       this.separations = set.separation
       this.axis = set.axis
@@ -714,8 +751,10 @@ html, body {
 }
 
 #renderCanvas {
-  width: 100%;
-  height: 100%;
+  /* width: 100%; */
+  /* height: 100%; */
+  width:  60%;
+  height: 60%;
   touch-action: none;
 }
 .v-input--selection-controls {
