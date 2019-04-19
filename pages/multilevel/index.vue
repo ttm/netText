@@ -240,14 +240,14 @@
       </v-layout>
       <canvas id="renderCanvas" touch-action="none" v-if="draw_net"></canvas>
 <div style="border:1px solid black; padding: 4px">
-  Histograms
+  <v-subheader>Histograms</v-subheader>
   <v-layout>
       <v-layout row wrap class="light--text">
         <v-flex xs6>
-          <v-checkbox v-model="hist.degree" label="degree" value @change="degreeHist($event)"></v-checkbox>
+          Degree
         </v-flex>
         <v-flex xs6>
-          <v-checkbox v-model="hist.clust" label="clustering coefficient" value></v-checkbox>
+          Clustering coefficient
         </v-flex>
       </v-layout>
   </v-layout>
@@ -362,64 +362,121 @@ export default {
         this.draw_hist = true
       }
     },
-    degreeHist(e) {
-      if (e) {
-        let h = d3.histogram()
-        let bins = h(this.networks[0].degrees)
+    clustHist (layer) {
+      let h = d3.histogram()
+      let bins = h(this.networks[layer].clust)
 
-        let margin = {top: 20, right: 20, bottom: 30, left: 40}
-        let height = this.height || this.$vuetify.breakpoint.height
-        height -= margin.top + margin.bottom
-        let width = this.width || this.$vuetify.breakpoint.width
-        width /= 2
-        let vb = -width / 2 + ' ' + -height / 2 + ' ' + width + ' ' + height
+      let margin = {top: 20, right: 20, bottom: 30, left: 40}
+      // let height = this.height || this.$vuetify.breakpoint.height
+      let height_ = 200
+      let height = height_ - ( margin.top + margin.bottom )
+      let width = this.width || this.$vuetify.breakpoint.width
+      width /= 2
+      let vb = -width / 2 + ' ' + -height / 2 + ' ' + width + ' ' + height
 
-        let x = d3.scaleLinear().rangeRound([0, width])
-        let y = d3.scaleLinear().rangeRound([height, 0])
+      let x = d3.scaleLinear().rangeRound([0, width/2])
+      let y = d3.scaleLinear().rangeRound([height, 0])
 
-        let self = this
-        x.domain([
-          Math.min(...self.networks[0].degrees),
-          Math.max(...self.networks[0].degrees)
-        ])
-        y.domain([0, d3.max(bins, function(d) { return d.length; })])
+      let self = this
+      x.domain([
+        Math.min(...self.networks[layer].clust),
+        Math.max(...self.networks[layer].clust)
+      ])
+      y.domain([0, d3.max(bins, function(d) { return d.length; })])
 
-        let svg = d3.select('#degreehist').append('svg')
-          .attr('width', '50%')
-          .attr('height', height)
-        //  .attr('viewBox', vb)
+      let svg = d3.select('#clusthist').append('svg')
+        .attr('id', 'clust-' + layer)
+        .attr('width', width)
+        .attr('height', height_)
+      //  .attr('viewBox', vb)
 
-        let g = svg.append("g")
-          .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+      let g = svg.append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
 
-        g.append("g")
-            .attr("class", "axis axis--x")
-            .attr("transform", "translate(0," + height + ")")
-            .call(d3.axisBottom(x))
+      g.append("g")
+          .attr("class", "axis axis--x")
+          .attr("transform", "translate(0," + height + ")")
+          .call(d3.axisBottom(x))
 
-        g.append("g")
-            .attr("class", "axis axis--y")
-            .call(d3.axisLeft(y).ticks(10, "%"))
-          .append("text")
-            .attr("transform", "rotate(-90)")
-            .attr("y", 6)
-            .attr("dy", "0.71em")
-            .attr("text-anchor", "end")
-            .text("Frequency")
+      g.append("g")
+          .attr("class", "axis axis--y")
+          .call(d3.axisLeft(y).ticks(10))
+        .append("text")
+          .attr("transform", "rotate(-90)")
+          .attr("y", 6)
+          .attr("dy", "0.71em")
+          .attr("text-anchor", "end")
+          .text("Frequency")
 
-        g.selectAll(".bar")
-          .data(bins)
-          .enter().append("rect")
-            .attr("class", "bar")
-            .attr("x", function(d) { return x(d.x0); })
-            .attr("y", function(d) { return y(d.length); })
-            .attr("width", function(d) { return x(d.x1) - x(d.x0) })
-            .attr("height", function(d) { return height - y(d.length); });
-        this.bins = bins
-        this.xx = x
-        this.width_ = width
-      } else {
-      }
+      g.selectAll(".bar")
+        .data(bins)
+        .enter().append("rect")
+          .attr("class", "bar")
+          .attr("x", function(d) { return x(d.x0); })
+          .attr("y", function(d) { return y(d.length); })
+          .attr("width", function(d) { return x(d.x1) - x(d.x0) })
+          .attr("height", function(d) { return height - y(d.length); })
+      this.bins = bins
+      this.xx = x
+      this.width_ = width
+    },
+    degreeHist (layer) {
+      let h = d3.histogram()
+      let bins = h(this.networks[layer].degrees)
+
+      let margin = {top: 20, right: 20, bottom: 30, left: 40}
+      // let height = this.height || this.$vuetify.breakpoint.height
+      let height_ = 200
+      let height = height_ - ( margin.top + margin.bottom )
+      let width = this.width || this.$vuetify.breakpoint.width
+      width /= 2
+      let vb = -width / 2 + ' ' + -height / 2 + ' ' + width + ' ' + height
+
+      let x = d3.scaleLinear().rangeRound([0, width/2])
+      let y = d3.scaleLinear().rangeRound([height, 0])
+
+      let self = this
+      x.domain([
+        Math.min(...self.networks[layer].degrees),
+        Math.max(...self.networks[layer].degrees)
+      ])
+      y.domain([0, d3.max(bins, function(d) { return d.length; })])
+
+      let svg = d3.select('#degreehist').append('svg')
+        .attr('id', 'degree-' + layer)
+        .attr('width', width)
+        .attr('height', height_)
+      //  .attr('viewBox', vb)
+
+      let g = svg.append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+
+      g.append("g")
+          .attr("class", "axis axis--x")
+          .attr("transform", "translate(0," + height + ")")
+          .call(d3.axisBottom(x))
+
+      g.append("g")
+          .attr("class", "axis axis--y")
+          .call(d3.axisLeft(y).ticks(10))
+        .append("text")
+          .attr("transform", "rotate(-90)")
+          .attr("y", 6)
+          .attr("dy", "0.71em")
+          .attr("text-anchor", "end")
+          .text("Frequency")
+
+      g.selectAll(".bar")
+        .data(bins)
+        .enter().append("rect")
+          .attr("class", "bar")
+          .attr("x", function(d) { return x(d.x0); })
+          .attr("y", function(d) { return y(d.length); })
+          .attr("width", function(d) { return x(d.x1) - x(d.x0) })
+          .attr("height", function(d) { return height - y(d.length); })
+      this.bins = bins
+      this.xx = x
+      this.width_ = width
     },
     renderNetwork () {
       if (this.draw_net) {
@@ -510,6 +567,8 @@ export default {
       })
       this.mkKeyShortcuts()
       this.nlayers = 1
+      this.degreeHist(0)
+      this.clustHist(0)
     },
     mkKeyShortcuts () {
       let self = this
@@ -633,11 +692,19 @@ export default {
         this.spheres[j].forEach( e => {
           e.visibility = 1
         })
+        d3.select('#clust-' + j)
+          .style('display', 'inline')
+        d3.select('#degree-' + j)
+          .style('display', 'inline')
       }
       for (let j = this.nlayers_new; j < this.networks.length; j++) {
         this.spheres[j].forEach( e => {
-          e.visibility = 0
+          e.display = 0
         })
+        d3.select('#clust-' + j)
+          .style('display', 'none')
+        d3.select('#degree-' + j)
+          .style('display', 'none')
       }
       this.nlayers = this.nlayers_new
     },
@@ -689,6 +756,8 @@ export default {
         }
       }
 
+      this.degreeHist(this.nlayers)
+      this.clustHist(this.nlayers)
       this.nlayers++
     },
     saveAnalysis () {
