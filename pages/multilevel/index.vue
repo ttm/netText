@@ -239,22 +239,28 @@
         </v-flex>
       </v-layout>
       <canvas id="renderCanvas" touch-action="none" v-if="draw_net"></canvas>
-      <DrawHistograms v-if="draw_hist"
-        :degree="$refs.netsettings.hist.degree"
-        :clust="$refs.netsettings.hist.clust"
-      />
 <div style="border:1px solid black; padding: 4px">
   Histograms
   <v-layout>
       <v-layout row wrap class="light--text">
         <v-flex xs6>
-          <v-checkbox v-model="hist.degree" label="degree" value></v-checkbox>
+          <v-checkbox v-model="hist.degree" label="degree" value @change="degreeHist($event)"></v-checkbox>
         </v-flex>
         <v-flex xs6>
           <v-checkbox v-model="hist.clust" label="clustering coefficient" value></v-checkbox>
         </v-flex>
       </v-layout>
   </v-layout>
+  <v-container grid-list-md text-xs-center>
+    <v-layout row wrap>
+      <v-flex :key="61" xs6>
+        <div id="degreehist"></div>
+      </v-flex>
+      <v-flex :key="62" xs6>
+        <div id="clusthist"></div>
+      </v-flex>
+    </v-layout>
+  </v-container>
 </div>
   </div>
     <v-snackbar
@@ -278,9 +284,9 @@
 <script>
 import * as BABYLON from 'babylonjs'
 import $ from 'jquery'
+import * as d3 from 'd3'
 
 import NetSettings from '~/components/network/NetSettings'
-import DrawHistograms from '~/components/network/DrawHistograms'
 
 const methods = {
   'kclicks': 'kclick',
@@ -296,7 +302,6 @@ const axis_ = {
 export default {
   components: {
     NetSettings,
-    DrawHistograms
   },
   data () {
     return {
@@ -355,6 +360,65 @@ export default {
         this.draw_hist = false
       } else {
         this.draw_hist = true
+      }
+    },
+    degreeHist(e) {
+      if (e) {
+        let h = d3.histogram()
+        let bins = h(this.networks[0].degrees)
+
+        let margin = {top: 20, right: 20, bottom: 30, left: 40}
+        let height = this.height || this.$vuetify.breakpoint.height
+        height -= margin.top + margin.bottom
+        let width = this.width || this.$vuetify.breakpoint.width
+        width /= 2
+        let vb = -width / 2 + ' ' + -height / 2 + ' ' + width + ' ' + height
+
+        let x = d3.scaleLinear().rangeRound([0, width])
+        let y = d3.scaleLinear().rangeRound([height, 0])
+
+        let self = this
+        x.domain([
+          Math.min(...self.networks[0].degrees),
+          Math.max(...self.networks[0].degrees)
+        ])
+        y.domain([0, d3.max(bins, function(d) { return d.length; })])
+
+        let svg = d3.select('#degreehist').append('svg')
+          .attr('width', '50%')
+          .attr('height', height)
+        //  .attr('viewBox', vb)
+
+        let g = svg.append("g")
+          .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+
+        g.append("g")
+            .attr("class", "axis axis--x")
+            .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisBottom(x))
+
+        g.append("g")
+            .attr("class", "axis axis--y")
+            .call(d3.axisLeft(y).ticks(10, "%"))
+          .append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("y", 6)
+            .attr("dy", "0.71em")
+            .attr("text-anchor", "end")
+            .text("Frequency")
+
+        g.selectAll(".bar")
+          .data(bins)
+          .enter().append("rect")
+            .attr("class", "bar")
+            .attr("x", function(d) { return x(d.x0); })
+            .attr("y", function(d) { return y(d.length); })
+            .attr("width", function(d) { return x(d.x1) - x(d.x0) })
+            .attr("height", function(d) { return height - y(d.length); });
+        this.bins = bins
+        this.xx = x
+        this.width_ = width
+      } else {
       }
     },
     renderNetwork () {
@@ -732,6 +796,7 @@ export default {
   mounted () {
     window.__this = this
     window.altLayers = this.altLayers
+    window.md3 = d3
   },
   created () {
     this.findNetworks()
@@ -767,5 +832,16 @@ html, body {
     min-height: 2px;
 }
 *{ text-transform: none !important; }
+.bar {
+  fill: steelblue;
+}
+
+.bar:hover {
+  fill: brown;
+}
+
+.axis--x path {
+  display: none;
+}
 /* vim: set ft=vue: */
 </style>

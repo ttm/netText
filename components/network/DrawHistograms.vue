@@ -38,7 +38,6 @@ export default {
   },
   props: ['degree', 'clust'],
   mounted () {
-    console.log('ismounted')
     this.createData()
     this.mkHist('degree')
     this.mkHist('clust')
