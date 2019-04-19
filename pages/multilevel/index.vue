@@ -379,7 +379,7 @@ export default {
       }
     },
     clustHist (layer) {
-      let h = d3.histogram()
+      let h = d3.histogram().thresholds(this.nbins)
       let bins = h(this.networks[layer].clust)
 
       let margin = {top: 20, right: 20, bottom: 30, left: 40}
@@ -418,17 +418,19 @@ export default {
           .attr("transform", "translate(0," + height + ")")
           .call(d3.axisBottom(x))
 
+      let y_ = this.isfreq ? yy : y
+      let text_ = this.isfreq ? 'Percentage' : 'Count'
       let text = g.append("g")
           .attr("class", "axis axis--y")
-          .attr("id", "clustlabel-y-" + this.nlayers)
-          .call(d3.axisLeft(y).ticks(10))
+          .attr("id", "clustlabel-y-" + layer)
+          .call(d3.axisLeft(y_).ticks(10))
         .append("text")
           .attr("class", "alabel")
           .attr("transform", "rotate(-90)")
           .attr("y", -36)
           .attr("dy", "0.71em")
           .attr("text-anchor", "end")
-          .text("Count")
+          .text(text_)
       this.clusty.push(y)
       this.clustyy.push(yy)
 
@@ -445,7 +447,8 @@ export default {
       this.width_ = width
     },
     degreeHist (layer) {
-      let h = d3.histogram()
+      let self = this
+      let h = d3.histogram().thresholds(self.nbins)
       let bins = h(this.networks[layer].degrees)
 
       let margin = {top: 20, right: 20, bottom: 30, left: 40}
@@ -460,7 +463,6 @@ export default {
       let y = d3.scaleLinear().rangeRound([height, 0])
       let yy = d3.scaleLinear().rangeRound([height, 0])
 
-      let self = this
       x.domain([
         Math.min(...self.networks[layer].degrees),
         Math.max(...self.networks[layer].degrees)
@@ -484,17 +486,20 @@ export default {
           .attr("transform", "translate(0," + height + ")")
           .call(d3.axisBottom(x))
 
+      console.log('isfreq', this.isfreq)
+      let y_ = this.isfreq ? yy : y
+      let text_ = this.isfreq ? 'Percentage' : 'Count'
       g.append("g")
           .attr("class", "axis axis--y")
-          .attr("id", "degreelabel-y-" + this.nlayers)
-          .call(d3.axisLeft(y).ticks(10))
+          .attr("id", "degreelabel-y-" + layer)
+          .call(d3.axisLeft(y_).ticks(10))
         .append("text")
           .attr("class", "alabel")
           .attr("transform", "rotate(-90)")
           .attr("y", -36)
           .attr("dy", "0.71em")
           .attr("text-anchor", "end")
-          .text("Count")
+          .text(text_)
       this.degreey.push(y)
       this.degreeyy.push(yy)
 
@@ -603,11 +608,28 @@ export default {
       this.clustHist(0)
       this.nlayers = 1
     },
+    nBins (up) {
+      if (up) {
+        this.nbins++
+      } else {
+        this.nbins--
+      }
+      d3.selectAll('svg').remove()
+      this.degreey = []
+      this.degreeyy = []
+      this.clusty = []
+      this.clustyy = []
+      console.log(this.nbins)
+      for (let j = 0; j < this.nlayers; j++) {
+        this.clustHist(j)
+        this.degreeHist(j)
+      }
+    },
     mkKeyShortcuts () {
       let self = this
       window.addEventListener('keypress', function (e) {
         console.log(e, e.key)
-        // i [ ] c C m M f
+        // i n N c C m M f b B
         if (e.key == 'i') {
           self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
           let mmesh = self.pickResult.pickedMesh
@@ -615,7 +637,7 @@ export default {
           self.snacktext = mmesh.mdata
           self.snackbar = 1
         } else if (e.key == 'f') {
-          if (this.isfreq) {
+          if (self.isfreq) {
             d3.selectAll('.alabel').text('Count')
             for (let j = 0; j < self.nlayers; j++) {
               d3.select('#degreelabel-y-' + j)
@@ -623,7 +645,7 @@ export default {
               d3.select('#clustlabel-y-' + j)
                 .call(d3.axisLeft(self.clusty[j]).ticks(10))
             }
-            delete this.isfreq
+            delete self.isfreq
           } else {
             d3.selectAll('.alabel').text('Percentage')
             for (let j = 0; j < self.nlayers; j++) {
@@ -632,12 +654,18 @@ export default {
               d3.select('#clustlabel-y-' + j)
                 .call(d3.axisLeft(self.clustyy[j]).ticks(10))
             }
-            this.isfreq = 1
+            self.isfreq = 1
           }
-        } else if (e.key == '[') {
+        } else if (e.key == 'b') {
+          // more bins in histograms
+          self.nBins(1)
+        } else if (e.key == 'B') {
+          // less bins in histograms
+          self.nBins(0)
+        } else if (e.key == 'N') {
           // make nodes smaller
           self.updateNodeSizes(0)
-        } else if (e.key == ']') {
+        } else if (e.key == 'n') {
           // make nodes bigger
           self.updateNodeSizes(1)
         } else if (e.key == 'c') {
@@ -727,7 +755,6 @@ export default {
       })
     },
     altLayers (val) {
-      console.log(val, 'tval man')
       this.nlayers_new = parseInt(val.value)
       this.updateLayers()
     },
@@ -929,6 +956,7 @@ export default {
     this.degreeyy = []
     this.clusty = []
     this.clustyy = []
+    this.nbins = 10
   },
   created () {
     this.findNetworks()
