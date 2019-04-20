@@ -354,6 +354,90 @@ export default {
     }
   },
   methods: {
+    colorBars (mmesh, highlight) {
+      if (highlight) {
+        var deg = mmesh.mdata.degree
+        var clust = mmesh.mdata.clust
+      }
+      let self = this
+      d3.selectAll('.barC').style('fill', function(d, i) {
+        if (i === self.nbins - 1) {
+          var test = function (x) {
+            if (x >= d.x0 && x <= d.x1) {
+              return true
+            } else {
+              return false
+            }
+          }
+        } else {
+          var test = function (x) {
+            if (x >= d.x0 && x <= d.x1) {
+              return true
+            } else {
+              return false
+            }
+          }
+        }
+        if (highlight && (this.layer === mmesh.mdata.layer) && test(clust)) {
+          return '#00ffff'
+        } else {
+          return null
+        }
+      })
+      d3.selectAll('.barD').style('fill', function(d, i) {
+        if (i === self.nbins - 1) {
+          var test = function (x) {
+            if (x >= d.x0 && x <= d.x1) {
+              return true
+            } else {
+              return false
+            }
+          }
+        } else {
+          var test = function (x) {
+            if (x >= d.x0 && x <= d.x1) {
+              return true
+            } else {
+              return false
+            }
+          }
+        }
+        if (highlight && (this.layer === mmesh.mdata.layer) && test(deg)) {
+          return '#00ffff'
+        } else {
+          return null
+        }
+      })
+    },
+    colorNodes (mtype, layer, bin, i, highlight) {
+      if (highlight) {
+        var material = this.chighlight_material
+      } else {
+        var material = this.standard_material
+      }
+      if (i === this.nbins - 1) {
+        var test = function (x, x0, x1) {
+          if (x >= x0 && x <= x1) {
+            return true
+          } else {
+            return false
+          }
+        }
+      } else {
+        var test = function (x, x0, x1) {
+          if (x >= x0 && x <= x1) {
+            return true
+          } else {
+            return false
+          }
+        }
+      }
+      for (let i = 0; i < this.networks[layer].nodes.length; i++) {
+        if (test(this.networks[layer][mtype][i], bin.x0, bin.x1)) {
+          this.spheres[layer][i].material = material
+        }
+      }
+    },
     updateNodeSizes (up) {
       let quant = 0
       if (up) {
@@ -441,14 +525,26 @@ export default {
       this.clusty.push(y)
       this.clustyy.push(yy)
 
-      g.selectAll(".bar")
+      g.selectAll(".barC")
         .data(bins)
         .enter().append("rect")
-          .attr("class", "bar")
-          .attr("x", function(d) { return x(d.x0); })
+          .attr("class", "barC")
+          .attr("x", function(d) { this.layer = layer; return x(d.x0); })
           .attr("y", function(d) { return y(d.length); })
           .attr("width", function(d) { return x(d.x1) - x(d.x0) })
           .attr("height", function(d) { return height - y(d.length); })
+          .on('click', function (d, i) {
+            if (this.colored) {
+              self.colorNodes('clust', layer, d, i, 0)
+              d3.select(this).style('fill', null)
+              delete this.colored
+            } else {
+              console.log(d, i)
+              self.colorNodes('clust', layer, d, i, 1)
+              d3.select(this).style('fill', 'yellow')
+              this.colored = 1
+            }
+          })
       this.bins = bins
       this.xx = x
       this.width_ = width
@@ -517,14 +613,26 @@ export default {
       this.degreey.push(y)
       this.degreeyy.push(yy)
 
-      g.selectAll(".bar")
+      g.selectAll(".barD")
         .data(bins)
         .enter().append("rect")
-          .attr("class", "bar")
-          .attr("x", function(d) { return x(d.x0); })
+          .attr("class", "barD")
+          .attr("x", function(d) { this.layer = layer; return x(d.x0); })
           .attr("y", function(d) { return y(d.length); })
           .attr("width", function(d) { return x(d.x1) - x(d.x0) })
           .attr("height", function(d) { return height - y(d.length); })
+          .on('click', function (d, i) {
+            if (this.colored) {
+              self.colorNodes('degrees', layer, d, i, 0)
+              d3.select(this).style('fill', null)
+              delete this.colored
+            } else {
+              console.log(d, i)
+              self.colorNodes('degrees', layer, d, i, 1)
+              d3.select(this).style('fill', 'yellow')
+              this.colored = 1
+            }
+          })
       this.bins = bins
       this.xx = x
       this.width_ = width
@@ -554,6 +662,10 @@ export default {
       this.phighlight_material.diffuseColor = new BABYLON.Color3(0, 1, 0)
       this.mhighlight_material = new BABYLON.StandardMaterial("mMaterial", this.scene)
       this.mhighlight_material.diffuseColor = new BABYLON.Color3(0, 0, 1)
+      this.chighlight_material = new BABYLON.StandardMaterial("cMaterial", this.scene)
+      this.chighlight_material.diffuseColor = new BABYLON.Color3(1, 1, 0)
+      this.chighlight2_material = new BABYLON.StandardMaterial("cMaterial2", this.scene)
+      this.chighlight2_material.diffuseColor = new BABYLON.Color3(0, 1, 1)
 
       var camera = new BABYLON.ArcRotateCamera('Camera', Math.PI / 2, Math.PI / 2, 2, BABYLON.Vector3.Zero(), this.scene)
       camera.attachControl(this.canvas, true)
@@ -643,7 +755,7 @@ export default {
       let self = this
       window.addEventListener('keypress', function (e) {
         console.log(e, e.key)
-        // i n N c C m M f b B l L
+        // i n N c C m M f b B l L e E
         if (e.key == 'i') {
           self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
           let mmesh = self.pickResult.pickedMesh
@@ -670,6 +782,20 @@ export default {
             }
             self.isfreq = 1
           }
+        } else if (e.key == 'e') {
+          self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
+          let mmesh = self.pickResult.pickedMesh
+          self.colorBars(mmesh, 1)
+          mmesh.material = self.chighlight2_material
+          if (self.chighmesh) {
+            self.chighmesh.material = self.standard_material
+          }
+          self.chighmesh = mmesh
+        } else if (e.key == 'E') {
+          if (self.chighmesh) {
+            self.chighmesh.material = self.standard_material
+          }
+          self.colorBars({}, 0)
         } else if (e.key == 'l') {
           // add layer
           self.layers++
@@ -1016,13 +1142,21 @@ html, body {
     min-height: 2px;
 }
 *{ text-transform: none !important; }
-.bar {
+.barC {
   fill: steelblue;
 }
 
-.bar:hover {
+.barC:hover {
   fill: brown;
 }
+.barD {
+  fill: steelblue;
+}
+
+.barD:hover {
+  fill: brown;
+}
+
 
 .alabel {
   fill: black;
