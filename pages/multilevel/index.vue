@@ -388,7 +388,7 @@ export default {
       let height = height_ - ( margin.top + margin.bottom )
       let width = this.width || this.$vuetify.breakpoint.width
       width /= 2
-      let vb = -width / 2 + ' ' + -height / 2 + ' ' + width + ' ' + height
+      // let vb = -width / 2 + ' ' + -height / 2 + ' ' + width + ' ' + height
 
       let x = d3.scaleLinear().rangeRound([0, width/2])
       let y = d3.scaleLinear().rangeRound([height, 0])
@@ -409,6 +409,13 @@ export default {
         .attr('width', width)
         .attr('height', height_)
       //  .attr('viewBox', vb)
+
+      svg.append("text")
+        .attr('class', 'alabel')
+        .attr("x", width / 3)
+        .attr("y", 0.8 * margin.top)
+        .attr("text-anchor", "middle")
+        .text("layer " + layer)
 
       let g = svg.append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
@@ -477,6 +484,13 @@ export default {
         .attr('width', width)
         .attr('height', height_)
       //  .attr('viewBox', vb)
+
+      svg.append("text")
+        .attr('class', 'alabel')
+        .attr("x", width / 3)
+        .attr("y", 0.8 * margin.top)
+        .attr("text-anchor", "middle")
+        .text("layer " + layer)
 
       let g = svg.append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
@@ -629,7 +643,7 @@ export default {
       let self = this
       window.addEventListener('keypress', function (e) {
         console.log(e, e.key)
-        // i n N c C m M f b B
+        // i n N c C m M f b B l L
         if (e.key == 'i') {
           self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
           let mmesh = self.pickResult.pickedMesh
@@ -655,6 +669,16 @@ export default {
                 .call(d3.axisLeft(self.clustyy[j]).ticks(10))
             }
             self.isfreq = 1
+          }
+        } else if (e.key == 'l') {
+          // add layer
+          self.layers++
+          self.altLayers({value: self.layers})
+        } else if (e.key == 'L') {
+          // rm layer
+          if (self.layers > 1) {
+            self.layers--
+            self.altLayers({value: self.layers})
           }
         } else if (e.key == 'b') {
           // more bins in histograms
@@ -785,7 +809,7 @@ export default {
       }
       for (let j = this.nlayers_new; j < this.networks.length; j++) {
         this.spheres[j].forEach( e => {
-          e.display = 0
+          e.visibility = 0
         })
         d3.select('#clust-' + j)
           .style('display', 'none')
