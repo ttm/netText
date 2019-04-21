@@ -14,7 +14,7 @@
       </v-btn>
       <v-list>
         <v-list-tile
-          v-for="(net, index) in networks"
+          v-for="(net, index) in networks_"
           :key="index"
           @click="network = net"
         >
@@ -56,7 +56,7 @@
       <v-btn v-if="name && name !== 'new'" color="success" @click="cloneSettings(set)">Clone settings</v-btn>
     </v-flex>
 </v-layout>
-<v-expansion-panel>
+<v-expansion-panel expand v-model="panel">
   <v-expansion-panel-content>
     <div slot="header">settings in general
     <span v-if="analysis_set">nodes: {{network_data.nodes.length}},
@@ -130,6 +130,85 @@
   </v-layout>
 </v-card>
 </v-flex>
+<v-flex mt-1 v-if="isbi">
+<v-card flat dark>
+  <v-layout align-center justify-center row fill-height pa-1>
+    <v-flex xs4 order-md1 order-xs1 center>
+      Coarsening banana 
+      <span
+        v-for="index in ntiers" :key="index"
+      >
+        <v-text-field
+          :label="'reduction'"
+          :left="true"
+          v-model="bi.reduction[index - 1]"
+          type="number"
+          step="0.1"
+          max="1"
+          style="width:60px"
+        ></v-text-field>
+        <v-text-field
+          :label="'max levels'"
+          :left="true"
+          v-model="bi.max_levels[index - 1]"
+          type="number"
+          step="1"
+          min="1"
+          style="width:60px"
+        ></v-text-field>
+        <v-text-field
+          :label="'min vertices'"
+          :left="true"
+          v-model="bi.global_min_vertices[index - 1]"
+          type="number"
+          step="1"
+          min="1"
+          style="width:60px"
+        ></v-text-field>
+        <v-text-field
+          :label="'matching'"
+          :left="true"
+          v-model="bi.matching[index - 1]"
+          style="width:60px"
+        ></v-text-field>
+        <v-text-field
+          :label="'similarity'"
+          :left="true"
+          v-model="bi.similarity[index - 1]"
+          style="width:60px"
+        ></v-text-field>
+        <v-text-field
+          :label="'upper bound'"
+          :left="true"
+          v-model="bi.upper_bound[index - 1]"
+          type="number"
+          step="0.1"
+          min="0"
+          style="width:60px"
+        ></v-text-field>
+        <v-text-field
+          :label="'iterations'"
+          :left="true"
+          v-model="bi.itr[index - 1]"
+          type="number"
+          step="1"
+          min="1"
+          style="width:60px"
+        ></v-text-field>
+        <v-text-field
+          :label="'tolerance'"
+          :left="true"
+          v-model="bi.tolerance[index - 1]"
+          type="number"
+          step="0.0001"
+          min="0"
+          style="width:60px"
+        ></v-text-field>
+      </span>
+    </v-flex>
+  </v-layout>
+</v-card>
+</v-flex>
 </div>
   </v-expansion-panel-content>
 </v-expansion-panel>
@@ -143,27 +222,6 @@
 <div style="border:2px solid black; padding: 4px">
 <v-card flat dark>
   <v-layout align-center justify-center row pa-1>
-    <v-flex xs5 order-md1 order-xs1 center>
-      Axis of coarsened networks:
-        <v-menu offset-y>
-          <v-btn
-            slot="activator"
-            color="primary"
-            dark
-          >
-          {{ axis ? axis : 'Select' }}
-          </v-btn>
-          <v-list>
-            <v-list-tile
-              v-for="(ax, index) in axis_"
-              :key="index"
-              @click="axis = ax"
-            >
-              <v-list-tile-title color="primary">{{ ax }}</v-list-tile-title>
-            </v-list-tile>
-          </v-list>
-        </v-menu>
-    </v-flex>
     <v-flex xs4 order-md2 order-xs2 center>
       <v-text-field
         :label="'Separation'"
@@ -293,18 +351,13 @@ const methods = {
   'label propagation': 'lab',
   'connected components': 'cp'
 }
-const axis_ = {
-  'x': '0',
-  'y': '1',
-  'z': '2'
-}
-
 export default {
   components: {
     NetSettings,
   },
   data () {
     return {
+      panel: [true],
       diameter: 0.06,
       snackbar: false,
       snacktext: 'msnacktext',
@@ -333,16 +386,23 @@ export default {
       methods: [
         'kclicks',
         'label propagation',
-        'connected components'
-      ],
-      method: 'label propagation',
-      axis: 'y',
-      axis_: [
-        'x',
-        'y',
-        'z'
-      ],
-      networks: [],
+        'connected components'].concat(
+        ['rgmb', 'gmb', 'hem', 'lem', 'rm'].map(i => 'bi:' + i)),
+      // method: 'label propagation',
+      method: 'bi:rgmb',
+      isbi: true,
+      ntiers: 2,
+      bi: {
+        reduction: [],
+        max_levels: [],
+        global_min_vertices: [],
+        matching: [],
+        similarity: [],
+        upper_bound: [],
+        itr: [],
+        tolerance: []
+      },
+      networks_: [],
       network: '',
       name: 'new',
       newname: '',
@@ -351,6 +411,14 @@ export default {
         degree: false,
         clust: false
       }
+    }
+  },
+  watch: {
+    method: function (val) {
+      if (val && (val.slice(0,3) === 'bi:'))
+        this.isbi = true
+      else
+        this.isbi = false
     }
   },
   methods: {
@@ -642,8 +710,13 @@ export default {
         this.draw_net = false
       } else {
         this.draw_net = true
+        let method
+        if (methods[this.method])
+          method = methods[this.method]
+        else
+          method = this.method
         $.get(
-          `http://127.0.0.1:5000/netlevelDB/${this.network._id}/${this.layout}/${this.dimensions}/0/${methods[this.method]}/${axis_[this.axis]}/`,
+          `http://127.0.0.1:5000/netlevelDB/${this.network._id}/${this.layout}/${this.dimensions}/0/${method}/`,
           {},
           this.stablishScene
         )
@@ -755,151 +828,159 @@ export default {
       let self = this
       window.addEventListener('keypress', function (e) {
         console.log(e, e.key)
-        // i n N c C m M f b B l L e E
-        if (e.key == 'i') {
-          self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
-          let mmesh = self.pickResult.pickedMesh
-          window.mmesh = mmesh
-          self.snacktext = mmesh.mdata
-          self.snackbar = 1
-        } else if (e.key == 'f') {
-          if (self.isfreq) {
-            d3.selectAll('.alabel').text('Count')
-            for (let j = 0; j < self.nlayers; j++) {
-              d3.select('#degreelabel-y-' + j)
-                .call(d3.axisLeft(self.degreey[j]).ticks(10))
-              d3.select('#clustlabel-y-' + j)
-                .call(d3.axisLeft(self.clusty[j]).ticks(10))
+        // $ i n N c C m M f b B l L e E
+        if (e.key == '$') {
+          if (self.keys)
+            delete self.keys
+          else
+            self.keys = 1
+        }
+        if (self.keys) {
+          if (e.key == 'i') {
+            self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
+            let mmesh = self.pickResult.pickedMesh
+            window.mmesh = mmesh
+            self.snacktext = mmesh.mdata
+            self.snackbar = 1
+          } else if (e.key == 'f') {
+            if (self.isfreq) {
+              d3.selectAll('.alabel').text('Count')
+              for (let j = 0; j < self.nlayers; j++) {
+                d3.select('#degreelabel-y-' + j)
+                  .call(d3.axisLeft(self.degreey[j]).ticks(10))
+                d3.select('#clustlabel-y-' + j)
+                  .call(d3.axisLeft(self.clusty[j]).ticks(10))
+              }
+              delete self.isfreq
+            } else {
+              d3.selectAll('.alabel').text('Percentage')
+              for (let j = 0; j < self.nlayers; j++) {
+                d3.select('#degreelabel-y-' + j)
+                  .call(d3.axisLeft(self.degreeyy[j]).ticks(10))
+                d3.select('#clustlabel-y-' + j)
+                  .call(d3.axisLeft(self.clustyy[j]).ticks(10))
+              }
+              self.isfreq = 1
             }
-            delete self.isfreq
-          } else {
-            d3.selectAll('.alabel').text('Percentage')
-            for (let j = 0; j < self.nlayers; j++) {
-              d3.select('#degreelabel-y-' + j)
-                .call(d3.axisLeft(self.degreeyy[j]).ticks(10))
-              d3.select('#clustlabel-y-' + j)
-                .call(d3.axisLeft(self.clustyy[j]).ticks(10))
+          } else if (e.key == 'e') {
+            self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
+            let mmesh = self.pickResult.pickedMesh
+            self.colorBars(mmesh, 1)
+            mmesh.material = self.chighlight2_material
+            if (self.chighmesh) {
+              self.chighmesh.material = self.standard_material
             }
-            self.isfreq = 1
-          }
-        } else if (e.key == 'e') {
-          self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
-          let mmesh = self.pickResult.pickedMesh
-          self.colorBars(mmesh, 1)
-          mmesh.material = self.chighlight2_material
-          if (self.chighmesh) {
-            self.chighmesh.material = self.standard_material
-          }
-          self.chighmesh = mmesh
-        } else if (e.key == 'E') {
-          if (self.chighmesh) {
-            self.chighmesh.material = self.standard_material
-          }
-          self.colorBars({}, 0)
-        } else if (e.key == 'l') {
-          // add layer
-          self.layers++
-          self.altLayers({value: self.layers})
-        } else if (e.key == 'L') {
-          // rm layer
-          if (self.layers > 1) {
-            self.layers--
+            self.chighmesh = mmesh
+          } else if (e.key == 'E') {
+            if (self.chighmesh) {
+              self.chighmesh.material = self.standard_material
+            }
+            self.colorBars({}, 0)
+          } else if (e.key == 'l') {
+            // add layer
+            self.layers++
             self.altLayers({value: self.layers})
-          }
-        } else if (e.key == 'b') {
-          // more bins in histograms
-          self.nBins(1)
-        } else if (e.key == 'B') {
-          // less bins in histograms
-          self.nBins(0)
-        } else if (e.key == 'N') {
-          // make nodes smaller
-          self.updateNodeSizes(0)
-        } else if (e.key == 'n') {
-          // make nodes bigger
-          self.updateNodeSizes(1)
-        } else if (e.key == 'c') {
-          self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
-          let mmesh = self.pickResult.pickedMesh
-          window.mmesh = mmesh
-          // color the neighbors
-          if (self.colored) {
-            // restore usual colors on vertices
-            self.colored_nodes.ids.forEach( i => {
-              self.spheres[self.colored_nodes.layer][i].material = self.standard_material
-            })
-            self.colored = false
-            self.snackbar = 0
-          } else {
-            // make funny colors for neighbors
-            self.snacktext = mmesh.mdata.neighbors
-            self.snackbar = 1
-            mmesh.mdata.neighbors.forEach( i => {
-              self.spheres[mmesh.mdata.layer][i].material = self.highlight_material
-            })
-            self.colored_nodes = {ids: mmesh.mdata.neighbors, layer: mmesh.mdata.layer}
-            self.colored = true
-          }
-        } else if (e.key == 'C') {
-          // color parents and children
-          self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
-          let mmesh = self.pickResult.pickedMesh
-          window.mmesh = mmesh
-          // color the neighbors
-          if (self.pcolored) {
-            // restore usual colors on vertices
-            self.pcolored_nodes.ids.forEach( i => {
-              self.spheres[self.pcolored_nodes.layer - 1][i].material = self.standard_material
-            })
-            if (!(typeof self.pcolored_nodes.tparent === 'undefined')) {
-              self.spheres[self.pcolored_nodes.layer + 1][self.pcolored_nodes.tparent].material = self.standard_material
+          } else if (e.key == 'L') {
+            // rm layer
+            if (self.layers > 1) {
+              self.layers--
+              self.altLayers({value: self.layers})
             }
-            self.pcolored = false
-            self.snackbar = 0
-          } else {
-            // make funny colors for neighbors
-            self.snacktext = mmesh.mdata.children
-            self.snackbar = 1
-            mmesh.mdata.children.forEach( i => {
-              self.spheres[mmesh.mdata.layer - 1][i].material = self.phighlight_material
-            })
-            self.pcolored_nodes = {ids: mmesh.mdata.children, layer: mmesh.mdata.layer}
-            if (!(typeof mmesh.mdata.tparent === 'undefined')) {
-              self.spheres[mmesh.mdata.layer + 1][mmesh.mdata.tparent].material = self.phighlight_material
-              self.pcolored_nodes.tparent = mmesh.mdata.tparent
+          } else if (e.key == 'b') {
+            // more bins in histograms
+            self.nBins(1)
+          } else if (e.key == 'B') {
+            // less bins in histograms
+            self.nBins(0)
+          } else if (e.key == 'N') {
+            // make nodes smaller
+            self.updateNodeSizes(0)
+          } else if (e.key == 'n') {
+            // make nodes bigger
+            self.updateNodeSizes(1)
+          } else if (e.key == 'c') {
+            self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
+            let mmesh = self.pickResult.pickedMesh
+            window.mmesh = mmesh
+            // color the neighbors
+            if (self.colored) {
+              // restore usual colors on vertices
+              self.colored_nodes.ids.forEach( i => {
+                self.spheres[self.colored_nodes.layer][i].material = self.standard_material
+              })
+              self.colored = false
+              self.snackbar = 0
+            } else {
+              // make funny colors for neighbors
+              self.snacktext = mmesh.mdata.neighbors
+              self.snackbar = 1
+              mmesh.mdata.neighbors.forEach( i => {
+                self.spheres[mmesh.mdata.layer][i].material = self.highlight_material
+              })
+              self.colored_nodes = {ids: mmesh.mdata.neighbors, layer: mmesh.mdata.layer}
+              self.colored = true
             }
-            self.pcolored = true
-          }
-        } else if (e.key === 'm') {
-          // place marker on node to guide coarsening
-          self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
-          let mmesh = self.pickResult.pickedMesh
-          window.mmesh = mmesh
-          if (!mmesh.mdata.coarsening_pivot) {
-            mmesh.mdata.coarsening_pivot = 1
-          } else {
-            delete mmesh.mdata.coarsening_pivot
-          }
-        } else if (e.key === 'M') {
-          if (self.mcolored) {
-            self.mcolored_nodes.forEach( n => {
-              self.spheres[n.layer][n._id].material = self.standard_material
-            })
-            delete self.mcolored_nodes
-            self.mcolored = 0
-          } else {
-            self.mcolored_nodes = []
-            for (let j = 0; j < self.spheres.length; j++) {
-              for (let i = 0; i < self.spheres[j].length; i++) {
-                if (self.spheres[j][i].mdata.coarsening_pivot) {
-                  self.spheres[j][i].material = self.mhighlight_material
-                  self.mcolored_nodes.push({
-                    layer: j, _id: i
-                  })
+          } else if (e.key == 'C') {
+            // color parents and children
+            self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
+            let mmesh = self.pickResult.pickedMesh
+            window.mmesh = mmesh
+            // color the neighbors
+            if (self.pcolored) {
+              // restore usual colors on vertices
+              self.pcolored_nodes.ids.forEach( i => {
+                self.spheres[self.pcolored_nodes.layer - 1][i].material = self.standard_material
+              })
+              if (!(typeof self.pcolored_nodes.tparent === 'undefined')) {
+                self.spheres[self.pcolored_nodes.layer + 1][self.pcolored_nodes.tparent].material = self.standard_material
+              }
+              self.pcolored = false
+              self.snackbar = 0
+            } else {
+              // make funny colors for neighbors
+              self.snacktext = mmesh.mdata.children
+              self.snackbar = 1
+              mmesh.mdata.children.forEach( i => {
+                self.spheres[mmesh.mdata.layer - 1][i].material = self.phighlight_material
+              })
+              self.pcolored_nodes = {ids: mmesh.mdata.children, layer: mmesh.mdata.layer}
+              if (!(typeof mmesh.mdata.tparent === 'undefined')) {
+                self.spheres[mmesh.mdata.layer + 1][mmesh.mdata.tparent].material = self.phighlight_material
+                self.pcolored_nodes.tparent = mmesh.mdata.tparent
+              }
+              self.pcolored = true
+            }
+          } else if (e.key === 'm') {
+            // place marker on node to guide coarsening
+            self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
+            let mmesh = self.pickResult.pickedMesh
+            window.mmesh = mmesh
+            if (!mmesh.mdata.coarsening_pivot) {
+              mmesh.mdata.coarsening_pivot = 1
+            } else {
+              delete mmesh.mdata.coarsening_pivot
+            }
+          } else if (e.key === 'M') {
+            if (self.mcolored) {
+              self.mcolored_nodes.forEach( n => {
+                self.spheres[n.layer][n._id].material = self.standard_material
+              })
+              delete self.mcolored_nodes
+              self.mcolored = 0
+            } else {
+              self.mcolored_nodes = []
+              for (let j = 0; j < self.spheres.length; j++) {
+                for (let i = 0; i < self.spheres[j].length; i++) {
+                  if (self.spheres[j][i].mdata.coarsening_pivot) {
+                    self.spheres[j][i].material = self.mhighlight_material
+                    self.mcolored_nodes.push({
+                      layer: j, _id: i
+                    })
+                  }
                 }
               }
+              self.mcolored = 1
             }
-            self.mcolored = 1
           }
         }
       })
@@ -911,9 +992,14 @@ export default {
     updateLayers () {
       if (this.networks.length < this.nlayers_new) {
         // get networks and plot them
+        let method
+        if (methods[this.method])
+          method = methods[this.method]
+        else
+          method = this.method
         for (let i = this.networks.length + 1; i <= this.nlayers_new; i++) {
           $.get(
-            `http://127.0.0.1:5000/netlevelDB/${this.network._id}/${this.layout}/${this.dimensions}/${i - 1}/${methods[this.method]}/${axis_[this.axis]}/`,
+            `http://127.0.0.1:5000/netlevelDB/${this.network._id}/${this.layout}/${this.dimensions}/${i - 1}/${method}/`,
             {},
             this.addLayer
           )
@@ -1009,7 +1095,6 @@ export default {
         separation: this.separation,
         network: this.network._id,
         name: aname,
-        axis: this.axis
       }
       if (this.newname) {
         this.$store.dispatch('ansettings/create', tobj)
@@ -1047,14 +1132,14 @@ export default {
     findNetworks () {
       this.$store.dispatch('networks/find').then(() => {
         let networks_ = this.$store.getters['networks/list']
-        this.networks = networks_.filter(i => i.layer === 0)
+        this.networks_ = networks_.filter(i => i.layer === 0)
       })
     },
     findSettings () {
       this.$store.dispatch('ansettings/find').then(() => {
         this.settings = this.$store.getters['ansettings/list']
         this.settings.push({name: 'new'})
-        this.loadSettings(this.settings[0])
+        this.loadSettings(this.settings[1])
         this.renderNetwork()
       })
     },
@@ -1068,7 +1153,6 @@ export default {
       this.layers = 1
       this.method = set.method
       this.separations = set.separation
-      this.axis = set.axis
       this.network = set.networkObj
       this._id = set._id
     },
@@ -1107,6 +1191,16 @@ export default {
     this.clusty = []
     this.clustyy = []
     this.nbins = 10
+    for (let i = 0; i < this.ntiers; i++) {
+      this.bi.reduction.push('0.1')
+      this.bi.max_levels.push('5')
+      this.bi.global_min_vertices.push('100')
+      this.bi.matching.push('mlpb')
+      this.bi.similarity.push('weighted_common_neighbors')
+      this.bi.upper_bound.push('0.1')
+      this.bi.itr.push('10')
+      this.bi.tolerance.push('0.0001')
+    }
   },
   created () {
     this.findNetworks()
