@@ -132,12 +132,14 @@
 </v-flex>
 <v-flex mt-1 v-if="isbi">
 <v-card flat dark>
-  <v-layout align-center justify-center row fill-height pa-1>
-    <v-flex xs4 order-md1 order-xs1 center>
-      Coarsening banana 
-      <span
+  <v-layout align-center justify-center row fill-height pa-1 class="upme">
+    <v-flex>
+      Coarsening settings
+      <div class="row">
+      <div class="column"
         v-for="index in ntiers" :key="index"
       >
+        tier {{ index }}
         <v-text-field
           :label="'reduction'"
           :left="true"
@@ -165,12 +167,52 @@
           min="1"
           style="width:60px"
         ></v-text-field>
-        <v-text-field
-          :label="'matching'"
-          :left="true"
-          v-model="bi.matching[index - 1]"
-          style="width:60px"
-        ></v-text-field>
+        <v-menu>
+          <template #activator="{ on: menu }">
+            <v-tooltip bottom>
+              <template #activator="{ on: tooltip }">
+                <v-btn class="btn22"
+                  color="primary"
+                  dark
+                  v-on="{ ...tooltip, ...menu }"
+                > {{ bi.matching[index - 1] }}</v-btn>
+              </template>
+              <span>matching method</span>
+            </v-tooltip>
+          </template>
+          <v-list>
+            <v-list-tile
+              v-for="(item, index_) in bi.valid_matching"
+              :key="index_"
+              @click="bi.matching[index - 1] = item"
+            >
+              <v-list-tile-title>{{ item }}</v-list-tile-title>
+            </v-list-tile>
+          </v-list>
+        </v-menu>
+        <v-menu>
+          <template #activator="{ on: menu }">
+            <v-tooltip bottom>
+              <template #activator="{ on: tooltip }">
+                <v-btn class="btn22"
+                  color="primary"
+                  dark
+                  v-on="{ ...tooltip, ...menu }"
+                > {{ bi.similarity[index - 1].slice(0,5) }}</v-btn>
+              </template>
+              <span>similarity criterion</span>
+            </v-tooltip>
+          </template>
+          <v-list>
+            <v-list-tile
+              v-for="(item, index_) in bi.valid_similarity"
+              :key="index_"
+              @click="bi.similarity[index - 1] = item"
+            >
+              <v-list-tile-title>{{ item }}</v-list-tile-title>
+            </v-list-tile>
+          </v-list>
+        </v-menu>
         <v-text-field
           :label="'similarity'"
           :left="true"
@@ -204,7 +246,8 @@
           min="0"
           style="width:60px"
         ></v-text-field>
-      </span>
+      </div>
+      </div>
     </v-flex>
   </v-layout>
 </v-card>
@@ -388,10 +431,10 @@ export default {
         'label propagation',
         'connected components'].concat(
         ['rgmb', 'gmb', 'hem', 'lem', 'rm'].map(i => 'bi:' + i)),
-      // method: 'label propagation',
-      method: 'bi:rgmb',
-      isbi: true,
-      ntiers: 2,
+      method: 'label propagation',
+      // method: 'bi:rgmb',
+      isbi: false,
+        ntiers: 2,
       bi: {
         reduction: [],
         max_levels: [],
@@ -400,7 +443,12 @@ export default {
         similarity: [],
         upper_bound: [],
         itr: [],
-        tolerance: []
+        tolerance: [],
+        valid_matching: ['rgmb', 'gmb', 'mlpb', 'hem', 'lem', 'rm'],
+        valid_similarity: ['common_neighbors', 'weighted_common_neighbors',
+        'salton', 'preferential_attachment', 'jaccard', 'weighted_jaccard',
+        'adamic_adar', 'resource_allocation', 'sorensen', 'hub_promoted',
+        'hub_depressed', 'leicht_holme_newman']
       },
       networks_: [],
       network: '',
@@ -715,11 +763,32 @@ export default {
           method = methods[this.method]
         else
           method = this.method
-        $.get(
-          `http://127.0.0.1:5000/netlevelDB/${this.network._id}/${this.layout}/${this.dimensions}/0/${method}/`,
-          {},
-          this.stablishScene
-        )
+        console.log(method)
+        if (!this.isbi) {
+          $.get(
+            `http://127.0.0.1:5000/netlevelDB/${this.network._id}/${this.layout}/${this.dimensions}/0/${method}/`,
+            {},
+            this.stablishScene
+          )
+        } else {
+          $.post(
+            // `http://rfabbri.vicg.icmc.usp.br:5000/postTest2/`,
+            `http://127.0.0.1:5000/biML/`,
+            // {see: 'this', and: 'thisother', num: 5}
+            {
+              network: this.network._id,
+              layout: this.layout,
+              dim: this.dimensions,
+              method: this.method,
+              bi: this.bi
+            }
+          ).done( networks => { 
+            console.log(networks)
+            this.networks = networks
+            this.stablishScene(networks[0])
+            this.addLayer(networks[1])
+          })
+        }
       }
     },
     stablishScene (network) {
@@ -790,7 +859,8 @@ export default {
         }
       }
 
-      this.networks = networks
+      if (!this.isbi)
+        this.networks = networks
       this.spheres = spheres
       this.lines = lines
 
@@ -997,6 +1067,7 @@ export default {
           method = methods[this.method]
         else
           method = this.method
+        console.log(method)
         for (let i = this.networks.length + 1; i <= this.nlayers_new; i++) {
           $.get(
             `http://127.0.0.1:5000/netlevelDB/${this.network._id}/${this.layout}/${this.dimensions}/${i - 1}/${method}/`,
@@ -1140,7 +1211,6 @@ export default {
         this.settings = this.$store.getters['ansettings/list']
         this.settings.push({name: 'new'})
         this.loadSettings(this.settings[1])
-        this.renderNetwork()
       })
     },
     loadSettings (set) {
@@ -1201,6 +1271,7 @@ export default {
       this.bi.itr.push('10')
       this.bi.tolerance.push('0.0001')
     }
+    this.method = 'bi:rgmb'
   },
   created () {
     this.findNetworks()
@@ -1258,6 +1329,31 @@ html, body {
 
 .axis--x path {
   /* display: none; */
+}
+
+.upme {
+  text-align: center;
+}
+.column {
+  margin-left: 15px;
+  display:inline-block;
+  position:relative;
+}
+
+/* Clear floats after the columns */
+.row {
+}
+.row:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+.btn22 {
+  margin: 0;
+  min-width: 60px;
+  max-width: 60px;
+  width: 60px;
 }
 /* vim: set ft=vue: */
 </style>
