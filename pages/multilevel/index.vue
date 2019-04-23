@@ -132,14 +132,17 @@
 </v-flex>
 <v-flex mt-1 v-if="isbi">
 <v-card flat dark>
-  <v-layout align-center justify-center row fill-height pa-1 class="upme">
+  <v-layout align-center justify-center>
     <v-flex>
       Coarsening settings
-      <div class="row">
-      <div class="column"
+      <table>
+      <tr class="row2"
         v-for="index in ntiers" :key="index"
       >
-        tier {{ index }}
+        <th class="tcolumn">
+        layer {{ index }}
+        </th>
+        <th class="tcolumn">
         <v-text-field
           :label="'reduction'"
           :left="true"
@@ -147,8 +150,9 @@
           type="number"
           step="0.1"
           max="1"
-          style="width:60px"
         ></v-text-field>
+        </th>
+        <th class="tcolumn">
         <v-text-field
           :label="'max levels'"
           :left="true"
@@ -156,8 +160,9 @@
           type="number"
           step="1"
           min="1"
-          style="width:60px"
         ></v-text-field>
+        </th>
+        <th class="tcolumn">
         <v-text-field
           :label="'min vertices'"
           :left="true"
@@ -165,8 +170,9 @@
           type="number"
           step="1"
           min="1"
-          style="width:60px"
         ></v-text-field>
+        </th>
+        <th class="tcolumn">
         <v-menu>
           <template #activator="{ on: menu }">
             <v-tooltip bottom>
@@ -190,6 +196,8 @@
             </v-list-tile>
           </v-list>
         </v-menu>
+        </th>
+        <th class="tcolumn">
         <v-menu>
           <template #activator="{ on: menu }">
             <v-tooltip bottom>
@@ -213,12 +221,15 @@
             </v-list-tile>
           </v-list>
         </v-menu>
+        </th>
+        <th class="tcolumn">
         <v-text-field
           :label="'similarity'"
           :left="true"
           v-model="bi.similarity[index - 1]"
-          style="width:60px"
         ></v-text-field>
+        </th>
+        <th class="tcolumn">
         <v-text-field
           :label="'upper bound'"
           :left="true"
@@ -226,8 +237,9 @@
           type="number"
           step="0.1"
           min="0"
-          style="width:60px"
         ></v-text-field>
+        </th>
+        <th class="tcolumn">
         <v-text-field
           :label="'iterations'"
           :left="true"
@@ -235,8 +247,9 @@
           type="number"
           step="1"
           min="1"
-          style="width:60px"
         ></v-text-field>
+        </th>
+        <th class="tcolumn">
         <v-text-field
           :label="'tolerance'"
           :left="true"
@@ -244,10 +257,10 @@
           type="number"
           step="0.0001"
           min="0"
-          style="width:60px"
         ></v-text-field>
-      </div>
-      </div>
+        </th>
+      </tr>
+      </table>
     </v-flex>
   </v-layout>
 </v-card>
@@ -327,7 +340,7 @@
         ></v-divider>
         <v-flex>
           <v-text-field
-            :label="'Layers'"
+            :label="'Levels'"
             :left="true"
             v-model="layers"
             type="number"
@@ -429,8 +442,7 @@ export default {
       methods: [
         'kclicks',
         'label propagation',
-        'connected components'].concat(
-        ['rgmb', 'gmb', 'hem', 'lem', 'rm'].map(i => 'bi:' + i)),
+        'connected components', 'bi'],
       method: 'label propagation',
       // method: 'bi:rgmb',
       isbi: false,
@@ -463,7 +475,7 @@ export default {
   },
   watch: {
     method: function (val) {
-      if (val && (val.slice(0,3) === 'bi:'))
+      if (val && val === 'bi')
         this.isbi = true
       else
         this.isbi = false
@@ -1354,6 +1366,10 @@ html, body {
   min-width: 60px;
   max-width: 60px;
   width: 60px;
+}
+
+.tcolumn {
+  padding-left: 5px;
 }
 /* vim: set ft=vue: */
 </style>
