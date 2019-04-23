@@ -785,20 +785,22 @@ export default {
         } else {
           $.post(
             // `http://rfabbri.vicg.icmc.usp.br:5000/postTest2/`,
-            `http://127.0.0.1:5000/biML/`,
+            `http://127.0.0.1:5000/biMLDB/`,
             // {see: 'this', and: 'thisother', num: 5}
             {
-              network: this.network._id,
+              netid: this.network._id,
               layout: this.layout,
               dim: this.dimensions,
               method: this.method,
-              bi: this.bi
+              bi: this.bi,
+              layer: 0
             }
-          ).done( networks => { 
-            console.log(networks)
-            this.networks = networks
-            this.stablishScene(networks[0])
-            this.addLayer(networks[1])
+          ).done( network => { 
+            // console.log(networks)
+            // this.networks = networks
+            this.stablishScene(network)
+            // this.stablishScene(networks[0])
+            // this.addLayer(networks[1])
           })
         }
       }
@@ -838,6 +840,8 @@ export default {
         for (let i = 0; i < nodes.length; i++) {
           let node = nodes[i]
           let sphere = BABYLON.MeshBuilder.CreateSphere(j + 'sphere' + i, {diameter: this.diameter, updatable: 1}, this.scene)
+          if (!node[2])
+            node.push(0)
           sphere.position = new BABYLON.Vector3(node[0], node[1], node[2] + j * this.separation)
           sphere.material = this.standard_material
           sphere.mdata = {
@@ -871,7 +875,7 @@ export default {
         }
       }
 
-      if (!this.isbi)
+      // if (!this.isbi)
         this.networks = networks
       this.spheres = spheres
       this.lines = lines
@@ -1081,11 +1085,33 @@ export default {
           method = this.method
         console.log(method)
         for (let i = this.networks.length + 1; i <= this.nlayers_new; i++) {
-          $.get(
-            `http://127.0.0.1:5000/netlevelDB/${this.network._id}/${this.layout}/${this.dimensions}/${i - 1}/${method}/`,
-            {},
-            this.addLayer
-          )
+          if (!this.isbi) {
+            $.get(
+              `http://127.0.0.1:5000/netlevelDB/${this.network._id}/${this.layout}/${this.dimensions}/${i - 1}/${method}/`,
+              {},
+              this.addLayer
+            )
+          } else {
+            $.post(
+              // `http://rfabbri.vicg.icmc.usp.br:5000/postTest2/`,
+              `http://127.0.0.1:5000/biMLDB/`,
+              // {see: 'this', and: 'thisother', num: 5}
+              {
+                netid: this.network._id,
+                layout: this.layout,
+                dim: this.dimensions,
+                method: this.method,
+                bi: this.bi,
+                layer: i - 1
+              }
+            ).done( network => { 
+              // console.log(networks)
+              // this.networks = networks
+              this.stablishScene(network)
+              // this.stablishScene(networks[0])
+              // this.addLayer(networks[1])
+            })
+          }
         }
       } else {
         // plot or remove layers as needed
@@ -1129,6 +1155,8 @@ export default {
       for (let i = 0; i < nodes.length; i++) {
         let node = nodes[i]
         let sphere = BABYLON.MeshBuilder.CreateSphere(j + 'sphere' + i, {diameter: this.diameter, updatable: 1}, this.scene)
+        if (!node[2])
+          node.push(0)
         sphere.position = new BABYLON.Vector3(node[0], node[1], node[2] + j_ * this.separation)
         sphere.material = this.standard_material
         sphere.mdata = {
