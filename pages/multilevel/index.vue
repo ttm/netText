@@ -1197,12 +1197,13 @@ export default {
       this.dialog = false
       // let set = this.$refs.netsettings
       let aname = this.newname ? this.newname : this.name
+      let met = this.method === 'bi' ? this.bi : this.method
       let tobj = {
         layout: this.layout,
         dimensions: this.dimensions,
         links: this.links,
         // layers: 1,
-        method: this.method,
+        method: met,
         separation: this.separation,
         network: this.network._id,
         name: aname,
@@ -1250,7 +1251,7 @@ export default {
       this.$store.dispatch('ansettings/find').then(() => {
         this.settings = this.$store.getters['ansettings/list']
         this.settings.push({name: 'new'})
-        this.loadSettings(this.settings[1])
+        // this.loadSettings(this.settings[1])
       })
     },
     loadSettings (set) {
