@@ -53,7 +53,6 @@
         v-if="name === 'new'"
         v-model="newname"
       ></v-text-field>
-      <v-btn v-if="name && name !== 'new'" color="success" @click="cloneSettings(set)">Clone settings</v-btn>
     </v-flex>
 </v-layout>
 <v-expansion-panel expand v-model="panel">
@@ -120,7 +119,7 @@
           <v-list-tile
             v-for="(met, index) in methods"
             :key="index"
-            @click="method = met"
+            @click="setMethod(met)"
           >
             <v-list-tile-title color="primary">{{ met }}</v-list-tile-title>
           </v-list-tile>
@@ -308,9 +307,9 @@
           slot="activator"
           color="green lighten-2"
           dark
-          @click="renderHistograms()"
+          @click="saveAnalysis()"
         >
-          Render histograms
+          Save
         </v-btn>
         <v-flex class="pr-3">
           <v-slider
@@ -349,6 +348,7 @@
             class="mt-0"
             background-color="#aaffff"
             onChange="altLayers(this)"
+            :disabled="!draw_net"
           ></v-text-field>
         </v-flex>
       </v-layout>
@@ -442,7 +442,7 @@ export default {
       methods: [
         'kclicks',
         'label propagation',
-        'connected components', 'bi'],
+        'connected components', 'bipartite'],
       method: 'label propagation',
       // method: 'bi:rgmb',
       isbi: false,
@@ -471,14 +471,6 @@ export default {
         degree: false,
         clust: false
       }
-    }
-  },
-  watch: {
-    method: function (val) {
-      if (val && val === 'bi')
-        this.isbi = true
-      else
-        this.isbi = false
     }
   },
   methods: {
@@ -580,14 +572,6 @@ export default {
           this.spheres[j][i].scaling.y += quant
           this.spheres[j][i].scaling.z += quant
         }
-      }
-    },
-    renderHistograms () {
-      console.log('rendering histograms')
-      if (this.draw_hist) {
-        this.draw_hist = false
-      } else {
-        this.draw_hist = true
       }
     },
     clustHist (layer) {
@@ -813,15 +797,17 @@ export default {
       this.standard_material = new BABYLON.StandardMaterial("sMaterial", this.scene)
       // this.standardMaterial.diffuseColor = new BABYLON.Color3(1, 1 - clust, 1 - clust)
       this.highlight_material = new BABYLON.StandardMaterial("hMaterial", this.scene)
-      this.highlight_material.diffuseColor = new BABYLON.Color3(1, 0, 0)
+      this.highlight_material.diffuseColor = new BABYLON.Color3(0, 0, 0)
       this.phighlight_material = new BABYLON.StandardMaterial("pMaterial", this.scene)
       this.phighlight_material.diffuseColor = new BABYLON.Color3(0, 1, 0)
       this.mhighlight_material = new BABYLON.StandardMaterial("mMaterial", this.scene)
-      this.mhighlight_material.diffuseColor = new BABYLON.Color3(0, 0, 1)
+      this.mhighlight_material.diffuseColor = new BABYLON.Color3(1, 1, 1)
       this.chighlight_material = new BABYLON.StandardMaterial("cMaterial", this.scene)
       this.chighlight_material.diffuseColor = new BABYLON.Color3(1, 1, 0)
       this.chighlight2_material = new BABYLON.StandardMaterial("cMaterial2", this.scene)
       this.chighlight2_material.diffuseColor = new BABYLON.Color3(0, 1, 1)
+      this.shighlight_material = new BABYLON.StandardMaterial("sMaterial", this.scene)
+      this.shighlight_material.diffuseColor = new BABYLON.Color3(1, 0, 1)
 
       var camera = new BABYLON.ArcRotateCamera('Camera', Math.PI / 2, Math.PI / 2, 2, BABYLON.Vector3.Zero(), this.scene)
       camera.attachControl(this.canvas, true)
@@ -834,22 +820,28 @@ export default {
       for (let j = 0; j < networks.length; j++) {
         let nodes = networks[j].nodes
         let edges = networks[j].edges
+        let degrees = networks[j].degrees
+        let mdegree = Math.max(...degrees)
         spheres.push([])
         lines.push([])
 
         for (let i = 0; i < nodes.length; i++) {
           let node = nodes[i]
-          let sphere = BABYLON.MeshBuilder.CreateSphere(j + 'sphere' + i, {diameter: this.diameter, updatable: 1}, this.scene)
+          let sphere = BABYLON.MeshBuilder.CreateSphere(j + 'sphere' + i, {diameter: this.diameter*0.1*degrees[i], updatable: 1}, this.scene)
           if (!node[2])
             node.push(0)
           sphere.position = new BABYLON.Vector3(node[0], node[1], node[2] + j * this.separation)
-          sphere.material = this.standard_material
+          let material = new BABYLON.StandardMaterial("sMaterial", this.scene)
+          let c = degrees[i] / mdegree
+          material.diffuseColor = new BABYLON.Color3(c, 0, 1-c)
+          sphere.material = material
           sphere.mdata = {
             id: i,
             layer: j,
             degree: networks[j].degrees[i],
             clust: networks[j].clust[i],
             children: networks[j].children[i],
+            source: networks[j].source[i],
             neighbors: []
           }
           spheres[spheres.length - 1].push(sphere)
@@ -912,14 +904,22 @@ export default {
     },
     mkKeyShortcuts () {
       let self = this
+      d3.select('canvas')
+        .on('mouseenter', function () {
+          d3.select('body').style('overflow', 'hidden')
+        })
+        .on('mouseout', function () {
+          d3.select('body').style('overflow', 'scroll')
+        })
       window.addEventListener('keypress', function (e) {
         console.log(e, e.key)
-        // $ i n N c C m M f b B l L e E
+        // $ i n N c C m M f b B l L e E s S h
         if (e.key == '$') {
-          if (self.keys)
+          if (self.keys) {
             delete self.keys
-          else
+          } else {
             self.keys = 1
+          }
         }
         if (self.keys) {
           if (e.key == 'i') {
@@ -928,6 +928,24 @@ export default {
             window.mmesh = mmesh
             self.snacktext = mmesh.mdata
             self.snackbar = 1
+          } else if (e.key == 'h') {
+            // make help!
+            let msg = '~ key strokes available ~\n'
+            msg += '$ -> enable/disable keystrokes\n'
+            msg += 'i -> display the info on each node\n'
+            msg += 'n/N -> increase/decrease size of nodes\n'
+            msg += 'c -> color on/off neighbors\n'
+            msg += 'C -> color on/off parents and children\n'
+            msg += 'm -> place/remove markers on nodes (e.g. for guiding coarsening\n'
+            msg += 'M -> color on/off nodes with markers\n'
+            msg += 'f -> histograms on count or percentages\n'
+            msg += 'b/B -> more/less bins on histograms\n'
+            msg += 'l/L -> add/remove layer\n'
+            msg += 'e/E -> highlight on/off histogram bars related to node\n'
+            msg += 's -> color on/off source vertices\n'
+            msg += 'S -> color on/off children tree (not implemented\n'
+            msg += 'h -> show this help window'
+            alert(msg)
           } else if (e.key == 'f') {
             if (self.isfreq) {
               d3.selectAll('.alabel').text('Count')
@@ -984,6 +1002,45 @@ export default {
           } else if (e.key == 'n') {
             // make nodes bigger
             self.updateNodeSizes(1)
+          } else if (e.key == 's') {
+            self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
+            let mmesh = self.pickResult.pickedMesh
+            window.mmesh = mmesh
+            // color the neighbors
+            if (self.scolored) {
+              // restore usual colors on vertices
+              self.scolored_nodes.ids.forEach( i => {
+                self.spheres[0][i].material = self.standard_material
+              })
+              self.scolored = false
+              self.snackbar = 0
+            } else {
+              // make funny colors for neighbors
+              self.snacktext = mmesh.mdata.source
+              self.snackbar = 1
+              mmesh.mdata.source.forEach( i => {
+                self.spheres[0][i].material = self.shighlight_material
+              })
+              self.scolored_nodes = {ids: mmesh.mdata.source}
+              self.scolored = true
+            }
+          } else if (e.key == 'S') {
+            self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
+            let mmesh = self.pickResult.pickedMesh
+            window.mmesh = mmesh
+            if (self.Scolored) {
+              // restore usual colors on vertices
+              self.Scolored_nodes.forEach( i => {
+                self.spheres[i.layer][i._id].material = self.standard_material
+              })
+              self.Scolored = false
+              self.snackbar = 0
+            } else {
+              // color children util reaching the source
+              self.snacktext = 'implement coloring of children tree'
+              self.snackbar = 1
+              self.Scolored_nodes = []
+            }
           } else if (e.key == 'c') {
             self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
             let mmesh = self.pickResult.pickedMesh
@@ -1092,6 +1149,7 @@ export default {
               this.addLayer
             )
           } else {
+            let __this = this
             $.post(
               // `http://rfabbri.vicg.icmc.usp.br:5000/postTest2/`,
               `http://127.0.0.1:5000/biMLDB/`,
@@ -1107,9 +1165,16 @@ export default {
             ).done( network => { 
               // console.log(networks)
               // this.networks = networks
-              this.stablishScene(network)
+              // this.stablishScene(network)
               // this.stablishScene(networks[0])
-              // this.addLayer(networks[1])
+              if (network === 'coarsening finished') {
+                __this.tmsg = network
+                __this.snacktext = network
+                __this.snackbar = 1
+                __this.layers--
+              } else {
+                this.addLayer(network)
+              }
             })
           }
         }
@@ -1146,6 +1211,8 @@ export default {
       let networks = this.networks
       let nodes = network.nodes
       let edges = network.edges
+      let degrees = network.degrees
+      let mdegree = Math.max(...degrees)
 
       spheres.push([])
       lines.push([])
@@ -1154,17 +1221,21 @@ export default {
       let j = j_
       for (let i = 0; i < nodes.length; i++) {
         let node = nodes[i]
-        let sphere = BABYLON.MeshBuilder.CreateSphere(j + 'sphere' + i, {diameter: this.diameter, updatable: 1}, this.scene)
+        let sphere = BABYLON.MeshBuilder.CreateSphere(j + 'sphere' + i, {diameter: this.diameter*0.1*degrees[i], updatable: 1}, this.scene)
         if (!node[2])
           node.push(0)
         sphere.position = new BABYLON.Vector3(node[0], node[1], node[2] + j_ * this.separation)
-        sphere.material = this.standard_material
+        material = new BABYLON.StandardMaterial("sMaterial", this.scene)
+        let c = degrees[i] / mdegree
+        material.diffuseColor = new BABYLON.Color3(c, 0, 1-c)
+        sphere.material = material
         sphere.mdata = {
           id: i,
           layer: j,
           degree: networks[j].degrees[i],
           clust: networks[j].clust[i],
           children: networks[j].children[i],
+          source: networks[j].source[i],
           neighbors: []
         }
         spheres[spheres.length - 1].push(sphere)
@@ -1197,7 +1268,7 @@ export default {
       this.dialog = false
       // let set = this.$refs.netsettings
       let aname = this.newname ? this.newname : this.name
-      let met = this.method === 'bi' ? this.bi : this.method
+      let met = this.method === 'bipartite' ? this.bi : this.method
       let tobj = {
         layout: this.layout,
         dimensions: this.dimensions,
@@ -1252,24 +1323,41 @@ export default {
         this.settings = this.$store.getters['ansettings/list']
         this.settings.push({name: 'new'})
         // this.loadSettings(this.settings[1])
+        this.loadSettings(this.settings[0])
       })
     },
     loadSettings (set) {
-      this.asetting = set
-      this.name = set.name
-      this.layout = set.layout
-      this.dimensions = set.dimensions
-      this.links = set.links
-      // this.layers = set.layers
-      this.layers = 1
-      this.method = set.method
-      this.separations = set.separation
-      this.network = set.networkObj
-      this._id = set._id
+      if (set.name !== 'new') {
+        this.asetting = set
+        this.name = set.name
+        this.layout = set.layout
+        this.dimensions = set.dimensions
+        this.links = set.links
+        // this.layers = set.layers
+        this.layers = 1
+        if (typeof set.method === 'object') {
+          this.bi = set.method
+          this.method = 'bipartite'
+          this.isbi = true
+        } else {
+          this.method = set.method
+          this.isbi = false
+        }
+        this.separations = set.separation
+        this.network = set.networkObj
+        this._id = set._id
+      } else {
+        this.newname = this.name + '_clone'
+        this.name = 'new'
+      }
     },
-    cloneSettings (set) {
-      this.newname = this.name + '_'
-      this.name = 'new'
+    setMethod(met) {
+      this.method = met
+      if ((typeof method !== 'object') && this.method !== 'bipartite') {
+        this.isbi = false
+      } else {
+        this.isbi = true
+      }
     },
     sepLayers (val) {
       for (let j = 1; j < this.spheres.length; j++) {
@@ -1312,7 +1400,7 @@ export default {
       this.bi.itr.push('10')
       this.bi.tolerance.push('0.0001')
     }
-    this.method = 'bi:rgmb'
+    // this.method = 'bi'
   },
   created () {
     this.findNetworks()
