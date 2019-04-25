@@ -347,7 +347,7 @@
         ></v-divider>
         <v-flex>
           <v-text-field
-            :label="'Levels'"
+            :label="levelslabel"
             :left="true"
             v-model="layers"
             type="number"
@@ -421,6 +421,7 @@ export default {
   },
   data () {
     return {
+      levelslabel: 'Level',
       show: 'show last',
       panel: [true],
       diameter: 0.06,
@@ -486,8 +487,10 @@ export default {
     toggleShow () {
       if (this.show === 'show all') {
         this.show = 'show last'
+        this.levelslabel = 'Level'
       } else {
         this.show = 'show all'
+        this.levelslabel = 'Levels'
       }
     },
     colorBars (mmesh, highlight) {
@@ -883,7 +886,7 @@ export default {
           if (!node[2])
             node.push(0)
           sphere.position = new BABYLON.Vector3(node[0], node[1], node[2] + j * this.separation)
-          let material = new BABYLON.StandardMaterial("sMaterial", this.scene)
+          let material = new BABYLON.StandardMaterial(j+"sMaterial"+i, this.scene)
           let c = degrees[i] / mdegree
           material.diffuseColor = new BABYLON.Color3(c, 0, 1-c)
           sphere.material = material
@@ -978,6 +981,8 @@ export default {
             self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
             let mmesh = self.pickResult.pickedMesh
             window.mmesh = mmesh
+            if (!mmesh)
+              return
             self.snacktext = mmesh.mdata
             self.snackbar = 1
           } else if (e.key == 'h') {
@@ -985,18 +990,23 @@ export default {
             let msg = '~ key strokes available ~\n'
             msg += '$ -> enable/disable keystrokes\n'
             msg += 'i -> display the info on each node\n'
-            msg += 'n/N -> increase/decrease size of nodes\n'
+            msg += 'l/L -> add/remove layer\n'
+            msg += 'n/N -> increase/decrease size of nodes\n\n'
+
             msg += 'c -> color on/off neighbors\n'
             msg += 'C -> color on/off parents and children\n'
+            msg += 's -> color on/off source vertices\n'
+            msg += 'S -> color on/off children tree (not implemented)\n'
             msg += 'm -> place/remove markers on nodes (e.g. for guiding coarsening\n'
-            msg += 'M -> color on/off nodes with markers\n'
+            msg += 'M -> color on/off nodes with markers\n\n'
+
             msg += 'f -> histograms on count or percentages\n'
             msg += 'b/B -> more/less bins on histograms\n'
-            msg += 'l/L -> add/remove layer\n'
             msg += 'e/E -> highlight on/off histogram bars related to node\n'
-            msg += 's -> color on/off source vertices\n'
-            msg += 'S -> color on/off children tree (not implemented\n'
-            msg += 'h -> show this help window'
+            msg += 'click on histogram bars to highlight nodes\n\n'
+
+            msg += 'h -> show this help window\n\n'
+            msg += ':::'
             alert(msg)
           } else if (e.key == 'f') {
             if (self.isfreq) {
@@ -1021,15 +1031,19 @@ export default {
           } else if (e.key == 'e') {
             self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
             let mmesh = self.pickResult.pickedMesh
+            window.mmesh = mmesh
+            if (!mmesh)
+              return
             self.colorBars(mmesh, 1)
+            mmesh.bmaterial = mmesh.material
             mmesh.material = self.chighlight2_material
             if (self.chighmesh) {
-              self.chighmesh.material = self.standard_material
+              self.chighmesh.material = self.chighmesh.bmaterial
             }
             self.chighmesh = mmesh
           } else if (e.key == 'E') {
             if (self.chighmesh) {
-              self.chighmesh.material = self.standard_material
+              self.chighmesh.material = self.chighmesh.bmaterial
             }
             self.colorBars({}, 0)
           } else if (e.key == 'l') {
@@ -1058,19 +1072,22 @@ export default {
             self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
             let mmesh = self.pickResult.pickedMesh
             window.mmesh = mmesh
-            // color the neighbors
+            if (!mmesh)
+              return
+            // color the source vertices
             if (self.scolored) {
               // restore usual colors on vertices
               self.scolored_nodes.ids.forEach( i => {
-                self.spheres[0][i].material = self.standard_material
+                self.spheres[0][i].material = self.spheres[0][i].bmaterial
               })
               self.scolored = false
               self.snackbar = 0
             } else {
-              // make funny colors for neighbors
+              // make distinct colors for sources
               self.snacktext = mmesh.mdata.source
               self.snackbar = 1
               mmesh.mdata.source.forEach( i => {
+                self.spheres[0][i].bmaterial = self.spheres[0][i].material
                 self.spheres[0][i].material = self.shighlight_material
               })
               self.scolored_nodes = {ids: mmesh.mdata.source}
@@ -1080,6 +1097,8 @@ export default {
             self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
             let mmesh = self.pickResult.pickedMesh
             window.mmesh = mmesh
+            if (!mmesh)
+              return
             if (self.Scolored) {
               // restore usual colors on vertices
               self.Scolored_nodes.forEach( i => {
@@ -1089,7 +1108,7 @@ export default {
               self.snackbar = 0
             } else {
               // color children util reaching the source
-              self.snacktext = 'implement coloring of children tree'
+              self.snacktext = 'implement coloring of children tree ?'
               self.snackbar = 1
               self.Scolored_nodes = []
             }
@@ -1097,19 +1116,22 @@ export default {
             self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
             let mmesh = self.pickResult.pickedMesh
             window.mmesh = mmesh
+            if (!mmesh)
+              return
             // color the neighbors
             if (self.colored) {
               // restore usual colors on vertices
               self.colored_nodes.ids.forEach( i => {
-                self.spheres[self.colored_nodes.layer][i].material = self.standard_material
+                self.spheres[self.colored_nodes.layer][i].material = self.spheres[self.colored_nodes.layer][i].bmaterial
               })
               self.colored = false
               self.snackbar = 0
             } else {
-              // make funny colors for neighbors
+              // make distinct colors for neighbors
               self.snacktext = mmesh.mdata.neighbors
               self.snackbar = 1
               mmesh.mdata.neighbors.forEach( i => {
+                self.spheres[mmesh.mdata.layer][i].bmaterial = self.spheres[mmesh.mdata.layer][i].material
                 self.spheres[mmesh.mdata.layer][i].material = self.highlight_material
               })
               self.colored_nodes = {ids: mmesh.mdata.neighbors, layer: mmesh.mdata.layer}
@@ -1120,14 +1142,16 @@ export default {
             self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
             let mmesh = self.pickResult.pickedMesh
             window.mmesh = mmesh
+            if (!mmesh)
+              return
             // color the neighbors
             if (self.pcolored) {
               // restore usual colors on vertices
               self.pcolored_nodes.ids.forEach( i => {
-                self.spheres[self.pcolored_nodes.layer - 1][i].material = self.standard_material
+                self.spheres[self.pcolored_nodes.layer - 1][i].material = self.spheres[self.pcolored_nodes.layer - 1][i].bmaterial
               })
               if (!(typeof self.pcolored_nodes.tparent === 'undefined')) {
-                self.spheres[self.pcolored_nodes.layer + 1][self.pcolored_nodes.tparent].material = self.standard_material
+                self.spheres[self.pcolored_nodes.layer + 1][self.pcolored_nodes.tparent].material = self.spheres[self.pcolored_nodes.layer + 1][self.pcolored_nodes.tparent].bmaterial
               }
               self.pcolored = false
               self.snackbar = 0
@@ -1136,10 +1160,12 @@ export default {
               self.snacktext = mmesh.mdata.children
               self.snackbar = 1
               mmesh.mdata.children.forEach( i => {
+                self.spheres[mmesh.mdata.layer - 1][i].bmaterial = self.spheres[mmesh.mdata.layer - 1][i].material
                 self.spheres[mmesh.mdata.layer - 1][i].material = self.phighlight_material
               })
               self.pcolored_nodes = {ids: mmesh.mdata.children, layer: mmesh.mdata.layer}
               if (!(typeof mmesh.mdata.tparent === 'undefined')) {
+                self.spheres[mmesh.mdata.layer + 1][mmesh.mdata.tparent].bmaterial = self.spheres[mmesh.mdata.layer + 1][mmesh.mdata.tparent].material
                 self.spheres[mmesh.mdata.layer + 1][mmesh.mdata.tparent].material = self.phighlight_material
                 self.pcolored_nodes.tparent = mmesh.mdata.tparent
               }
@@ -1150,6 +1176,8 @@ export default {
             self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
             let mmesh = self.pickResult.pickedMesh
             window.mmesh = mmesh
+            if (!mmesh)
+              return
             if (!mmesh.mdata.coarsening_pivot) {
               mmesh.mdata.coarsening_pivot = 1
             } else {
@@ -1158,7 +1186,7 @@ export default {
           } else if (e.key === 'M') {
             if (self.mcolored) {
               self.mcolored_nodes.forEach( n => {
-                self.spheres[n.layer][n._id].material = self.standard_material
+                self.spheres[n.layer][n._id].material = self.spheres[n.layer][n._id].bmaterial
               })
               delete self.mcolored_nodes
               self.mcolored = 0
@@ -1167,6 +1195,7 @@ export default {
               for (let j = 0; j < self.spheres.length; j++) {
                 for (let i = 0; i < self.spheres[j].length; i++) {
                   if (self.spheres[j][i].mdata.coarsening_pivot) {
+                    self.spheres[j][i].bmaterial = self.spheres[j][i].material
                     self.spheres[j][i].material = self.mhighlight_material
                     self.mcolored_nodes.push({
                       layer: j, _id: i
@@ -1277,7 +1306,7 @@ export default {
         if (!node[2])
           node.push(0)
         sphere.position = new BABYLON.Vector3(node[0], node[1], node[2] + j_ * this.separation)
-        material = new BABYLON.StandardMaterial("sMaterial", this.scene)
+        material = new BABYLON.StandardMaterial(j+"sMaterial"+i, this.scene)
         let c = degrees[i] / mdegree
         material.diffuseColor = new BABYLON.Color3(c, 0, 1-c)
         sphere.material = material
