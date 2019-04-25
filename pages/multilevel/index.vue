@@ -789,36 +789,23 @@ export default {
           if (this.show === 'show last') {
             $.post(
               // `http://rfabbri.vicg.icmc.usp.br:5000/postTest2/`,
-              `http://127.0.0.1:5000/biGetLastLevel/`,
+              `http://127.0.0.1:5000/biMLDBAll/`,
               // {see: 'this', and: 'thisother', num: 5}
               {
                 netid: this.network._id,
                 bi: this.bi,
                 layout: this.layout,
                 dim: this.dimensions,
-                method: this.method,
-                layer: 0
+                method: this.method
               }
-            ).done( level => { 
-              this.maxlevel = level
-              // this.stablishScene(network)
-              $.post(
-                `http://127.0.0.1:5000/biMLDB/`,
-                {
-                  netid: this.network._id,
-                  bi: this.bi,
-                  layout: this.layout,
-                  dim: this.dimensions,
-                  method: this.method,
-                  layer: parseInt(level)
-                }
-              ).done( network => { 
-                // console.log(networks)
-                // this.networks = networks
-                this.stablishScene(network)
-                // this.stablishScene(networks[0])
-                // this.addLayer(networks[1])
-              })
+            ).done( networks => { 
+              console.log('tnetssss', networks)
+              this.networks = networks
+              this.curlevel = networks.length - 1
+              this.stablishScene(networks[0])
+              for (let j = 1; j < networks.length; j++) {
+                this.addLayer(networks[j])
+              }
             })
           } else {
             $.post(
@@ -905,6 +892,7 @@ export default {
               spheres[spheres.length - 2][child].mdata.tparent = i
             })
           }
+          sphere.isVisible = j === this.curlevel
         }
         let links = 1
         for (let i = 0; i < edges.length; i++) {
@@ -915,15 +903,16 @@ export default {
           if (links === 1) {
             let pos1_ = new BABYLON.Vector3(pos1[0], pos1[1], pos1[2] + j * this.separation)
             let pos2_ = new BABYLON.Vector3(pos2[0], pos2[1], pos2[2] + j * this.separation)
-            var line = BABYLON.MeshBuilder.CreateLines('line' + i, {points: [pos1_, pos2_], updatable: 1}, this.scene)
+            var line = BABYLON.MeshBuilder.CreateLines(j + 'line' + i, {points: [pos1_, pos2_], updatable: 1}, this.scene)
             line.isPickable = false
             lines[lines.length - 1].push(line)
+            line.isVisible = j === this.curlevel
           }
         }
       }
 
       // if (!this.isbi)
-        this.networks = networks
+      this.networks = networks
       this.spheres = spheres
       this.lines = lines
 
@@ -1211,9 +1200,35 @@ export default {
     },
     altLayers (val) {
       this.nlayers_new = parseInt(val.value)
+      this.curlevel = parseInt(val.value)
+      console.log('curlevel updated')
       this.updateLayers()
+      console.log('updated layers yey')
+    },
+    updateVisibility () {
+      let self = this
+      let level = 0
+      this.spheres.forEach( l => {
+        l.forEach( n => {
+          n.isVisible = level === self.curlevel
+        })
+        level++
+      })
+      level = 0
+      this.lines.forEach( l => {
+        l.forEach( ll => {
+          ll.isVisible = level === self.curlevel
+        })
+        level++
+      })
     },
     updateLayers () {
+      if (this.show === 'show last') {
+        console.log('going for and update visibility')
+        this.updateVisibility()
+        return
+      }
+      console.log('going for and update off add Layer')
       if (this.networks.length < this.nlayers_new) {
         // get networks and plot them
         let method
@@ -1306,7 +1321,7 @@ export default {
         if (!node[2])
           node.push(0)
         sphere.position = new BABYLON.Vector3(node[0], node[1], node[2] + j_ * this.separation)
-        material = new BABYLON.StandardMaterial(j+"sMaterial"+i, this.scene)
+        let material = new BABYLON.StandardMaterial(j+"sMaterial"+i, this.scene)
         let c = degrees[i] / mdegree
         material.diffuseColor = new BABYLON.Color3(c, 0, 1-c)
         sphere.material = material
@@ -1325,6 +1340,7 @@ export default {
             spheres[spheres.length - 2][child].mdata.tparent = i
           })
         }
+        sphere.isVisible = j === this.curlevel
       }
       let links = 1
       for (let i = 0; i < edges.length; i++) {
@@ -1335,9 +1351,10 @@ export default {
         if (links === 1) {
           let pos1_ = new BABYLON.Vector3(pos1[0], pos1[1], pos1[2] + j * this.separation)
           let pos2_ = new BABYLON.Vector3(pos2[0], pos2[1], pos2[2] + j * this.separation)
-          var line = BABYLON.MeshBuilder.CreateLines('line' + i, {points: [pos1_, pos2_], updatable: 1}, this.scene)
+          var line = BABYLON.MeshBuilder.CreateLines(j+ 'line' + i, {points: [pos1_, pos2_], updatable: 1}, this.scene)
           line.isPickable = false
           lines[lines.length - 1].push(line)
+          line.isVisible = j === this.curlevel
         }
       }
 
@@ -1424,7 +1441,7 @@ export default {
           this.method = set.method
           this.isbi = false
         }
-        this.separations = set.separation
+        this.separation = set.separation
         this.network = set.networkObj
         this._id = set._id
       } else {
