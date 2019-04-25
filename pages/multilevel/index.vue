@@ -806,6 +806,8 @@ export default {
               for (let j = 1; j < networks.length; j++) {
                 this.addLayer(networks[j])
               }
+              this.separation = 0
+              this.sepLayers(this.separation)
             })
           } else {
             $.post(
@@ -858,6 +860,7 @@ export default {
 
       let spheres = []
       let lines = []
+      let lines_ = []
       let networks = [network]
       for (let j = 0; j < networks.length; j++) {
         let nodes = networks[j].nodes
@@ -866,6 +869,7 @@ export default {
         let mdegree = Math.max(...degrees)
         spheres.push([])
         lines.push([])
+        lines_.push([])
 
         for (let i = 0; i < nodes.length; i++) {
           let node = nodes[i]
@@ -907,7 +911,11 @@ export default {
             line.isPickable = false
             lines[lines.length - 1].push(line)
             line.isVisible = j === this.curlevel
-          }
+            if (typeof lines_[j][edges[i][0]] === 'undefined') {
+              lines_[j][edges[i][0]] = []
+            }
+            lines_[j][edges[i][0]][edges[i][1]] = line
+            }
         }
       }
 
@@ -915,6 +923,7 @@ export default {
       this.networks = networks
       this.spheres = spheres
       this.lines = lines
+      this.lines_ = lines_
 
       let selff = this
       this.engine.runRenderLoop(function () {
@@ -957,7 +966,7 @@ export default {
         })
       window.addEventListener('keypress', function (e) {
         console.log(e, e.key)
-        // $ i n N c C m M f b B l L e E s S h
+        // $ i n N c C m M f b B l L e E s S w p h
         if (e.key == '$') {
           if (self.keys) {
             delete self.keys
@@ -974,6 +983,80 @@ export default {
               return
             self.snacktext = mmesh.mdata
             self.snackbar = 1
+          } else if (e.key == 'w') {
+            self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
+            let mmesh = self.pickResult.pickedMesh
+            window.mmesh = mmesh
+            if (!mmesh)
+              return
+            mmesh.bmaterial = mmesh.material
+            mmesh.material = self.chighlight2_material
+            let layer = mmesh.mdata.layer
+            if (layer === 0) {
+              self.snacktext = 'layer 0 has no more children'
+              self.snackbar = 1
+              return
+            }
+            if (typeof self.widened[layer - 1] === 'undefined') {
+              self.widened[layer - 1] = []
+            }
+            mmesh.mdata.children.forEach( c => {
+              self.spheres[layer - 1][c].isVisible = true
+              self.widened[layer - 1].push(c)
+            })
+            self.widened[layer - 1].forEach( c => {
+              self.widened[layer - 1].forEach( c2 => {
+                console.log(c, c2, ',=======')
+                if (typeof self.lines_[layer - 1][c] !== 'undefined') {
+                  if (typeof self.lines_[layer - 1][c][c2] !== 'undefined') {
+                    self.lines_[layer - 1][c][c2].isVisible = true
+                  }
+                }
+                if (typeof self.lines_[layer - 1][c2] !== 'undefined') {
+                  if (typeof self.lines_[layer - 1][c2][c] !== 'undefined') {
+                    self.lines_[layer - 1][c2][c].isVisible = true
+                  }
+                }
+              })
+            })
+          } else if (e.key == 'W') {
+            // colapse node and related into parent
+            self.pickResult = self.scene.pick(self.scene.pointerX, self.scene.pointerY)
+            let mmesh = self.pickResult.pickedMesh
+            window.mmesh = mmesh
+            if (!mmesh)
+              return
+            let layer = mmesh.mdata.layer
+            let tparent = mmesh.mdata.tparent
+            if (layer + 1 > self.networks.length) {
+              self.snacktext = 'this layer is the last one: nodes have no parent'
+              self.snackbar = 1
+              return
+            }
+            let pmesh = self.spheres[layer + 1][tparent]
+            let brothers = pmesh.mdata.children
+            brothers.forEach( c => {
+              self.widened[layer].forEach( c2 => {
+                console.log(c, c2, '======= BBBBBBB')
+                if (typeof self.lines_[layer][c] !== 'undefined') {
+                  if (typeof self.lines_[layer][c][c2] !== 'undefined') {
+                    self.lines_[layer][c][c2].isVisible = false
+                  }
+                }
+                if (typeof self.lines_[layer][c2] !== 'undefined') {
+                  if (typeof self.lines_[layer][c2][c] !== 'undefined') {
+                    self.lines_[layer][c2][c].isVisible = false
+                  }
+                }
+              })
+            })
+            brothers.forEach( c => {
+              self.spheres[layer][c].isVisible = false
+              self.widened[layer] = self.widened[layer].filter( e => {
+                return e !== c
+              })
+            })
+            pmesh.material = pmesh.bmaterial
           } else if (e.key == 'h') {
             // make help!
             let msg = '~ key strokes available ~\n'
@@ -993,6 +1076,10 @@ export default {
             msg += 'b/B -> more/less bins on histograms\n'
             msg += 'e/E -> highlight on/off histogram bars related to node\n'
             msg += 'click on histogram bars to highlight nodes\n\n'
+
+            msg += 'w (widen) -> open/uncoarsen node\n'
+            msg += 'W (unwiden) -> close/coarsen nodes in node metanode\n'
+            msg += 'p (parent) -> make parent visible (not implemented)\n\n'
 
             msg += 'h -> show this help window\n\n'
             msg += ':::'
@@ -1304,6 +1391,7 @@ export default {
       this.networks.push(network)
       let spheres = this.spheres
       let lines = this.lines
+      let lines_ = this.lines_
       let networks = this.networks
       let nodes = network.nodes
       let edges = network.edges
@@ -1312,6 +1400,7 @@ export default {
 
       spheres.push([])
       lines.push([])
+      lines_.push([])
 
       let j_ = this.nlayers
       let j = j_
@@ -1355,6 +1444,10 @@ export default {
           line.isPickable = false
           lines[lines.length - 1].push(line)
           line.isVisible = j === this.curlevel
+          if (typeof lines_[j][edges[i][0]] === 'undefined') {
+            lines_[j][edges[i][0]] = []
+          }
+          lines_[j][edges[i][0]][edges[i][1]] = line
         }
       }
 
@@ -1499,6 +1592,7 @@ export default {
       this.bi.tolerance.push('0.0001')
     }
     // this.method = 'bi'
+    this.widened = []
   },
   created () {
     this.findNetworks()
