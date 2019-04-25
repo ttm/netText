@@ -311,6 +311,14 @@
         >
           Save
         </v-btn>
+        <v-btn
+          slot="activator"
+          color="green lighten-2"
+          dark
+          @click="toggleShow()"
+        >
+          {{ show }}
+        </v-btn>
         <v-flex class="pr-3">
           <v-slider
             v-model="separation"
@@ -413,6 +421,7 @@ export default {
   },
   data () {
     return {
+      show: 'show last',
       panel: [true],
       diameter: 0.06,
       snackbar: false,
@@ -474,6 +483,13 @@ export default {
     }
   },
   methods: {
+    toggleShow () {
+      if (this.show === 'show all') {
+        this.show = 'show last'
+      } else {
+        this.show = 'show all'
+      }
+    },
     colorBars (mmesh, highlight) {
       if (highlight) {
         var deg = mmesh.mdata.degree
@@ -767,25 +783,61 @@ export default {
             this.stablishScene
           )
         } else {
-          $.post(
-            // `http://rfabbri.vicg.icmc.usp.br:5000/postTest2/`,
-            `http://127.0.0.1:5000/biMLDB/`,
-            // {see: 'this', and: 'thisother', num: 5}
-            {
-              netid: this.network._id,
-              layout: this.layout,
-              dim: this.dimensions,
-              method: this.method,
-              bi: this.bi,
-              layer: 0
-            }
-          ).done( network => { 
-            // console.log(networks)
-            // this.networks = networks
-            this.stablishScene(network)
-            // this.stablishScene(networks[0])
-            // this.addLayer(networks[1])
-          })
+          if (this.show === 'show last') {
+            $.post(
+              // `http://rfabbri.vicg.icmc.usp.br:5000/postTest2/`,
+              `http://127.0.0.1:5000/biGetLastLevel/`,
+              // {see: 'this', and: 'thisother', num: 5}
+              {
+                netid: this.network._id,
+                bi: this.bi,
+                layout: this.layout,
+                dim: this.dimensions,
+                method: this.method,
+                layer: 0
+              }
+            ).done( level => { 
+              this.maxlevel = level
+              // this.stablishScene(network)
+              $.post(
+                `http://127.0.0.1:5000/biMLDB/`,
+                {
+                  netid: this.network._id,
+                  bi: this.bi,
+                  layout: this.layout,
+                  dim: this.dimensions,
+                  method: this.method,
+                  layer: parseInt(level)
+                }
+              ).done( network => { 
+                // console.log(networks)
+                // this.networks = networks
+                this.stablishScene(network)
+                // this.stablishScene(networks[0])
+                // this.addLayer(networks[1])
+              })
+            })
+          } else {
+            $.post(
+              // `http://rfabbri.vicg.icmc.usp.br:5000/postTest2/`,
+              `http://127.0.0.1:5000/biMLDB/`,
+              // {see: 'this', and: 'thisother', num: 5}
+              {
+                netid: this.network._id,
+                layout: this.layout,
+                dim: this.dimensions,
+                method: this.method,
+                bi: this.bi,
+                layer: 0
+              }
+            ).done( network => { 
+              // console.log(networks)
+              // this.networks = networks
+              this.stablishScene(network)
+              // this.stablishScene(networks[0])
+              // this.addLayer(networks[1])
+            })
+          }
         }
       }
     },
