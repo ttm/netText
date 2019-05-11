@@ -21,7 +21,7 @@
           <v-list-tile-title color="primary">{{ net.filename }}</v-list-tile-title>
         </v-list-tile>
         <v-list-tile>
-    <input id="selectFotos" type="file" @change="upload">
+    <input type="file" @change="upload">
         </v-list-tile>
       </v-list>
     </v-menu>
@@ -873,7 +873,7 @@ export default {
 
         for (let i = 0; i < nodes.length; i++) {
           let node = nodes[i]
-          let sphere = BABYLON.MeshBuilder.CreateSphere(j + 'sphere' + i, {diameter: this.diameter*0.1*degrees[i], updatable: 1}, this.scene)
+          let sphere = BABYLON.MeshBuilder.CreateSphere(j + 'sphere' + i, {diameter: 0.03 + this.diameter*0.1*degrees[i], updatable: 1}, this.scene)
           if (!node[2])
             node.push(0)
           sphere.position = new BABYLON.Vector3(node[0], node[1], node[2] + j * this.separation)
@@ -896,7 +896,7 @@ export default {
               spheres[spheres.length - 2][child].mdata.tparent = i
             })
           }
-          sphere.isVisible = j === this.curlevel
+          sphere.isVisible = ( j === this.curlevel ) || (this.show === 'show all')
         }
         let links = 1
         for (let i = 0; i < edges.length; i++) {
@@ -910,7 +910,7 @@ export default {
             var line = BABYLON.MeshBuilder.CreateLines(j + 'line' + i, {points: [pos1_, pos2_], updatable: 1}, this.scene)
             line.isPickable = false
             lines[lines.length - 1].push(line)
-            line.isVisible = j === this.curlevel
+            line.isVisible = ( j === this.curlevel ) || (this.show === 'show all')
             if (typeof lines_[j][edges[i][0]] === 'undefined') {
               lines_[j][edges[i][0]] = []
             }
@@ -1406,7 +1406,7 @@ export default {
       let j = j_
       for (let i = 0; i < nodes.length; i++) {
         let node = nodes[i]
-        let sphere = BABYLON.MeshBuilder.CreateSphere(j + 'sphere' + i, {diameter: this.diameter*0.1*degrees[i], updatable: 1}, this.scene)
+        let sphere = BABYLON.MeshBuilder.CreateSphere(j + 'sphere' + i, {diameter: 0.03 + this.diameter*0.1*degrees[i], updatable: 1}, this.scene)
         if (!node[2])
           node.push(0)
         sphere.position = new BABYLON.Vector3(node[0], node[1], node[2] + j_ * this.separation)
@@ -1429,7 +1429,7 @@ export default {
             spheres[spheres.length - 2][child].mdata.tparent = i
           })
         }
-        sphere.isVisible = j === this.curlevel
+        sphere.isVisible = ( j === this.curlevel ) || (this.show === 'show all')
       }
       let links = 1
       for (let i = 0; i < edges.length; i++) {
@@ -1443,7 +1443,7 @@ export default {
           var line = BABYLON.MeshBuilder.CreateLines(j+ 'line' + i, {points: [pos1_, pos2_], updatable: 1}, this.scene)
           line.isPickable = false
           lines[lines.length - 1].push(line)
-          line.isVisible = j === this.curlevel
+          line.isVisible = ( j === this.curlevel ) || (this.show === 'show all')
           if (typeof lines_[j][edges[i][0]] === 'undefined') {
             lines_[j][edges[i][0]] = []
           }

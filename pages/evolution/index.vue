@@ -451,7 +451,8 @@ export default {
         let coords = d3.mouse(this)
         let xcoord = Math.round(xScale.invert(coords[0]) - 1)
         console.log('click', coords, xcoord)
-        self.cur_net = xcoord
+        self.cur_net = xcoord - 2
+        self.updateFrameline()
       })
       window.XS = xScale
       svg.selectAll(".dot2")
