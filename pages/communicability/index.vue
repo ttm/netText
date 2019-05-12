@@ -110,8 +110,9 @@ export default {
     },
     renderNetwork () {
       $.post(
-        // `http://rfabbri.vicg.icmc.usp.br:5000/postTest2/`,
-        `http://127.0.0.1:5000/communicability/`,
+        // `http://rfabbri.vicg.icmc.usp.br:5000/communicability/`,
+        process.env.flaskURL + '/communicability/',
+        // `http://127.0.0.1:5000/communicability/`,
         // {see: 'this', and: 'thisother', num: 5}
         {
           net: this.network,
@@ -195,6 +196,7 @@ export default {
       .on('mouseout', function () {
         d3.select('body').style('overflow', 'scroll')
       })
+    console.log(process.env.flaskURL)
   }
 }
 </script>

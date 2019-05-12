@@ -553,7 +553,7 @@ export default {
     loadNetwork (net) {
       this.network = net
       $.get(
-        `http://127.0.0.1:5000/evolvingNet/someNetId/`,
+        process.env.flaskURL + '/evolvingNet/someNetId/',
         {},
         this.absorbNetworksData
       )
@@ -561,7 +561,7 @@ export default {
     testPost () {
       $.post(
         // `http://rfabbri.vicg.icmc.usp.br:5000/postTest2/`,
-        `http://127.0.0.1:5000/postTest3/`,
+        process.env.flaskURL + '/postTest3/',
         // {see: 'this', and: 'thisother', num: 5}
         {
           network: this.network.name,
@@ -1056,7 +1056,7 @@ export default {
     },
     fetchAnalysisData () {
       $.get(
-        `http://127.0.0.1:5000/evolvingNet/someNetId/`,
+        process.env.flaskURL + '/evolvingNet/someNetId/',
         {},
         this.absorbAnalysisData
       )

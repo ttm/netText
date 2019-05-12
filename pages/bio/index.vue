@@ -24,11 +24,11 @@ export default {
     //     window.adata = data
     //     console.log('tsv loaded')
     // });
-    $.get('E-MTAB-2706-query-results.tpms.tsv', data => {
-      console.log('before split')
-      window.mdata = data.split(/\r?\n/)
-      console.log('after split')
-    })
+    // $.get('E-MTAB-2706-query-results.tpms.tsv', data => {
+    //   console.log('before split')
+    //   window.mdata = data.split(/\r?\n/)
+    //   console.log('after split')
+    // })
   }
 }
 </script>

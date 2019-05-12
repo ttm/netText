@@ -781,7 +781,7 @@ export default {
         console.log(method)
         if (!this.isbi) {
           $.get(
-            `http://127.0.0.1:5000/netlevelDB/${this.network._id}/${this.layout}/${this.dimensions}/0/${method}/`,
+            process.env.flaskURL + `/netlevelDB/${this.network._id}/${this.layout}/${this.dimensions}/0/${method}/`,
             {},
             this.stablishScene
           )
@@ -789,7 +789,7 @@ export default {
           if (this.show === 'show last') {
             $.post(
               // `http://rfabbri.vicg.icmc.usp.br:5000/postTest2/`,
-              `http://127.0.0.1:5000/biMLDBAll/`,
+              process.env.flaskURL + '/biMLDBAll/',
               // {see: 'this', and: 'thisother', num: 5}
               {
                 netid: this.network._id,
@@ -812,7 +812,7 @@ export default {
           } else {
             $.post(
               // `http://rfabbri.vicg.icmc.usp.br:5000/postTest2/`,
-              `http://127.0.0.1:5000/biMLDB/`,
+              process.env.flaskURL + '/biMLDB/',
               // {see: 'this', and: 'thisother', num: 5}
               {
                 netid: this.network._id,
@@ -1327,7 +1327,7 @@ export default {
         for (let i = this.networks.length + 1; i <= this.nlayers_new; i++) {
           if (!this.isbi) {
             $.get(
-              `http://127.0.0.1:5000/netlevelDB/${this.network._id}/${this.layout}/${this.dimensions}/${i - 1}/${method}/`,
+              process.env.flaskURL + `/netlevelDB/${this.network._id}/${this.layout}/${this.dimensions}/${i - 1}/${method}/`,
               {},
               this.addLayer
             )
@@ -1335,7 +1335,7 @@ export default {
             let __this = this
             $.post(
               // `http://rfabbri.vicg.icmc.usp.br:5000/postTest2/`,
-              `http://127.0.0.1:5000/biMLDB/`,
+              process.env.flaskURL + `/biMLDB/`,
               // {see: 'this', and: 'thisother', num: 5}
               {
                 netid: this.network._id,
