@@ -408,17 +408,12 @@ import * as BABYLON from 'babylonjs'
 import $ from 'jquery'
 import * as d3 from 'd3'
 
-import NetSettings from '~/components/network/NetSettings'
-
 const methods = {
   'kclicks': 'kclick',
   'label propagation': 'lab',
   'connected components': 'cp'
 }
 export default {
-  components: {
-    NetSettings,
-  },
   data () {
     return {
       levelslabel: 'Level',
@@ -787,9 +782,9 @@ export default {
           )
         } else {
           if (this.show === 'show last') {
+            let turl = process.env.flaskURL + '/biMLDBAll/'
             $.post(
-              // `http://rfabbri.vicg.icmc.usp.br:5000/postTest2/`,
-              process.env.flaskURL + '/biMLDBAll/',
+              turl,
               // {see: 'this', and: 'thisother', num: 5}
               {
                 netid: this.network._id,

@@ -3,9 +3,9 @@ export default {
   //   port: 80
   // },
   env: {
-    nuxtURL: process.env.nuxtURL || '127.0.0.1:3000',
-    feathersURL: process.env.feathersURL || '127.0.0.1:3030',
-    flaskURL: process.env.flaskURL || '127.0.0.1:5000',
+    nuxtURL: process.env.nuxtURL || 'http://127.0.0.1:3000',
+    feathersURL: process.env.feathersURL || 'http://127.0.0.1:3030',
+    flaskURL: process.env.flaskURL || 'http://127.0.0.1:5000',
   },
   server: {
     host: '0.0.0.0', // default: localhost
@@ -24,5 +24,11 @@ export default {
         earcut: true
       }
     }
-  }
+  },
+  plugins: [
+    {
+      src: '~/plugins/pixi.js',
+      ssr: false
+    }
+  ]
 }
