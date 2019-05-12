@@ -39,11 +39,23 @@
     :step="1"
   ></v-slider>
 </div><br/>
-<div style="border:1px;border-style:solid;padding:5px">MDS settings
+<div style="border:1px;border-style:solid;padding:5px">Dimensionality Reduction settings
   <v-radio-group v-model="dimensions" :label="'dimensions of layout'">
     <v-radio :label="'2'" :value="2"></v-radio>
     <v-radio :label="'3'" :value="3"></v-radio>
   </v-radio-group>
+  <v-radio-group v-model="dimredtype" :label="'type of dim reduction'">
+    <v-radio :label="'MDS'" :value="'MDS'"></v-radio>
+    <v-radio :label="'t-SNE'" :value="'t-SNE'"></v-radio>
+  </v-radio-group>
+  <v-slider
+    v-model="iters"
+    thumb-label="always"
+    :max="10000"
+    :min="minIters"
+    :label="'iterations'"
+    :step="1"
+  ></v-slider>
   <v-slider
     v-model="inits"
     thumb-label="always"
@@ -51,14 +63,25 @@
     :min="1"
     :label="'initializations'"
     :step="1"
+    v-if="dimredtype === 'MDS'"
   ></v-slider>
   <v-slider
-    v-model="iters"
+    v-model="perplexity"
     thumb-label="always"
-    :max="10000"
+    :max="1000"
     :min="1"
-    :label="'iterations'"
+    :label="'perplexity'"
     :step="1"
+    v-if="dimredtype === 't-SNE'"
+  ></v-slider>
+  <v-slider
+    v-model="lrate"
+    thumb-label="always"
+    :max="1000"
+    :min="1"
+    :label="'learning rate'"
+    :step="1"
+    v-if="dimredtype === 't-SNE'"
   ></v-slider>
 </div><br/>
 <div style="border:1px;border-style:solid;padding:5px">Visualization controls
@@ -99,9 +122,22 @@ export default {
       mangle: 10,
       dimensions: 3,
       inits: 3,
-      iters: 100,
+      iters: 1000,
       nsize:1,
-      diameter: 0.03
+      diameter: 0.03,
+      dimredtype: 'MDS',
+      lrate: 12,
+      perplexity: 5,
+      minIters: 1
+    }
+  },
+  watch: {
+    dimredtype: function (val) {
+      if (val === 't-SNE') {
+        this.minIters = 250
+      } else {
+        this.minIters = 1
+      }
     }
   },
   methods: {
@@ -122,7 +158,10 @@ export default {
 
           dim: this.dimensions,
           inits: this.inits,
-          iters: this.iters 
+          iters: this.iters,
+          dimredtype: this.dimredtype,
+          lrate: this.lrate,
+          perplexity: this.perplexity
         }
       ).done( network => { 
         console.log(network)
