@@ -1,8 +1,8 @@
 <template>
 <span>
 <v-layout align-center justify-center row fill-height>
-  <v-flex xs4 order-md2 order-xs2 center>
-    <v-menu offset-y>
+  <v-flex text-xs-center>
+    <v-menu offset-y title="select the network">
       <v-btn
         slot="activator"
         color="primary"
@@ -23,7 +23,28 @@
         </v-list-tile>
       </v-list>
     </v-menu>
-    <v-menu offset-y>
+    <v-menu offset-y title="select the navigation procedure">
+      <v-btn
+        slot="activator"
+        color="primary"
+        dark
+      >
+        {{ navigation }}
+      </v-btn>
+      <v-list>
+        <v-list-tile
+          @click="navigation = 'interpolated'"
+        >
+          <v-list-tile-title color="primary">interpolated</v-list-tile-title>
+        </v-list-tile>
+        <v-list-tile
+          @click="navigation = 'top-down'"
+        >
+          <v-list-tile-title color="primary">top-down</v-list-tile-title>
+        </v-list-tile>
+      </v-list>
+    </v-menu>
+    <v-menu offset-y title="select the layout">
       <v-btn
         slot="activator"
         color="primary"
@@ -323,6 +344,7 @@ export default {
         'spring'
       ],
       layout: 'kamada',
+      navigation: 'top-down',
       snackbar: false,
       snacktext: 'msnacktext',
       curlevelinfo: '---',
@@ -389,15 +411,22 @@ export default {
       }
     },
     showChildren (node) {
-      node.alpha = 0.5
-      node.tint = 0xFF00FF
-      let level = node.mdata.level - 1
       let children = node.mdata.children
-      let nodes = this.nodes[level]
-      for (let i = 0; i < children.length; i++) {
-        let child = children[i]
-        nodes[child].visible = true
-        nodes[child].tint = 0x0000FF
+      let level = node.mdata.level - 1
+      if (this.navigation === 'interpolated') {
+        node.alpha = 0.5
+        node.tint = 0xFF00FF
+        let nodes = this.nodes[level]
+        for (let i = 0; i < children.length; i++) {
+          let child = children[i]
+          nodes[child].visible = true
+          nodes[child].tint = 0x0000FF
+        }
+      } else {
+        node.clear()
+        node.beginFill(0xFFFFFF)
+        node.drawPolygon(this.pathrect)
+        node.endFill()
       }
       this.snacktext = 'shown children ' + children + ' of level ' + level
       this.snackbar = true
@@ -425,6 +454,7 @@ export default {
       node.visible = this.curlevel == level
       node.interactive = true
       node.buttonMode = true
+      node.alpha = 0.8
       node
         .on('pointerdown', clickNode)
         .on('pointerup', releaseNode)
@@ -457,6 +487,7 @@ export default {
       line.moveTo(...p1)
       line.lineTo(...p2)
       line.visible = this.curlevel == level
+      line.alpha = 0.4
       this.app_.stage.addChild(line)
       this.lines[level].push(line)
     },
@@ -528,6 +559,8 @@ export default {
       let p3x = - this.dx
       let p3y = + this.dy
       this.path = [p1x, p1y, p2x, p2y, p3x, p3y]
+      let r = this.radius
+      this.pathrect = [-r, -r, -r, r, r, r, r, -r]
     },
     redrawLinks (links_) {
       let links = this.networks[this.curlevel].edges
@@ -653,7 +686,6 @@ export default {
   width: 60px;
 }
 .tbtn {
-  cursor: pointer;
   background-color: gray;
 }
 </style>
