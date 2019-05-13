@@ -202,17 +202,32 @@
   ></v-text-field>
 </v-layout>
 <v-system-bar id="toolbar" window dark>
-  <v-icon class="tbtn" @click="showLevel('+')" title="show coarser level">expand_less</v-icon>
-  <v-icon class="tbtn" @click="showLevel('-')" title="show less coarser level">expand_more</v-icon>
+  <v-icon class="tbtn" @click="showLevel('+')" title="show coarser level">unfold_less</v-icon>
+  <v-icon class="tbtn" @click="showLevel('-')" title="show less coarser level">unfold_more</v-icon>
+  <v-icon class="tbtn" @click="resizeNodes('+')" title="decrease node size">control_camera</v-icon>
+  <v-icon class="tbtn" @click="resizeNodes('-')" title="increase node size">games</v-icon>
+  <v-icon class="tbtn" @click="nodeVisibility('+')" title="decrease node transparency">hdr_strong</v-icon>
+  <v-icon class="tbtn" @click="nodeVisibility('-')" title="increase node transparency">hdr_weak</v-icon>
+  <v-icon class="tbtn" @click="rotateNodes()" title="rotate nodes">rotate_left</v-icon>
+  <v-icon class="tbtn" @click="linkVisibility('+')" title="increase line transparency">drag_handle</v-icon>
+  <v-icon class="tbtn" @click="linkVisibility('-')" title="decrease line transparency">power_input</v-icon>
+  <v-spacer></v-spacer>
   <v-icon class="tbtn" id="ibtn" @click="setInfoTool()" title="get info on specific nodes">info</v-icon>
   <v-icon class="tbtn" id="ebtn" @click="setExploreTool()" title="open nodes into child nodes">explore</v-icon>
+  <v-icon class="tbtn" id="dbtn" @click="setDragTool()" title="drag nodes to reposition them">drag_indicator</v-icon>
+  <v-spacer></v-spacer>
+  <v-icon class="tbtn" @click="zoom('+')" title="zoom in">zoom_in</v-icon>
+  <v-icon class="tbtn" @click="zoom('-')" title="zoom out">zoom_out</v-icon>
+  <v-icon class="tbtn" @click="pan('l')" title="pan left">chevron_left</v-icon>
+  <v-icon class="tbtn" @click="pan('r')" title="pan right">chevron_right</v-icon>
+  <v-icon class="tbtn" @click="pan('u')" title="pan up">expand_less</v-icon>
+  <v-icon class="tbtn" @click="pan('d')" title="pan down">expand_more</v-icon>
 </v-system-bar>
       <div id="renderCanvas"></div>
     <v-snackbar
       v-model="snackbar"
       :multi-line="true"
       :timeout="6000"
-      :top="true"
     >
       {{ snacktext }}
       <v-btn
@@ -230,12 +245,37 @@
 import $ from 'jquery'
 import * as d3 from 'd3'
 
-function clickNode () {
+function moveNode () {
+  if (this.dragging) {
+    const newposition = this.data.getLocalPosition(this.parent)
+    this.x = newposition.x
+    this.y = newposition.y
+    __this.nps = newposition
+    let px = this.x * 2/__this.cwidth - 1
+    let py = this.y * 2/__this.cheight - 1
+    __this.networks[__this.curlevel].nodes[this.mdata.ID] = [px, py]
+  }
+}
+
+function releaseNode () {
+  if (this.dragging) {
+    this.alpha *= 2
+    this.dragging = false
+    this.data = null
+    __this.redrawLinks(this.mdata.links)
+  }
+}
+
+function clickNode (event) {
   if (__this.tool === 'info') {
     __this.snacktext = this.mdata
     __this.snackbar = true
   } else if (__this.tool === 'explore'){
     __this.showChildren(this)
+  } else if (__this.tool === 'drag'){
+    this.data = event.data // because of multitouch
+    this.alpha *= 0.5
+    this.dragging = true
   } else {
     __this.snacktext = 'select a tool to interact with network'
     __this.snackbar = true
@@ -305,8 +345,22 @@ export default {
     initButtons () {
       this.toolbuttons = [
         document.getElementById('ibtn'),
-        document.getElementById('ebtn')
+        document.getElementById('ebtn'),
+        document.getElementById('dbtn'),
       ]
+    },
+    setDragTool () {
+      let b = document.getElementById('dbtn')
+      if (this.tool === 'drag') {
+        this.tool = ''
+        b.style.backgroundColor = "gray"
+      } else {
+        this.tool = 'drag'
+        this.snacktext = 'click and hold on nodes to drag'
+        this.snackbar = true
+        this.toolbuttons.forEach( bt => bt.style.backgroundColor = 'gray')
+        b.style.backgroundColor = "black"
+      }
     },
     setExploreTool () {
       let b = document.getElementById('ebtn')
@@ -351,9 +405,11 @@ export default {
     initPixi () {
       this.app_ = new PIXI.Application()
       document.getElementById('renderCanvas').appendChild(this.app_.view)
+      this.cwidth_ = document.getElementsByTagName('canvas')[0].width
+      this.cheight_ = document.getElementsByTagName('canvas')[0].height
       this.cwidth =  0.9 * document.getElementsByTagName('canvas')[0].width
       this.cheight = 0.9 * document.getElementsByTagName('canvas')[0].height
-      document.getElementById('toolbar').style.width = this.cwidth/0.9 + 'px'
+      document.getElementById('toolbar').style.width = this.cwidth_ + 'px'
     },
     mkNode(p, level) {
       let px = (1 + p[0]) * this.cwidth/2
@@ -369,7 +425,11 @@ export default {
       node.visible = this.curlevel == level
       node.interactive = true
       node.buttonMode = true
-      node.on('pointerdown', clickNode)
+      node
+        .on('pointerdown', clickNode)
+        .on('pointerup', releaseNode)
+        .on('pointerupoutside', releaseNode)
+        .on('pointermove', moveNode)
       this.app_.stage.addChild(node)
       this.nodes[level].push(node)
       return node
@@ -383,8 +443,9 @@ export default {
           children: net.children[i],
           clust: net.clust[i],
           degree: net.degrees[i],
-          parent: net.parents[i],
+          parent_: net.parents[i],
           source: net.sources[i],
+          links: this.nodelinks[i],
           level: level,
           ID: i
         }
@@ -392,7 +453,7 @@ export default {
     },
     mkLine (p1, p2, level) {
       let line = new PIXI.Graphics()
-      line.lineStyle(0.1, 0xffff00)
+      line.lineStyle(1, 0xffff00)
       line.moveTo(...p1)
       line.lineTo(...p2)
       line.visible = this.curlevel == level
@@ -402,14 +463,22 @@ export default {
     mkLines(level) {
       let links = this.networks[level].edges
       let nodes = this.networks[level].nodes
-      let self = this
       for (let i = 0; i < links.length; i++) {
         let l = links[i]
-        let p1x =  (1 + nodes[l[0]][0])*self.cwidth/2
-        let p1y =  (1 + nodes[l[0]][1])*self.cheight/2
-        let p2x =  (1 + nodes[l[1]][0])*self.cwidth/2
-        let p2y =  (1 + nodes[l[1]][1])*self.cheight/2
+        let p1x =  (1 + nodes[l[0]][0])*this.cwidth/2
+        let p1y =  (1 + nodes[l[0]][1])*this.cheight/2
+        let p2x =  (1 + nodes[l[1]][0])*this.cwidth/2
+        let p2y =  (1 + nodes[l[1]][1])*this.cheight/2
         this.mkLine([p1x, p1y], [p2x, p2y], level)
+        // keep track of every link the node is a participant of:
+        if (this.nodelinks[l[0]])
+          this.nodelinks[l[0]].push(i)
+        else
+          this.nodelinks[l[0]] = [i]
+        if (this.nodelinks[l[1]])
+          this.nodelinks[l[1]].push(i)
+        else
+          this.nodelinks[l[1]] = [i]
       }
     },
     upload () {
@@ -435,14 +504,18 @@ export default {
     mapNetworksToScreen () {
       this.lines = []
       this.nodes = []
+      this.nodescales = []
       this.mkPath()
       for (let i = 0; i <= this.curlevel; i++) {
         this.lines.push([])
         this.nodes.push([])
+        this.nodescales.push(1)
+        this.nodelinks = {}
         this.mkLines(i)
         this.mkNodes(i)
       }
       this.loaded = true
+      this.curscale = 1
     },
     mkPath () {
       this.radius = 10
@@ -455,6 +528,71 @@ export default {
       let p3x = - this.dx
       let p3y = + this.dy
       this.path = [p1x, p1y, p2x, p2y, p3x, p3y]
+    },
+    redrawLinks (links_) {
+      let links = this.networks[this.curlevel].edges
+      let nodes = this.networks[this.curlevel].nodes
+      links_.forEach( l => {
+        let link = links[l]
+        let p1x =  (1 + nodes[link[0]][0])*this.cwidth/2
+        let p1y =  (1 + nodes[link[0]][1])*this.cheight/2
+        let p2x =  (1 + nodes[link[1]][0])*this.cwidth/2
+        let p2y =  (1 + nodes[link[1]][1])*this.cheight/2
+        let line = this.lines[this.curlevel][l]
+        line.clear()
+        line.moveTo(p1x, p1y)
+        line.lineTo(p2x, p2y)
+      })
+    },
+    resizeNodes (direction) {
+      let inc = 0.1
+      if (direction !== '+')
+        inc = -0.1
+      this.nodescales[this.curlevel] += inc
+      this.nodes[this.curlevel].forEach( n => {
+        n.scale.set(this.nodescales[this.curlevel])
+      })
+    },
+    rotateNodes () {
+      this.nodes[this.curlevel].forEach( n => {
+        n.rotation += 0.1
+      })
+    },
+    nodeVisibility (direction) {
+      let inc = 0.1
+      if (direction !== '+')
+        inc = -0.1
+      this.nodes[this.curlevel].forEach( l => {
+        l.alpha += inc
+      })
+    },
+    linkVisibility (direction) {
+      let inc = 0.1
+      if (direction !== '+')
+        inc = -0.1
+      this.lines[this.curlevel].forEach( l => {
+        l.alpha += inc
+      })
+    },
+    zoom (direction) {
+      let inc = 0.1
+      if (direction !== '+')
+        inc = -0.1
+      this.curscale += inc
+        this.app_.stage.scale.set(this.curscale)
+      this.app_.stage.x -= this.cwidth_ * inc / 2
+      this.app_.stage.y -= this.cheight_ * inc / 2
+    },
+    pan (direction) {
+      if (direction === 'l') {
+        this.app_.stage.x += -0.1 * this.cwidth_ / 2
+      } else if (direction === 'r') {
+        this.app_.stage.x += 0.1 * this.cwidth_ / 2
+      } else if (direction === 'u') {
+        this.app_.stage.y += -0.1 * this.cheight_ / 2
+      } else if (direction === 'd') {
+        this.app_.stage.y += 0.1 * this.cheight_ / 2
+      }
     },
     showLevel (level) {
       if (level === '+')
