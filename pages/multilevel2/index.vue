@@ -205,6 +205,7 @@
   <v-icon class="tbtn" @click="showLevel('+')" title="show coarser level">expand_less</v-icon>
   <v-icon class="tbtn" @click="showLevel('-')" title="show less coarser level">expand_more</v-icon>
   <v-icon class="tbtn" id="ibtn" @click="setInfoTool()" title="get info on specific nodes">info</v-icon>
+  <v-icon class="tbtn" id="ebtn" @click="setExploreTool()" title="open nodes into child nodes">explore</v-icon>
 </v-system-bar>
       <div id="renderCanvas"></div>
     <v-snackbar
@@ -229,6 +230,17 @@
 import $ from 'jquery'
 import * as d3 from 'd3'
 
+function clickNode () {
+  if (__this.tool === 'info') {
+    __this.snacktext = this.mdata
+    __this.snackbar = true
+  } else if (__this.tool === 'explore'){
+    __this.showChildren(this)
+  } else {
+    __this.snacktext = 'select a tool to interact with network'
+    __this.snackbar = true
+  }
+}
 export default {
   head () {
     return {
@@ -278,7 +290,7 @@ export default {
   },
   mounted () {
     window.__this = this
-    this.mkShaderGeo()
+    this.initPixi()
     d3.select('canvas')
       .on('mouseenter', function () {
         d3.select('body').style('overflow', 'hidden')
@@ -287,73 +299,94 @@ export default {
         d3.select('body').style('overflow', 'scroll')
       })
     this.findNetworks()
+    this.initButtons()
   },
   methods: {
-    setInfoTool () {
-      b = document.getElementById('ibtn')
-      if (this.isinfotool) {
-        this.isinfotool = false
+    initButtons () {
+      this.toolbuttons = [
+        document.getElementById('ibtn'),
+        document.getElementById('ebtn')
+      ]
+    },
+    setExploreTool () {
+      let b = document.getElementById('ebtn')
+      if (this.tool === 'explore') {
+        this.tool = ''
         b.style.backgroundColor = "gray"
       } else {
-        this.isinfotool = true
-        this.snacktext = 'click on nodes for info'
+        this.tool = 'explore'
+        this.snacktext = 'click on nodes to show their child nodes'
         this.snackbar = true
+        this.toolbuttons.forEach( bt => bt.style.backgroundColor = 'gray')
         b.style.backgroundColor = "black"
       }
     },
-    mkShaderGeo () {
+    setInfoTool () {
+      let b = document.getElementById('ibtn')
+      if (this.tool === 'info') {
+        this.tool = ''
+        b.style.backgroundColor = "gray"
+      } else {
+        this.tool = 'info'
+        this.snacktext = 'click on nodes for info'
+        this.snackbar = true
+        this.toolbuttons.forEach( bt => bt.style.backgroundColor = 'gray')
+        b.style.backgroundColor = "black"
+      }
+    },
+    showChildren (node) {
+      node.alpha = 0.5
+      node.tint = 0xFF00FF
+      let level = node.mdata.level - 1
+      let children = node.mdata.children
+      let nodes = this.nodes[level]
+      for (let i = 0; i < children.length; i++) {
+        let child = children[i]
+        nodes[child].visible = true
+        nodes[child].tint = 0x0000FF
+      }
+      this.snacktext = 'shown children ' + children + ' of level ' + level
+      this.snackbar = true
+    },
+    initPixi () {
       this.app_ = new PIXI.Application()
       document.getElementById('renderCanvas').appendChild(this.app_.view)
-      this.shader = PIXI.Shader.from(`
-          precision mediump float;
-          attribute vec2 aVertexPosition;
-
-          uniform mat3 translationMatrix;
-          uniform mat3 projectionMatrix;
-
-          void main() {
-              gl_Position = vec4((projectionMatrix * translationMatrix * vec3(aVertexPosition, 1.0)).xy, 0.0, 1.0);
-          }`,
-
-      `precision mediump float;
-
-          void main() {
-              gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-          }
-
-      `);
       this.cwidth =  0.9 * document.getElementsByTagName('canvas')[0].width
       this.cheight = 0.9 * document.getElementsByTagName('canvas')[0].height
       document.getElementById('toolbar').style.width = this.cwidth/0.9 + 'px'
     },
-    mkTriangle(p, level) {
-      let geometry_ = new PIXI.Geometry()
-        .addAttribute('aVertexPosition', [-10, 5, 10, 5, 0, -10])
-      const triangle = new PIXI.Mesh(geometry_, this.shader)
+    mkNode(p, level) {
       let px = (1 + p[0]) * this.cwidth/2
       let py = (1 + p[1]) * this.cheight/2
-      triangle.position.set(px, py)
-      triangle.visible = this.curlevel == level
-      triangle.interactive = true
-      function clickTriangle () {
-        console.log('hey man')
-      }
-      triangle.on('pointerdown', clickTriangle)
-      this.app_.stage.addChild(triangle)
-      this.triangles[level].push(triangle)
-      return triangle
+      const node = new PIXI.Graphics()
+      node.lineStyle(0)
+      node.beginFill(0xFFFFFF)
+      node.drawPolygon(this.path)
+      node.endFill()
+      node.tint = 0xFF0000
+      node.x = px
+      node.y = py
+      node.visible = this.curlevel == level
+      node.interactive = true
+      node.buttonMode = true
+      node.on('pointerdown', clickNode)
+      this.app_.stage.addChild(node)
+      this.nodes[level].push(node)
+      return node
     },
-    mkTriangles(level) {
+    mkNodes(level) {
       let net = this.networks[level]
       let ps = net.nodes
       for (let i = 0; i < ps.length; i++) {
-        let triangle = this.mkTriangle(ps[i], level)
-        triangle.mdata = {
+        let node = this.mkNode(ps[i], level)
+        node.mdata = {
           children: net.children[i],
           clust: net.clust[i],
           degree: net.degrees[i],
           parent: net.parents[i],
-          source: net.sources[i]
+          source: net.sources[i],
+          level: level,
+          ID: i
         }
       }
     },
@@ -401,16 +434,29 @@ export default {
     },
     mapNetworksToScreen () {
       this.lines = []
-      this.triangles = []
+      this.nodes = []
+      this.mkPath()
       for (let i = 0; i <= this.curlevel; i++) {
         this.lines.push([])
-        this.triangles.push([])
+        this.nodes.push([])
         this.mkLines(i)
-        this.mkTriangles(i)
+        this.mkNodes(i)
       }
       this.loaded = true
     },
-    showLevel(level) {
+    mkPath () {
+      this.radius = 10
+      this.dx = Math.cos(Math.PI/6) * this.radius
+      this.dy = Math.sin(Math.PI/6) * this.radius
+      let p1x = 0
+      let p1y = - this.radius
+      let p2x = + this.dx
+      let p2y = + this.dy
+      let p3x = - this.dx
+      let p3y = + this.dy
+      this.path = [p1x, p1y, p2x, p2y, p3x, p3y]
+    },
+    showLevel (level) {
       if (level === '+')
         level = this.curlevel + 1
       if (level === '-')
@@ -427,11 +473,11 @@ export default {
       }
       for (let i = 0; i < this.networks.length; i++) {
         let lines = this.lines[i]
-        let triangles = this.triangles[i]
+        let nodes = this.nodes[i]
         lines.forEach( l => {
           l.visible = level === i
         })
-        triangles.forEach( t => {
+        nodes.forEach( t => {
           t.visible = level === i
         })
       }
@@ -447,11 +493,6 @@ export default {
         this.renderNetwork()
       })
     },
-    clickTriangle () {
-      __this.snacktext = this.mdata
-      __this.snackbar = true
-      console.log('hey man')
-    }
   },
   watch: {
     curlevel: function(val) {
