@@ -782,9 +782,9 @@ export default {
           )
         } else {
           if (this.show === 'show last') {
-            let turl = process.env.flaskURL + '/biMLDBAll/'
             $.post(
-              turl,
+              // `http://rfabbri.vicg.icmc.usp.br:5000/postTest2/`,
+              process.env.flaskURL + '/biMLDBAll/',
               // {see: 'this', and: 'thisother', num: 5}
               {
                 netid: this.network._id,

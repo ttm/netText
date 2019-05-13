@@ -45,8 +45,6 @@
 </v-layout>
 <v-expansion-panel expand v-model="panel">
   <v-expansion-panel-content>
-<div slot="header">settings</div>
-<div style="border:2px solid black; padding: 4px">
 <v-flex mt-1>
 <v-card flat dark>
   <v-layout align-center justify-center>
@@ -184,7 +182,6 @@
   </v-layout>
 </v-card>
 </v-flex>
-</div>
   </v-expansion-panel-content>
 </v-expansion-panel>
 <v-layout row ml-4>
@@ -196,40 +193,64 @@
   >
     Render network
   </v-btn>
-  <v-checkbox v-model="links" label="draw links"> </v-checkbox>
+  <v-checkbox v-model="links" label="show links"> </v-checkbox>
   <v-text-field
-    v-model="levels"
-    label="levels"
+    v-model="curlevelinfo"
+    label="current level"
     outline
     readonly
   ></v-text-field>
 </v-layout>
-      <canvas id="renderCanvas" touch-action="none"></canvas>
+<v-system-bar id="toolbar" window dark>
+  <v-icon class="tbtn" @click="showLevel('+')" title="show coarser level">expand_less</v-icon>
+  <v-icon class="tbtn" @click="showLevel('-')" title="show less coarser level">expand_more</v-icon>
+  <v-icon class="tbtn" id="ibtn" @click="setInfoTool()" title="get info on specific nodes">info</v-icon>
+</v-system-bar>
+      <div id="renderCanvas"></div>
+    <v-snackbar
+      v-model="snackbar"
+      :multi-line="true"
+      :timeout="6000"
+      :top="true"
+    >
+      {{ snacktext }}
+      <v-btn
+        color="pink"
+        flat
+        @click="snackbar = false"
+      >
+        Close
+      </v-btn>
+    </v-snackbar>
 </span>
 </template>
 
 <script>
 import $ from 'jquery'
 import * as d3 from 'd3'
-if (process.client) {
-  console.log('quase')
-  // require('pixi.js')
-}
 
 export default {
+  head () {
+    return {
+      script: [
+        // { src: '/libs/pixi4.8.7.js' },
+        { src: '/libs/pixi5.0.2.js' },
+      ]
+    }
+  },
   data () {
     return {
       links: true,
       panel: [true],
       nlayers: 2,
-      levels: '----',
+      curlevel: '----',
       networks_: [],
       network: '',
       bi: {
         reduction: ['0.1', '0.1'],
         max_levels: ['5', '5'],
         global_min_vertices: ['100', '100'],
-        matching: ['mlpb', 'mlpb'],
+        matching: ['gmb', 'gmb'],
         similarity: ['weighted_common_neighbors', 'weighted_common_neighbors'],
         upper_bound: ['0.1', '0.1'],
         itr: ['10', '10'],
@@ -250,10 +271,14 @@ export default {
         'spring'
       ],
       layout: 'kamada',
+      snackbar: false,
+      snacktext: 'msnacktext',
+      curlevelinfo: '---',
     }
   },
   mounted () {
     window.__this = this
+    this.mkShaderGeo()
     d3.select('canvas')
       .on('mouseenter', function () {
         d3.select('body').style('overflow', 'hidden')
@@ -264,11 +289,99 @@ export default {
     this.findNetworks()
   },
   methods: {
+    setInfoTool () {
+      b = document.getElementById('ibtn')
+      if (this.isinfotool) {
+        this.isinfotool = false
+        b.style.backgroundColor = "gray"
+      } else {
+        this.isinfotool = true
+        this.snacktext = 'click on nodes for info'
+        this.snackbar = true
+        b.style.backgroundColor = "black"
+      }
+    },
+    mkShaderGeo () {
+      this.app_ = new PIXI.Application()
+      document.getElementById('renderCanvas').appendChild(this.app_.view)
+      this.shader = PIXI.Shader.from(`
+          precision mediump float;
+          attribute vec2 aVertexPosition;
+
+          uniform mat3 translationMatrix;
+          uniform mat3 projectionMatrix;
+
+          void main() {
+              gl_Position = vec4((projectionMatrix * translationMatrix * vec3(aVertexPosition, 1.0)).xy, 0.0, 1.0);
+          }`,
+
+      `precision mediump float;
+
+          void main() {
+              gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+          }
+
+      `);
+      this.cwidth =  0.9 * document.getElementsByTagName('canvas')[0].width
+      this.cheight = 0.9 * document.getElementsByTagName('canvas')[0].height
+      document.getElementById('toolbar').style.width = this.cwidth/0.9 + 'px'
+    },
+    mkTriangle(p, level) {
+      let geometry_ = new PIXI.Geometry()
+        .addAttribute('aVertexPosition', [-10, 5, 10, 5, 0, -10])
+      const triangle = new PIXI.Mesh(geometry_, this.shader)
+      let px = (1 + p[0]) * this.cwidth/2
+      let py = (1 + p[1]) * this.cheight/2
+      triangle.position.set(px, py)
+      triangle.visible = this.curlevel == level
+      triangle.interactive = true
+      function clickTriangle () {
+        console.log('hey man')
+      }
+      triangle.on('pointerdown', clickTriangle)
+      this.app_.stage.addChild(triangle)
+      this.triangles[level].push(triangle)
+      return triangle
+    },
+    mkTriangles(level) {
+      let net = this.networks[level]
+      let ps = net.nodes
+      for (let i = 0; i < ps.length; i++) {
+        let triangle = this.mkTriangle(ps[i], level)
+        triangle.mdata = {
+          children: net.children[i],
+          clust: net.clust[i],
+          degree: net.degrees[i],
+          parent: net.parents[i],
+          source: net.sources[i]
+        }
+      }
+    },
+    mkLine (p1, p2, level) {
+      let line = new PIXI.Graphics()
+      line.lineStyle(0.1, 0xffff00)
+      line.moveTo(...p1)
+      line.lineTo(...p2)
+      line.visible = this.curlevel == level
+      this.app_.stage.addChild(line)
+      this.lines[level].push(line)
+    },
+    mkLines(level) {
+      let links = this.networks[level].edges
+      let nodes = this.networks[level].nodes
+      let self = this
+      for (let i = 0; i < links.length; i++) {
+        let l = links[i]
+        let p1x =  (1 + nodes[l[0]][0])*self.cwidth/2
+        let p1y =  (1 + nodes[l[0]][1])*self.cheight/2
+        let p2x =  (1 + nodes[l[1]][0])*self.cwidth/2
+        let p2y =  (1 + nodes[l[1]][1])*self.cheight/2
+        this.mkLine([p1x, p1y], [p2x, p2y], level)
+      }
+    },
     upload () {
     },
     renderNetwork () {
-      if (!this.pixi_initialized)
-        this.initPixi()
       let turl = process.env.flaskURL + '/biMLDBAll/'
       $.post(
         turl,
@@ -281,15 +394,48 @@ export default {
           method: this.method
         }
       ).done( networks => { 
-        console.log('tnetssss', networks)
         this.networks = networks
         this.curlevel = networks.length - 1
-        this.mapNetworkToScreen()
+        this.mapNetworksToScreen()
       })
     },
-    mapNetworkToScreen () {
+    mapNetworksToScreen () {
+      this.lines = []
+      this.triangles = []
+      for (let i = 0; i <= this.curlevel; i++) {
+        this.lines.push([])
+        this.triangles.push([])
+        this.mkLines(i)
+        this.mkTriangles(i)
+      }
+      this.loaded = true
     },
-    initPixi () {
+    showLevel(level) {
+      if (level === '+')
+        level = this.curlevel + 1
+      if (level === '-')
+        level = this.curlevel - 1
+      if (level === this.networks.length) {
+        level--
+        this.snacktext = 'coarsest level reached'
+        this.snackbar = true
+      }
+      if (level === -1) {
+        level++
+        this.snacktext = 'original network reached'
+        this.snackbar = true
+      }
+      for (let i = 0; i < this.networks.length; i++) {
+        let lines = this.lines[i]
+        let triangles = this.triangles[i]
+        lines.forEach( l => {
+          l.visible = level === i
+        })
+        triangles.forEach( t => {
+          t.visible = level === i
+        })
+      }
+      this.curlevel = level
     },
     findNetworks () {
       this.$store.dispatch('networks/find').then(() => {
@@ -298,7 +444,20 @@ export default {
           return (i.layer === 0) && (i.filename.split('.').pop() === 'ncol')
         })
         this.network = this.networks_[0]
+        this.renderNetwork()
       })
+    },
+    clickTriangle () {
+      __this.snacktext = this.mdata
+      __this.snackbar = true
+      console.log('hey man')
+    }
+  },
+  watch: {
+    curlevel: function(val) {
+      if (this.loaded) {
+        this.curlevelinfo = val + ', nodes: ' + this.networks[val].nodes.length + ', links: ' + this.networks[val].edges.length
+      }
     },
   }
 }
@@ -313,5 +472,9 @@ export default {
   min-width: 60px;
   max-width: 60px;
   width: 60px;
+}
+.tbtn {
+  cursor: pointer;
+  background-color: gray;
 }
 </style>

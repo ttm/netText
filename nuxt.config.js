@@ -21,14 +21,24 @@ export default {
       config.externals = {
         oimo: true,
         cannon: true,
-        earcut: true
+        // earcut: true
       }
+      // if (isDev && isClient) {
+      //   config.module.rules.push({
+      //     enforce: 'pre',
+      //     test: /\.(js|vue)$/,
+      //     loader: 'eslint-loader',
+      //     exclude: /(node_modules)/
+      //   })
+      // }
+    // transpile: ['pixi.js']
     }
   },
   plugins: [
     {
-      src: '~/plugins/pixi.js',
+      src: '~/plugins/pixiPlug',
       ssr: false
+      // mode: 'client'
     }
   ]
 }
