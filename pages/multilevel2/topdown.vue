@@ -202,18 +202,23 @@
   ></v-text-field>
 </v-layout>
 <v-system-bar id="toolbar" window dark>
-  <v-icon class="tbtn" @click="showLevel('+')" title="show coarser level">unfold_less</v-icon>
-  <v-icon class="tbtn" @click="showLevel('-')" title="show less coarser level">unfold_more</v-icon>
+  <v-icon class="tbtn" @click="showLevel('+')" title="focus on coarser level">unfold_less</v-icon>
+  <v-icon class="tbtn" @click="showLevel('-')" title="focus less coarsed level">unfold_more</v-icon>
   <v-icon class="tbtn" @click="resizeNodes('+')" title="decrease node size">control_camera</v-icon>
   <v-icon class="tbtn" @click="resizeNodes('-')" title="increase node size">games</v-icon>
   <v-icon class="tbtn" @click="nodeVisibility('+')" title="decrease node transparency">hdr_strong</v-icon>
   <v-icon class="tbtn" @click="nodeVisibility('-')" title="increase node transparency">hdr_weak</v-icon>
   <v-icon class="tbtn" @click="rotateNodes()" title="rotate nodes">rotate_left</v-icon>
-  <v-icon class="tbtn" @click="linkVisibility('+')" title="increase line transparency">drag_handle</v-icon>
-  <v-icon class="tbtn" @click="linkVisibility('-')" title="decrease line transparency">power_input</v-icon>
+  <v-icon class="tbtn" @click="linkVisibility('+')" title="decrease line transparency">drag_handle</v-icon>
+  <v-icon class="tbtn" @click="linkVisibility('-')" title="increase line transparency">power_input</v-icon>
+  <v-spacer></v-spacer>
+    <v-icon class="tbtn" @click="randomColorize('n')" title="randomize node color">invert_colors</v-icon>
+    <v-icon class="tbtn" @click="randomColorize('l')" title="randomize link color">invert_colors_off</v-icon>
+    <v-icon class="tbtn" @click="proportionalNodes('degrees')" title="make node size proportional to degree">insert_chart</v-icon>
+    <v-icon class="tbtn" @click="proportionalNodes('children')" title="make node size proportional to number of children">insert_chart_outlined</v-icon>
   <v-spacer></v-spacer>
   <v-icon class="tbtn" id="ibtn" @click="setInfoTool()" title="get info on specific nodes">info</v-icon>
-  <v-icon class="tbtn" id="dbtn" @click="setDragTool()" title="drag nodes to reposition them">drag_indicator</v-icon>
+  <v-icon class="tbtn" id="dbtn" @click="setDragTool()" title="drag nodes to reposition them">gesture</v-icon>
   <v-icon class="tbtn" id="ebtn" @click="setExploreTool()" title="open nodes into child nodes">explore</v-icon>
   <v-icon class="tbtn" id="jbtn" @click="setJoinMetanodesTool()" title="join opened metanodes">border_outer</v-icon>
   <v-spacer></v-spacer>
@@ -350,6 +355,7 @@ export default {
         document.getElementById('ibtn'),
         document.getElementById('ebtn'),
         document.getElementById('dbtn'),
+        document.getElementById('jbtn'),
       ]
     },
     setDragTool () {
@@ -483,7 +489,7 @@ export default {
         nodes[c].tint = 0x0000FF
         nodes[c].x = node.x + p[0] * dx * 0.8
         nodes[c].y = node.y + p[1] * dy * 0.8
-        nodes[c].scale.set(this.nodescales[level+1] * .4)
+        nodes[c].scale.set(this.nodescales[level])
       })
       this.snacktext = 'shown children ' + children + ' of level ' + level
       this.snackbar = true
@@ -553,7 +559,8 @@ export default {
     },
     mkLine (p1, p2, level) {
       let line = new PIXI.Graphics()
-      line.lineStyle(1, 0xffff00)
+      line.lineStyle(1, 0xFFFFFF)
+      line.tint = 0xFFFF00
       line.moveTo(...p1)
       line.lineTo(...p2)
       line.visible = this.curlevel == level
@@ -610,7 +617,7 @@ export default {
       for (let i = 0; i <= this.curlevel; i++) {
         this.lines.push([])
         this.nodes.push([])
-        this.nodescales.push(1)
+        this.nodescales.push(1 - 0.9 * ((this.curlevel - i) / this.curlevel)**0.5)
         this.nodelinks = {}
         this.mkLines(i)
         this.mkNodes(i)
@@ -677,6 +684,31 @@ export default {
         l.alpha += inc
       })
     },
+    randomColorize (item) {
+      let things
+      if (item === 'n')
+        things = this.nodes
+      else
+        things = this.lines
+      let rcolor = Math.floor(Math.random() * 0xFFFFFF)
+      things[this.curlevel].forEach( t => {
+        t.tint = rcolor
+      })
+    },
+    proportionalNodes (criterion) {
+      let info = this.networks[this.curlevel][criterion]
+      if (criterion === 'children')
+        info = info.map( i => i.length )
+      let imax = Math.max(...info)
+      let scale = this.nodescales[this.curlevel]
+      console.log(info, imax, scale)
+      this.nodes[this.curlevel].forEach( (n, i) => {
+        let factor = ( 0.3 + 0.7 * info[i] / imax )
+        console.log(factor)
+        n.scale.x *= scale * factor
+        n.scale.y *= scale * factor
+      })
+    },
     zoom (direction) {
       let inc = 0.1
       if (direction !== '+')
@@ -712,16 +744,11 @@ export default {
         this.snacktext = 'original network reached'
         this.snackbar = true
       }
-      for (let i = 0; i < this.networks.length; i++) {
-        let lines = this.lines[i]
-        let nodes = this.nodes[i]
-        lines.forEach( l => {
-          l.visible = level === i
+      this.nodes.forEach( (nodes_, level_) => {
+        nodes_.forEach( n => {
+          n.interactive = level_ === level
         })
-        nodes.forEach( t => {
-          t.visible = level === i
-        })
-      }
+      })
       this.curlevel = level
     },
     findNetworks () {
@@ -738,7 +765,16 @@ export default {
   watch: {
     curlevel: function(val) {
       if (this.loaded) {
-        this.curlevelinfo = val + ', nodes: ' + this.networks[val].nodes.length + ', links: ' + this.networks[val].edges.length
+        // find number of visible nodes and links
+        let nvis = 0
+        this.nodes[val].forEach( n => {
+          nvis += n.visible
+        })
+        let lvis = 0
+        this.lines[val].forEach( l => {
+          lvis += l.visible
+        })
+        this.curlevelinfo = val + ', nodes: ' + nvis +'/'+ this.networks[val].nodes.length + ', links: ' + lvis +'/'+ this.networks[val].edges.length
       }
     },
   }
