@@ -1,11 +1,12 @@
 <template>
   <div>
-    <v-btn color="red" to="evolution">Evolution</v-btn>
-    <v-btn color="pink" to="text">Text</v-btn>
-    <v-btn color="purple" to="multilevel">Multilevel</v-btn>
-    <v-btn color="blue" to="bio">Gene</v-btn>
-    <v-btn color="green" to="communicability">Communicability</v-btn>
-    <v-btn color="orange" to="multilevel2">Multilevel2</v-btn>
-    <v-btn color="yellow" to="pixiii">mpixi</v-btn>
+    <v-btn class="red" to="evolution">Evolution</v-btn>
+    <v-btn class="pink" to="text">Text</v-btn>
+    <v-btn class="purple" to="multilevel">Multilevel</v-btn>
+    <v-btn class="blue" to="bio">Gene</v-btn>
+    <v-btn class="green" to="communicability">Communicability</v-btn>
+    <v-btn class="orange" to="multilevel2/interpolated">Multilevel 2D interpolated</v-btn>
+    <v-btn class="teal" to="multilevel2/topdown">Multilevel 2D topdown</v-btn>
+    <v-btn class="yellow" to="pixiii">mpixi</v-btn>
   </div>
 </template>

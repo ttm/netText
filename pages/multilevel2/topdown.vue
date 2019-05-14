@@ -23,27 +23,6 @@
         </v-list-tile>
       </v-list>
     </v-menu>
-    <v-menu offset-y title="select the navigation procedure">
-      <v-btn
-        slot="activator"
-        color="primary"
-        dark
-      >
-        {{ navigation }}
-      </v-btn>
-      <v-list>
-        <v-list-tile
-          @click="navigation = 'interpolated'"
-        >
-          <v-list-tile-title color="primary">interpolated</v-list-tile-title>
-        </v-list-tile>
-        <v-list-tile
-          @click="navigation = 'top-down'"
-        >
-          <v-list-tile-title color="primary">top-down</v-list-tile-title>
-        </v-list-tile>
-      </v-list>
-    </v-menu>
     <v-menu offset-y title="select the layout">
       <v-btn
         slot="activator"
@@ -234,8 +213,9 @@
   <v-icon class="tbtn" @click="linkVisibility('-')" title="decrease line transparency">power_input</v-icon>
   <v-spacer></v-spacer>
   <v-icon class="tbtn" id="ibtn" @click="setInfoTool()" title="get info on specific nodes">info</v-icon>
-  <v-icon class="tbtn" id="ebtn" @click="setExploreTool()" title="open nodes into child nodes">explore</v-icon>
   <v-icon class="tbtn" id="dbtn" @click="setDragTool()" title="drag nodes to reposition them">drag_indicator</v-icon>
+  <v-icon class="tbtn" id="ebtn" @click="setExploreTool()" title="open nodes into child nodes">explore</v-icon>
+  <v-icon class="tbtn" id="jbtn" @click="setJoinMetanodesTool()" title="join opened metanodes">border_outer</v-icon>
   <v-spacer></v-spacer>
   <v-icon class="tbtn" @click="zoom('+')" title="zoom in">zoom_in</v-icon>
   <v-icon class="tbtn" @click="zoom('-')" title="zoom out">zoom_out</v-icon>
@@ -293,6 +273,8 @@ function clickNode (event) {
     __this.snackbar = true
   } else if (__this.tool === 'explore'){
     __this.showChildren(this)
+  } else if (__this.tool === 'joinMeta'){
+    __this.joinMetanodes(this)
   } else if (__this.tool === 'drag'){
     this.data = event.data // because of multitouch
     this.alpha *= 0.5
@@ -344,7 +326,6 @@ export default {
         'spring'
       ],
       layout: 'kamada',
-      navigation: 'top-down',
       snackbar: false,
       snacktext: 'msnacktext',
       curlevelinfo: '---',
@@ -384,6 +365,19 @@ export default {
         b.style.backgroundColor = "black"
       }
     },
+    setJoinMetanodesTool () {
+      let b = document.getElementById('jbtn')
+      if (this.tool === 'joinMeta') {
+        this.tool = ''
+        b.style.backgroundColor = "gray"
+      } else {
+        this.tool = 'joinMeta'
+        this.snacktext = 'click on two metanodes to join them'
+        this.snackbar = true
+        this.toolbuttons.forEach( bt => bt.style.backgroundColor = 'gray')
+        b.style.backgroundColor = "black"
+      }
+    },
     setExploreTool () {
       let b = document.getElementById('ebtn')
       if (this.tool === 'explore') {
@@ -410,26 +404,98 @@ export default {
         b.style.backgroundColor = "black"
       }
     },
-    showChildren (node) {
-      let children = node.mdata.children
-      let level = node.mdata.level - 1
-      if (this.navigation === 'interpolated') {
-        node.alpha = 0.5
-        node.tint = 0xFF00FF
-        let nodes = this.nodes[level]
-        for (let i = 0; i < children.length; i++) {
-          let child = children[i]
-          nodes[child].visible = true
-          nodes[child].tint = 0x0000FF
-        }
-      } else {
-        node.clear()
-        node.beginFill(0xFFFFFF)
-        node.drawPolygon(this.pathrect)
-        node.endFill()
+    joinMetanodes (node) {
+      if (!node.mldata.isopen) {
+        this.snacktext = 'please choose an opened metanode'
+        this.snackbar = true
+        return
       }
+      if (!this.specified_metanode) {
+        this.specified_metanode = node
+        node.tint = 0x00FFFF
+      } else {
+        let n1 = this.specified_metanode
+        let n2 = node
+        this.n1 = n1
+        this.n2 = n2
+        let path1 = n1.mldata.paths[n1.mldata.paths.length - 1]
+        let path2 = n2.mldata.paths[n2.mldata.paths.length - 1]
+        let maxx = Math.max(
+          - path1[0] + n1.x,
+          - path2[0] + n2.x,
+        )
+        let maxy = Math.max(
+          - path1[1] + n1.y,
+          - path2[1] + n2.y,
+        )
+        let minx = Math.min(
+          path1[0] + n1.x,
+          path2[0] + n2.x,
+        )
+        let miny = Math.min(
+          path1[1] + n1.y,
+          path2[1] + n2.y,
+        )
+        let ex = (maxx - minx) / 2
+        let ey = (maxy - miny) / 2
+        let path = [ -ex, -ey, -ex, ey, ex, ey, ex, -ey] // meta rectangle
+        let cx = (maxx + minx) / 2
+        let cy = (maxy + miny) / 2
+
+        n1.clear()
+        n2.clear()
+        n1.beginFill(0xFFFFFF, .1)
+        n1.drawPolygon(path)
+        n1.endFill()
+        n1.x = cx
+        n1.y = cy
+        n1.mldata.paths.push(path)
+        n1.tint = 0xFFFFFF
+        n1.mldata.children.push(n1.mdata.children.concat(n2.mdata.children))
+        this.positionChildren(n1)
+        this.specified_metanode = 0
+      }
+    },
+    showChildren (node) {
+      node.clear()
+      node.tint = 0xFFFFFF
+      node.lineStyle(2, 0xFFFFFF, 0.7)
+      node.beginFill(0xFFFFFF, .1)
+      node.drawPolygon(this.pathrect)
+      node.mldata.paths.push(this.pathrect)
+      node.endFill()
+      node.mldata.children.push(node.mdata.children)
+
+      this.positionChildren(node)
+      node.mldata.isopen = true
+    },
+    positionChildren(node) {
+      let level = node.mdata.level - 1
+      let nodes = this.nodes[level]
+      let children = node.mldata.children[node.mldata.children.length - 1]
+      let dx = - node.mldata.paths[node.mldata.paths.length - 1][0]
+      let dy = - node.mldata.paths[node.mldata.paths.length - 1][1]
+
+      let child_layout = this.mkLayout(children, level)
+      children.forEach( (c, i) => {
+        let p = child_layout[i]
+        nodes[c].visible = true
+        nodes[c].tint = 0x0000FF
+        nodes[c].x = node.x + p[0] * dx * 0.8
+        nodes[c].y = node.y + p[1] * dy * 0.8
+        nodes[c].scale.set(this.nodescales[level+1] * .4)
+      })
       this.snacktext = 'shown children ' + children + ' of level ' + level
       this.snackbar = true
+    },
+    mkLayout (nodes, level, type = 'spring') {
+      // check if nodes are linked in the level
+      // make the layout from nodes and links
+      let pos = []
+      nodes.forEach( n => {
+        pos.push([Math.random(), Math.random()])
+      })
+      return pos
     },
     initPixi () {
       this.app_ = new PIXI.Application()
@@ -478,6 +544,10 @@ export default {
           links: this.nodelinks[i],
           level: level,
           ID: i
+        }
+        node.mldata = {
+          paths: [],
+          children: []
         }
       }
     },
