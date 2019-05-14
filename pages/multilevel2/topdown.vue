@@ -228,8 +228,9 @@
   <v-icon class="tbtn" @click="pan('r')" title="pan right">chevron_right</v-icon>
   <v-icon class="tbtn" @click="pan('u')" title="pan up">expand_less</v-icon>
   <v-icon class="tbtn" @click="pan('d')" title="pan down">expand_more</v-icon>
+  <v-icon class="tbtn" @click="home()" title="toogle initial and current zoom and pan">home</v-icon>
 </v-system-bar>
-      <div id="renderCanvas"></div>
+<div id="renderCanvas"></div>
     <v-snackbar
       v-model="snackbar"
       :multi-line="true"
@@ -339,13 +340,13 @@ export default {
   mounted () {
     window.__this = this
     this.initPixi()
-    d3.select('canvas')
-      .on('mouseenter', function () {
-        d3.select('body').style('overflow', 'hidden')
-      })
-      .on('mouseout', function () {
-        d3.select('body').style('overflow', 'scroll')
-      })
+    // d3.select('canvas')
+    //   .on('mouseenter', function () {
+    //     d3.select('body').style('overflow', 'hidden')
+    //   })
+    //   .on('mouseout', function () {
+    //     d3.select('body').style('overflow', 'scroll')
+    //   })
     this.findNetworks()
     this.initButtons()
   },
@@ -623,7 +624,6 @@ export default {
         this.mkNodes(i)
       }
       this.loaded = true
-      this.curscale = 1
     },
     mkPath () {
       this.radius = 10
@@ -709,12 +709,34 @@ export default {
         n.scale.y *= scale * factor
       })
     },
+    home () {
+      let s = this.app_.stage
+      if ( (s.scale.x === s.scale.y == 1) && (s.x === 0) && (s.y === 0) ) {
+        console.log('chieck ok')
+        if (this.saved_view) {
+          console.log('on saved_view ok')
+          // if so, set again zoom and pan as was 
+          s.scale.x = s.scale.y = this.saved_view.scale
+          s.x = this.saved_view.x
+          s.y = this.saved_view.y
+        }
+      } else {
+        this.saved_view = {
+          x: s.x,
+          y: s.y,
+          scale: s.scale.x
+        }
+        s.scale.x = s.scale.y = 1
+        s.x = s.y = 0
+      }
+    },
     zoom (direction) {
       let inc = 0.1
       if (direction !== '+')
         inc = -0.1
       this.curscale += inc
-        this.app_.stage.scale.set(this.curscale)
+      this.app_.stage.scale.x += inc
+      this.app_.stage.scale.y += inc
       this.app_.stage.x -= this.cwidth_ * inc / 2
       this.app_.stage.y -= this.cheight_ * inc / 2
     },
