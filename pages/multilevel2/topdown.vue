@@ -204,23 +204,26 @@
 <v-system-bar id="toolbar" window dark>
   <v-icon class="tbtn" @click="showLevel('+')" title="focus on coarser level">unfold_less</v-icon>
   <v-icon class="tbtn" @click="showLevel('-')" title="focus less coarsed level">unfold_more</v-icon>
+  <v-spacer></v-spacer>
+  <v-icon class="tbtn" @click="randomColorize('n')" title="randomize node color">invert_colors</v-icon>
   <v-icon class="tbtn" @click="resizeNodes('+')" title="decrease node size">control_camera</v-icon>
   <v-icon class="tbtn" @click="resizeNodes('-')" title="increase node size">games</v-icon>
+  <v-icon class="tbtn" @click="proportionalNodes('degrees')" title="make node size proportional to degree">insert_chart</v-icon>
+  <v-icon class="tbtn" @click="proportionalNodes('children')" title="make node size proportional to number of children">insert_chart_outlined</v-icon>
+  <v-icon class="tbtn" @click="restoreNodeSizes()" title="reinitializes node sizes">undo</v-icon>
   <v-icon class="tbtn" @click="nodeVisibility('+')" title="decrease node transparency">hdr_strong</v-icon>
   <v-icon class="tbtn" @click="nodeVisibility('-')" title="increase node transparency">hdr_weak</v-icon>
   <v-icon class="tbtn" @click="rotateNodes()" title="rotate nodes">rotate_left</v-icon>
+  <v-icon class="tbtn" @click="randomColorize('l')" title="randomize link color">invert_colors_off</v-icon>
+  <v-spacer></v-spacer>
   <v-icon class="tbtn" @click="linkVisibility('+')" title="decrease line transparency">drag_handle</v-icon>
   <v-icon class="tbtn" @click="linkVisibility('-')" title="increase line transparency">power_input</v-icon>
   <v-spacer></v-spacer>
-    <v-icon class="tbtn" @click="randomColorize('n')" title="randomize node color">invert_colors</v-icon>
-    <v-icon class="tbtn" @click="randomColorize('l')" title="randomize link color">invert_colors_off</v-icon>
-    <v-icon class="tbtn" @click="proportionalNodes('degrees')" title="make node size proportional to degree">insert_chart</v-icon>
-    <v-icon class="tbtn" @click="proportionalNodes('children')" title="make node size proportional to number of children">insert_chart_outlined</v-icon>
-  <v-spacer></v-spacer>
-  <v-icon class="tbtn" id="ibtn" @click="setInfoTool()" title="get info on specific nodes">info</v-icon>
-  <v-icon class="tbtn" id="dbtn" @click="setDragTool()" title="drag nodes to reposition them">gesture</v-icon>
-  <v-icon class="tbtn" id="ebtn" @click="setExploreTool()" title="open nodes into child nodes">explore</v-icon>
-  <v-icon class="tbtn" id="jbtn" @click="setJoinMetanodesTool()" title="join opened metanodes">border_outer</v-icon>
+  <v-icon class="tbtn ptbtn" id="infobtn" @click="setTool('info')" title="get info on specific nodes">info</v-icon>
+  <v-icon class="tbtn ptbtn" id="dragbtn" @click="setTool('drag')" title="drag nodes to reposition them">gesture</v-icon>
+  <v-icon class="tbtn ptbtn" id="explorebtn" @click="setTool('explore')" title="open nodes into child nodes">explore</v-icon>
+  <v-icon class="tbtn ptbtn" id="regionexplorebtn" @click="setTool('regionexplore')" title="open regions of nodes into child nodes">tab_unselected</v-icon>
+  <v-icon class="tbtn ptbtn" id="joinbtn" @click="setTool('join')" title="join opened metanodes">border_outer</v-icon>
   <v-spacer></v-spacer>
   <v-icon class="tbtn" @click="zoom('+')" title="zoom in">zoom_in</v-icon>
   <v-icon class="tbtn" @click="zoom('-')" title="zoom out">zoom_out</v-icon>
@@ -279,7 +282,7 @@ function clickNode (event) {
     __this.snackbar = true
   } else if (__this.tool === 'explore'){
     __this.showChildren(this)
-  } else if (__this.tool === 'joinMeta'){
+  } else if (__this.tool === 'join'){
     __this.joinMetanodes(this)
   } else if (__this.tool === 'drag'){
     this.data = event.data // because of multitouch
@@ -348,66 +351,24 @@ export default {
     //     d3.select('body').style('overflow', 'scroll')
     //   })
     this.findNetworks()
-    this.initButtons()
   },
   methods: {
-    initButtons () {
-      this.toolbuttons = [
-        document.getElementById('ibtn'),
-        document.getElementById('ebtn'),
-        document.getElementById('dbtn'),
-        document.getElementById('jbtn'),
-      ]
-    },
-    setDragTool () {
-      let b = document.getElementById('dbtn')
-      if (this.tool === 'drag') {
+    setTool (toolname) {
+      let b = document.getElementById(toolname+'btn')
+      if (this.tool === toolname) {
         this.tool = ''
         b.style.backgroundColor = "gray"
       } else {
-        this.tool = 'drag'
-        this.snacktext = 'click and hold on nodes to drag'
+        this.tool = toolname
+        this.snacktext = {
+          info: 'click on nodes for info',
+          drag: 'click and hold on node to drag',
+          explore: 'click on nodes to show their child nodes',
+          join: 'click on two open metanodes to join them',
+          regionexplore: 'click and drag to open all nodes in region',
+        }[toolname]
         this.snackbar = true
-        this.toolbuttons.forEach( bt => bt.style.backgroundColor = 'gray')
-        b.style.backgroundColor = "black"
-      }
-    },
-    setJoinMetanodesTool () {
-      let b = document.getElementById('jbtn')
-      if (this.tool === 'joinMeta') {
-        this.tool = ''
-        b.style.backgroundColor = "gray"
-      } else {
-        this.tool = 'joinMeta'
-        this.snacktext = 'click on two metanodes to join them'
-        this.snackbar = true
-        this.toolbuttons.forEach( bt => bt.style.backgroundColor = 'gray')
-        b.style.backgroundColor = "black"
-      }
-    },
-    setExploreTool () {
-      let b = document.getElementById('ebtn')
-      if (this.tool === 'explore') {
-        this.tool = ''
-        b.style.backgroundColor = "gray"
-      } else {
-        this.tool = 'explore'
-        this.snacktext = 'click on nodes to show their child nodes'
-        this.snackbar = true
-        this.toolbuttons.forEach( bt => bt.style.backgroundColor = 'gray')
-        b.style.backgroundColor = "black"
-      }
-    },
-    setInfoTool () {
-      let b = document.getElementById('ibtn')
-      if (this.tool === 'info') {
-        this.tool = ''
-        b.style.backgroundColor = "gray"
-      } else {
-        this.tool = 'info'
-        this.snacktext = 'click on nodes for info'
-        this.snackbar = true
-        this.toolbuttons.forEach( bt => bt.style.backgroundColor = 'gray')
+        Array(...document.getElementsByClassName('ptbtn')).forEach( e => { e.style.backgroundColor = 'gray' })
         b.style.backgroundColor = "black"
       }
     },
@@ -496,13 +457,35 @@ export default {
       this.snackbar = true
     },
     mkLayout (nodes, level, type = 'spring') {
-      // check if nodes are linked in the level
-      // make the layout from nodes and links
-      let pos = []
-      nodes.forEach( n => {
-        pos.push([Math.random(), Math.random()])
+      if (this.layout === 'dummy') {
+        let pos = []
+        nodes.forEach( n => {
+          pos.push([Math.random(), Math.random()])
+        })
+        return pos
+      }
+      let links = []
+      nodes.forEach( n1 => {
+        let l1 = n1.mldata.links
+        nodes.forEach( n2 => {
+          if (l1.includes(n2.ID)) {
+            links.push( [n1.ID, n2.ID] )
+          }
+        })
       })
-      return pos
+      let turl = process.env.flaskURL + '/layoutOnDemand/'
+      let layout_
+      $.post(
+        turl,
+        // {see: 'this', and: 'thisother', num: 5}
+        {
+          layout: this.layout,
+          dim: 2,
+        }
+      ).done( layout => { 
+        layout_ = layout
+      })
+      console.log('tlayout', layout_)
     },
     initPixi () {
       this.app_ = new PIXI.Application()
@@ -658,9 +641,9 @@ export default {
       let inc = 0.1
       if (direction !== '+')
         inc = -0.1
-      this.nodescales[this.curlevel] += inc
       this.nodes[this.curlevel].forEach( n => {
-        n.scale.set(this.nodescales[this.curlevel])
+        n.scale.x += inc
+        n.scale.y += inc
       })
     },
     rotateNodes () {
@@ -695,18 +678,21 @@ export default {
         t.tint = rcolor
       })
     },
+    restoreNodeSizes () {
+      let scale = this.nodescales[this.curlevel]
+      this.nodes[this.curlevel].forEach( n => {
+        n.scale.set(scale)
+      })
+    },
     proportionalNodes (criterion) {
       let info = this.networks[this.curlevel][criterion]
       if (criterion === 'children')
         info = info.map( i => i.length )
       let imax = Math.max(...info)
-      let scale = this.nodescales[this.curlevel]
-      console.log(info, imax, scale)
       this.nodes[this.curlevel].forEach( (n, i) => {
         let factor = ( 0.3 + 0.7 * info[i] / imax )
-        console.log(factor)
-        n.scale.x *= scale * factor
-        n.scale.y *= scale * factor
+        n.scale.x *= factor
+        n.scale.y *= factor
       })
     },
     home () {
@@ -815,5 +801,9 @@ export default {
 }
 .tbtn {
   background-color: gray;
+}
+.v-system-bar--window .v-icon {
+  font-size: 20px;
+  margin-right: 4px;
 }
 </style>
