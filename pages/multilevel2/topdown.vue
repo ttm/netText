@@ -198,8 +198,8 @@
   ></v-text-field>
 </v-layout>
 <v-system-bar id="toolbar" window dark>
-  <v-icon class="tbtn" @click="showLevel('+')" title="focus on coarser level">unfold_less</v-icon>
-  <v-icon class="tbtn" @click="showLevel('-')" title="focus less coarsed level">unfold_more</v-icon>
+  <v-icon class="tbtn" @click="focusLevel('+')" title="focus on coarser level">unfold_less</v-icon>
+  <v-icon class="tbtn" @click="focusLevel('-')" title="focus less coarsed level">unfold_more</v-icon>
   <v-spacer></v-spacer>
   <v-icon class="tbtn" @click="randomColorize('n')" title="randomize node color">invert_colors</v-icon>
   <v-icon class="tbtn" @click="resizeNodes('+')" title="decrease node size">control_camera</v-icon>
@@ -210,8 +210,8 @@
   <v-icon class="tbtn" @click="nodeVisibility('+')" title="decrease node transparency">hdr_strong</v-icon>
   <v-icon class="tbtn" @click="nodeVisibility('-')" title="increase node transparency">hdr_weak</v-icon>
   <v-icon class="tbtn" @click="rotateNodes()" title="rotate nodes">rotate_left</v-icon>
-  <v-icon class="tbtn" @click="randomColorize('l')" title="randomize link color">invert_colors_off</v-icon>
   <v-spacer></v-spacer>
+  <v-icon class="tbtn" @click="randomColorize('l')" title="randomize link color">invert_colors_off</v-icon>
   <v-icon class="tbtn" @click="linkVisibility('+')" title="decrease line transparency">drag_handle</v-icon>
   <v-icon class="tbtn" @click="linkVisibility('-')" title="increase line transparency">power_input</v-icon>
   <v-spacer></v-spacer>
@@ -221,6 +221,7 @@
   <v-icon class="tbtn ptbtn" id="regionexplorebtn" @click="setTool('regionexplore')" title="open regions of nodes into child nodes">tab_unselected</v-icon>
   <v-icon class="tbtn ptbtn" id="joinbtn" @click="setTool('join')" title="join opened metanodes">border_outer</v-icon>
   <v-spacer></v-spacer>
+  <v-icon class="tbtn" @click="randomColorize('bg')" title="randomize background color">format_color_fill</v-icon>
   <v-icon class="tbtn" @click="zoom('+')" title="zoom in">zoom_in</v-icon>
   <v-icon class="tbtn" @click="zoom('-')" title="zoom out">zoom_out</v-icon>
   <v-icon class="tbtn" @click="pan('l')" title="pan left">chevron_left</v-icon>
@@ -259,7 +260,6 @@ function moveNode () {
     __this.nps = newposition
     let px = this.x * 2/__this.cwidth - 1
     let py = this.y * 2/__this.cheight - 1
-    __this.networks[__this.curlevel].nodes[this.mdata.ID] = [px, py]
   }
 }
 function releaseNode () {
@@ -267,13 +267,13 @@ function releaseNode () {
     this.alpha *= 2
     this.dragging = false
     this.data = null
-    __this.redrawLinks(this.mldata.links)
+    __this.redrawLinks(this)
   }
 }
 function clickNode (event) {
   __this.mnode = this
   if (__this.tool === 'info') {
-    __this.snacktext = this.mdata
+    __this.snacktext = __this.networks[this.level].ndata[this.id].mdata
     __this.snackbar = true
   } else if (__this.tool === 'explore'){
     __this.showChildren(this)
@@ -522,6 +522,8 @@ export default {
           .on('pointerup', releaseNode)
           .on('pointerupoutside', releaseNode)
           .on('pointermove', moveNode)
+        node.id = i
+        node.level = level
         this.app_.stage.addChild(node)
         this.nodes[level].push(node)
       }
@@ -545,6 +547,109 @@ export default {
         b.style.backgroundColor = "black"
       }
     },
+    focusLevel (level) {
+      if (level === '+')
+        level = this.curlevel + 1
+      if (level === '-')
+        level = this.curlevel - 1
+      if (level === this.networks.length) {
+        level--
+        this.snacktext = 'coarsest level reached'
+        this.snackbar = true
+      }
+      if (level === -1) {
+        level++
+        this.snacktext = 'original network reached'
+        this.snackbar = true
+      }
+      this.nodes.forEach( (nodes_, level_) => {
+        nodes_.forEach( n => {
+          n.interactive = level_ === level
+        })
+      })
+      this.curlevel = level
+    },
+    randomColorize (item) {
+      if (item === 'bg') {
+        this.app_.renderer.backgroundColor = Math.random() * 0xFFFFFF
+      }
+      let things
+      if (item === 'n')
+        things = this.nodes
+      else
+        things = this.links
+      let rcolor = Math.floor(Math.random() * 0xFFFFFF)
+      things[this.curlevel].forEach( t => {
+        t.tint = rcolor
+      })
+    },
+    resizeNodes (direction) {
+      let inc = 0.1
+      if (direction !== '+')
+        inc = -0.1
+      this.nodes[this.curlevel].forEach( n => {
+        n.scale.x += inc
+        n.scale.y += inc
+      })
+    },
+    proportionalNodes (criterion) {
+      let info
+      if (criterion === 'children')
+        info = this.networks[this.curlevel].children.map( i => i.length )
+      else
+        info = this.networks[this.curlevel].ndata.map( i => i.mdata.degree )
+      let imax = Math.max(...info)
+      this.nodes[this.curlevel].forEach( (n, i) => {
+        let factor = ( 0.3 + 0.7 * info[i] / imax )
+        n.scale.x *= factor
+        n.scale.y *= factor
+      })
+    },
+    restoreNodeSizes () {
+      let scale = this.nodescales[this.curlevel]
+      this.nodes[this.curlevel].forEach( n => {
+        n.scale.set(scale)
+      })
+    },
+    nodeVisibility (direction) {
+      let inc = 0.1
+      if (direction !== '+')
+        inc = -0.1
+      this.nodes[this.curlevel].forEach( l => {
+        l.alpha += inc
+      })
+    },
+    rotateNodes () {
+      this.nodes[this.curlevel].forEach( n => {
+        n.rotation -= 0.1
+      })
+    },
+    linkVisibility (direction) {
+      let inc = 0.1
+      if (direction !== '+')
+        inc = -0.1
+      this.links[this.curlevel].forEach( l => {
+        l.alpha += inc
+      })
+    },
+    redrawLinks (node) {
+      let links = this.networks[node.level].ndata[node.id].aux.links
+      let links_ = this.networks[node.level].ndata[node.id].aux.links_
+      let nodes = this.nodes[this.curlevel]
+      links_.forEach( (l, i) => {
+        let p1x = nodes[l[0]].x
+        let p1y = nodes[l[0]].y
+        let p2x = nodes[l[1]].x
+        let p2y = nodes[l[1]].y
+        let linkid = links[i]
+        let line = this.links[node.level][linkid]
+        line.clear()
+        line.moveTo(p1x, p1y)
+        line.lineTo(p2x, p2y)
+        console.log(p1x, p1y)
+        console.log(p2x, p2y)
+      })
+    },
   },
   computed: {
     curlevelinfo: function () {
@@ -559,7 +664,6 @@ export default {
     },
   }
 }
-
 </script>
 
 <style>
