@@ -503,6 +503,7 @@ export default {
           line.lineTo(p2x, p2y)
         } else {
           let line = this.mkLine([p1x, p1y], [p2x, p2y], level)
+          console.log('made line at level', level)
           this.links_[level][l[0]+'-'+l[1]] = line
         }
       }
@@ -674,8 +675,6 @@ export default {
         line.clear()
         line.moveTo(p1x, p1y)
         line.lineTo(p2x, p2y)
-        console.log(p1x, p1y)
-        console.log(p2x, p2y)
       })
     },
     showChildren (node) {
@@ -685,12 +684,14 @@ export default {
       node.beginFill(0xFFFFFF, .1)
       node.drawPolygon(this.pathrect)
       node.endFill()
-      this.networks[node.level].ndata[node.id].MLdata.paths.push(this.pathrect)
-      this.networks[node.level].ndata[node.id].MLdata.children.push(
-        this.networks[node.level].ndata[node.id].mdata.children
+      let MLdata = this.networks[node.level].ndata[node.id].MLdata
+      MLdata.paths.push(this.pathrect)
+      if (!MLdata.isopen)
+        MLdata.children.push(
+          this.networks[node.level].ndata[node.id].mdata.children
       )
       this.positionChildren(node)
-      this.networks[node.level].ndata[node.id].MLdata.isopen = true
+      MLdata.isopen = true
     },
     positionChildren(node) {
       let level = node.level - 1
@@ -708,7 +709,6 @@ export default {
           if (neighbors.includes(c2)) {
             let tlink = ndata[c1].aux.links_[neighbors.indexOf(c2)]
             links.push(tlink)
-            console.log(tlink)
           }
         })
       })
@@ -729,10 +729,10 @@ export default {
         this.specified_metanode = node
         node.tint = 0x00FFFF
       } else {
-        this.n1 = n1
-        this.n2 = n2
         let n1 = this.specified_metanode
         let n2 = node
+        this.n1 = n1
+        this.n2 = n2
         let MLdata_ = this.networks[n1.level].ndata[n1.id].MLdata
         let path1 = MLdata_.paths[MLdata_.paths.length - 1]
         let path2 = MLdata.paths[MLdata.paths.length - 1]
@@ -767,8 +767,17 @@ export default {
         n1.y = cy
         MLdata_.paths.push(path)
         n1.tint = 0xFFFFFF
-        let children1 = this.networks[n1.level].ndata[n1.id].mdata.children
-        let children2 = this.networks[n2.level].ndata[n2.id].mdata.children
+        let children1, children2
+        if (!MLdata_.isopen) {
+          children1 = this.networks[n1.level].ndata[n1.id].mdata.children
+        } else {
+          children1 = MLdata_.children[MLdata_.children.length - 1]
+        }
+        if (!MLdata.isopen) {
+          children2 = this.networks[n2.level].ndata[n2.id].mdata.children
+        } else {
+          children2 = MLdata.children[MLdata.children.length - 1]
+        }
         MLdata_.children.push(children1.concat(children2))
         this.positionChildren(n1)
         this.specified_metanode = 0
