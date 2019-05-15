@@ -353,6 +353,10 @@ export default {
       d3.select('canvas').on('mousedown', function () {
         if (__this.tool === 'regionexplore') {
           __this.regionexplorestart = d3.mouse(this)
+          let region = new PIXI.Graphics()
+          region.beginFill(0x0000FF, 0.1)
+          region.drawRect(...__this.regionexplorestart, 200, 300)
+          __this.app_.stage.addChild(region)
         }
       })
       d3.select('canvas').on('mouseup', function () {
@@ -365,18 +369,21 @@ export default {
           let minx = Math.min(r1[0], r2[0])
           let miny = Math.min(r1[1], r2[1])
           let nodes = __this.nodes[__this.curlevel]
+          let nodes_ = []
           nodes.forEach( n => {
             if ( n.x >= minx && n.x <= maxx && n.y >= miny && n.y <= maxy ) {
               if (!__this.networks[n.level].ndata[n.id].isopen) {
                 __this.showChildren(n)
               }
+              nodes_.push(n)
             }
           })
-          __this.joinMetanodes(nodes[0])
-          for (let i = 1; i < nodes.length; i++) {
-            __this.joinMetanodes(nodes[i])
-            __this.joinMetanodes(nodes[0])
-          }
+          __this.joinManyNodes(nodes_)
+          // __this.joinMetanodes(nodes[0])
+          // for (let i = 1; i < nodes.length; i++) {
+          //   __this.joinMetanodes(nodes[i])
+          //   __this.joinMetanodes(nodes[0])
+          // }
         }
       })
       this.app_.stage.interactive = true
@@ -747,6 +754,8 @@ export default {
 
       this.snacktext = 'shown children ' + children + ' at level ' + level
       this.snackbar = true
+    },
+    joinManyNodes (nodes) {
     },
     joinMetanodes (node) {
       let MLdata = this.networks[node.level].ndata[node.id].MLdata
