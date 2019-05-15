@@ -350,6 +350,36 @@ export default {
       this.cwidth =  0.9 * document.getElementsByTagName('canvas')[0].width
       this.cheight = 0.9 * document.getElementsByTagName('canvas')[0].height
       document.getElementById('toolbar').style.width = this.cwidth_ + 'px'
+      d3.select('canvas').on('mousedown', function () {
+        if (__this.tool === 'regionexplore') {
+          __this.regionexplorestart = d3.mouse(this)
+        }
+      })
+      d3.select('canvas').on('mouseup', function () {
+        if (__this.tool === 'regionexplore') {
+          __this.regionexploreend = d3.mouse(this)
+          let r1 = __this.regionexplorestart
+          let r2 = __this.regionexploreend
+          let maxx = Math.max(r1[0], r2[0])
+          let maxy = Math.max(r1[1], r2[1])
+          let minx = Math.min(r1[0], r2[0])
+          let miny = Math.min(r1[1], r2[1])
+          let nodes = __this.nodes[__this.curlevel]
+          nodes.forEach( n => {
+            if ( n.x >= minx && n.x <= maxx && n.y >= miny && n.y <= maxy ) {
+              if (!__this.networks[n.level].ndata[n.id].isopen) {
+                __this.showChildren(n)
+              }
+            }
+          })
+          __this.joinMetanodes(nodes[0])
+          for (let i = 1; i < nodes.length; i++) {
+            __this.joinMetanodes(nodes[i])
+            __this.joinMetanodes(nodes[0])
+          }
+        }
+      })
+      this.app_.stage.interactive = true
     },
     findNetworks () {
       this.$store.dispatch('networks/find').then(() => {
