@@ -353,15 +353,29 @@ export default {
       d3.select('canvas').on('mousedown', function () {
         if (__this.tool === 'regionexplore') {
           __this.regionexplorestart = d3.mouse(this)
-          let region = new PIXI.Graphics()
-          region.beginFill(0x0000FF, 0.1)
-          region.drawRect(...__this.regionexplorestart, 200, 300)
-          __this.app_.stage.addChild(region)
+          __this.eregion = new PIXI.Graphics()
+          // __this.eregion.beginFill(0x0000FF, 0.1)
+          // __this.eregion.drawPolygon(...__this.regionexplorestart, ...__this.regionexplorestart)
+          // __this.eregion.drawRect(...__this.regionexplorestart, 0, 0)
+          // __this.eregion.endFill()
+          __this.app_.stage.addChild(__this.eregion)
+        }
+      })
+      d3.select('canvas').on('mousemove', function () {
+        if (__this.tool === 'regionexplore' && __this.eregion) {
+          let p = d3.mouse(this)
+          let e = __this.regionexplorestart
+          __this.eregion.clear()
+          __this.eregion.beginFill(0x0000FF, 0.3)
+          __this.eregion.drawPolygon([e[0], e[1], e[0], p[1], p[0], p[1], p[0], e[1]])
+          __this.eregion.endFill()
         }
       })
       d3.select('canvas').on('mouseup', function () {
         if (__this.tool === 'regionexplore') {
           __this.regionexploreend = d3.mouse(this)
+          __this.eregion.clear()
+          delete __this.eregion
           let r1 = __this.regionexplorestart
           let r2 = __this.regionexploreend
           let maxx = Math.max(r1[0], r2[0])
@@ -371,14 +385,16 @@ export default {
           let nodes = __this.nodes[__this.curlevel]
           let nodes_ = []
           nodes.forEach( n => {
-            if ( n.x >= minx && n.x <= maxx && n.y >= miny && n.y <= maxy ) {
-              if (!__this.networks[n.level].ndata[n.id].isopen) {
-                __this.showChildren(n)
-              }
+            let b = n.getBounds()
+            if ( b.x >= minx && b.x + b.width <= maxx && b.y >= miny && b.y + b.height <= maxy ) {
+              // if (!__this.networks[n.level].ndata[n.id].isopen) {
+              //   __this.showChildren(n)
+              // }
               nodes_.push(n)
             }
           })
-          __this.joinManyNodes(nodes_)
+          if (nodes_.length > 0)
+            __this.joinManyNodes(nodes_)
           // __this.joinMetanodes(nodes[0])
           // for (let i = 1; i < nodes.length; i++) {
           //   __this.joinMetanodes(nodes[i])
@@ -423,10 +439,12 @@ export default {
       this.nodecolors = []
       this.ndata = []
       this.nodes = []
+      this.opennodes = []
       this.links_ = [] // for dict nid1-nid2 = link
       for (let level = 0; level <= this.curlevel; level++) {
         this.links_.push({})
         this.nodes.push([])
+        this.opennodes.push({})
         this.nodescales.push(1 - 0.9 * ((this.curlevel - level) / this.curlevel)**0.5)
         this.nodecolors.push(0xFFFFFF*(1 - 0.9 * ((this.curlevel - level) / this.curlevel)**0.5))
         let links = this.networks[level].links
@@ -756,6 +774,66 @@ export default {
       this.snackbar = true
     },
     joinManyNodes (nodes) {
+      // make the rect:
+      // find max and min x and y of all the nodes
+      // make the rect
+      let bounds = nodes.map( n => n.getBounds() )
+      nodes.forEach( n => n.clear() )
+      let maxx = Math.max(...bounds.map( b => b.x + b.width ))
+      let maxy = Math.max(...bounds.map( b => b.y + b.height ))
+      let minx = Math.min(...bounds.map( b => b.x ))
+      let miny = Math.min(...bounds.map( b => b.y ))
+      let path = [
+        minx-4, miny-4,
+        minx-4, maxy+4,
+        maxx+4, maxy+4,
+        maxx+4, miny-4
+      ]
+      let c = [(maxx + minx) / 2, (maxy + miny) / 2]
+      let path_ = [
+        minx-4 - c[0], miny-4 - c[1],
+        minx-4 - c[0], maxy+4 - c[1],
+        maxx+4 - c[0], maxy+4 - c[1],
+        maxx+4 - c[0], miny-4 - c[1]
+      ]
+      this.mmpath = path
+      this.mmc = c
+      this.mmpath_ = path_
+      this.mmbounds = bounds
+      // let rect = new PIXI.Graphics()
+      let rect = nodes[0]
+      rect.clear()
+      rect.lineStyle(2, 0xFFFFFF, 0.7)
+      rect.beginFill(0xFFFFFF, .1)
+      rect.drawPolygon(path_)
+      rect.x = c[0]
+      rect.y = c[1]
+      rect.endFill()
+      // this.app_.stage.addChild(rect)
+      let ids = nodes.map( n => n.id )
+      ids.sort( (a, b) => a - b )
+      rect.ids = ids
+      let tid = ids.join ('-')
+      console.log(tid, 'tidddd')
+
+      this.opennodes[tid] = rect
+
+      // plot children:
+      // get the children of all the nodes
+      // check if they have links
+      let children = []
+      nodes.forEach( n => {
+        let MLdata = this.networks[n.level].ndata[n.id].MLdata
+        if (!MLdata.isopen)
+          children = children.concat( this.networks[this.curlevel].children[n.id] )
+        else
+          children = children.concat( MLdata.children[MLdata.children.length - 1] )
+      })
+      let MLdata = this.networks[rect.level].ndata[rect.id].MLdata
+      MLdata.children.push( children )
+      MLdata.paths.push( path_ )
+      
+      this.positionChildren(rect)
     },
     joinMetanodes (node) {
       let MLdata = this.networks[node.level].ndata[node.id].MLdata
