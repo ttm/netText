@@ -267,8 +267,8 @@ function releaseNode () {
     this.alpha *= 2
     this.dragging = false
     this.data = null
-    __this.redrawLinks(this)
     __this.repositionChildren(this)
+    __this.redrawLinks(this)
   } else if (__this.tool === 'resize') {
     __this.resizing = 'end'
     __this.resizeMetanode(this)
@@ -297,6 +297,17 @@ function clickNode (event) {
     __this.snackbar = true
   }
 }
+
+const ColourValues = [
+  "FF0000", "00FF00", "0000FF", "FFFF00", "FF00FF", "00FFFF", "000000",
+  "800000", "008000", "000080", "808000", "800080", "008080", "808080",
+  "C00000", "00C000", "0000C0", "C0C000", "C000C0", "00C0C0", "C0C0C0",
+  "400000", "004000", "000040", "404000", "400040", "004040", "404040",
+  "200000", "002000", "000020", "202000", "200020", "002020", "202020",
+  "600000", "006000", "000060", "606000", "600060", "006060", "606060",
+  "A00000", "00A000", "0000A0", "A0A000", "A000A0", "00A0A0", "A0A0A0",
+  "E00000", "00E000", "0000E0", "E0E000", "E000E0", "00E0E0", "E0E0E0",
+]
 
 export default {
   head () {
@@ -506,6 +517,7 @@ export default {
       this.mkPaths()
       this.nodescales = []
       this.nodecolors = []
+      this.linkcolors = []
       this.ndata = []
       this.nodes = []
       this.opennodes = []
@@ -517,7 +529,10 @@ export default {
         this.opennodes.push({})
         this.childparent.push({})
         this.nodescales.push(1 - 0.9 * ((this.curlevel - level) / this.curlevel)**0.5)
-        this.nodecolors.push(0xFFFFFF*(1 - 0.9 * ((this.curlevel - level) / this.curlevel)**0.5))
+        // this.nodecolors.push(0xFFFFFF*(1 - 0.9 * ((this.curlevel - level) / this.curlevel)**0.5))
+        // this.linkcolors.push(0xFFFFFF*(0.9 * ((this.curlevel - level) / this.curlevel)**0.5))
+        this.nodecolors.push(parseInt(ColourValues[level], 16))
+        this.linkcolors.push(parseInt(ColourValues[ColourValues.length - 1 - level], 16))
         let links = this.networks[level].links
         let children = this.networks[level].children
         let parents = this.networks[level].parents
@@ -565,6 +580,7 @@ export default {
         }
         this.networks[level].ndata = ndata
       }
+      this.nodecolors.reverse()
     },
     mkPaths () {
       this.radius = 10
@@ -630,7 +646,7 @@ export default {
     mkLine (p1, p2, level) {
       let line = new PIXI.Graphics()
       line.lineStyle(1, 0xFFFFFF)
-      line.tint = 0xFFFF00
+      line.tint = this.linkcolors[level]
       line.moveTo(...p1)
       line.lineTo(...p2)
       line.alpha = 0.4
@@ -638,6 +654,8 @@ export default {
       return line
     },
     repositionChildren (node) {
+      if (!node.visible)
+        return
       let ndata = this.networks[node.level].ndata[node.id]
       if (ndata.MLdata.isopen) {
         let dx = node.x - node.oldx
@@ -649,6 +667,8 @@ export default {
           c_.oldy = c_.y
           c_.x += dx
           c_.y += dy
+          console.log('repositioned child', c_.id)
+          this.redrawLinks(c_)
           this.repositionChildren(c_)
         })
       }
@@ -759,14 +779,22 @@ export default {
       let dx = this.rpos1.x - this.rpos0[0]
       let dy = this.rpos1.y - this.rpos0[1]
       let n = this.rnode
+      if (this.rpos0[0] < n.x)
+        dx *= -1
+      if (this.rpos0[1] < n.y)
+        dy *= -1
       let MLdata_ = this.networks[n.level].ndata[n.id].MLdata
       let path = MLdata_.paths[MLdata.paths.length - 1]
-      let sx = (dx + path[4] - path[0]) / (path[4] - path[0])
-      let sy = (dy + path[5] - path[1])/ (path[5] - path[1])
+      let sx = (2*dx + path[4] - path[0]) / (path[4] - path[0])
+      let sy = (2*dy + path[5] - path[1])/ (path[5] - path[1])
       path[4] += dx
       path[6] += dx
+      path[0] -= dx
+      path[2] -= dx
       path[3] += dy
       path[5] += dy
+      path[1] -= dy
+      path[7] -= dy
       console.log('ok inside', dx, dy, this.rpos1, this.rpos0)
       n.clear()
       n.beginFill(0xFFFFFF, .1)
@@ -775,8 +803,8 @@ export default {
       let b = n.getBounds()
       MLdata_.children[MLdata_.children.length - 1].forEach( c => {
         let c_ = this.nodes[n.level - 1][c]
-        let ddx = (c_.x - b.x) * sx
-        let ddy = (c_.y - b.y) * sy
+        let ddx = (c_.x - b.x-dx) * sx
+        let ddy = (c_.y - b.y-dy) * sy
         c_.x = b.x + ddx
         c_.y = b.y + ddy
         this.redrawLinks(c_)
@@ -848,6 +876,8 @@ export default {
         let p2y = n2.y
         let linkid = l[0]+'-'+l[1]
         let line = this.links_[node.level][linkid]
+        if (!line)
+          return
         line.clear()
         line.moveTo(p1x, p1y)
         line.lineTo(p2x, p2y)
@@ -885,8 +915,8 @@ export default {
       let level = node.level - 1
       let MLdata = this.networks[node.level].ndata[node.id].MLdata
       let children = MLdata.children[MLdata.children.length - 1]
-      let dx = - 0.75 * MLdata.paths[MLdata.paths.length - 1][0]
-      let dy = - 0.75 * MLdata.paths[MLdata.paths.length - 1][1]
+      let dx = - 0.85 * MLdata.paths[MLdata.paths.length - 1][0]
+      let dy = - 0.85 * MLdata.paths[MLdata.paths.length - 1][1]
       let c = [node.x - dx, node.y - dy]
 
       let ndata = this.networks[level].ndata
@@ -928,8 +958,10 @@ export default {
       this.mmbounds = bounds
       nodes.forEach( n => {
         n.clear()
+        n.visible = false
       })
       let rect = nodes[0]
+      rect.visible = true
       rect.lineStyle(2, 0xFFFFFF, 0.7)
       rect.beginFill(0xFFFFFF, .1)
       rect.drawPolygon(path_)
@@ -951,13 +983,15 @@ export default {
       let children = []
       nodes.forEach( n => {
         let MLdata = this.networks[n.level].ndata[n.id].MLdata
-        if (!MLdata.isopen)
+        if (!MLdata.isopen) {
           children = children.concat( this.networks[this.curlevel].children[n.id] )
-        else
+        } else
           children = children.concat( MLdata.children[MLdata.children.length - 1] )
       })
       let MLdata = this.networks[rect.level].ndata[rect.id].MLdata
-      MLdata.children.push( children )
+      let children_ = [...new Set(children)]
+      children_.sort( (a, b) => a - b )
+      MLdata.children.push( children_ )
       MLdata.paths.push( path_ )
       
       this.positionChildren(rect)
