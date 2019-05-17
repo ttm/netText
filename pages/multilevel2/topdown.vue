@@ -352,6 +352,7 @@ export default {
       snackbar: false,
       snacktext: 'msnacktext',
       curlevel: 0,
+      loaded: false
     }
   },
   mounted () {
@@ -601,7 +602,6 @@ export default {
       let links = this.networks[this.curlevel].links
       let center = [0, 0]
       this.placeOnCanvas(nodes, links, this.curlevel, this.cwidth_, this.cheight_, center)
-      this.loaded = true
     },
     placeOnCanvas (nodes, links, level, width, height, center) {
       let turl = process.env.flaskURL + '/layoutOnDemand/'
@@ -622,6 +622,7 @@ export default {
         this.xxlayout = layout
         this.mkLines(links, level, width, height, center, layout)
         this.mkNodes(nodes, level, width, height, center, layout)
+        this.loaded = true
       })
     },
     mkLines (links, level, width, height, center, layout) {
@@ -1067,7 +1068,11 @@ export default {
     curlevelinfo: function () {
       let val = this.curlevel
       if (this.loaded) {
-        let nvis = this.nodes[val].length
+        let nvis = this.nodes[val].reduce(
+          (total, i) => {
+            let count = i !== undefined ? 1 : 0
+            return total + count
+          }, 0)
         let lvis = Object.keys(this.links_[val]).length
         return val + ', nodes: ' + nvis +'/'+ this.networks[val].sources.length + ', links: ' + lvis +'/'+ this.networks[val].links.length
       } else {
