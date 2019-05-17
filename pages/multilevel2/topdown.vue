@@ -349,7 +349,72 @@ export default {
     this.findNetworks()
   },
   methods: {
-    upload () {
+    upload (e) {
+      this.loading = true
+      let reader = new FileReader()
+      let file = e.target.files[0]
+      console.log('raw', e, e.path[0].files[0].name)
+      reader.readAsText(file)
+      let self = this
+      reader.addEventListener('load', () => {
+        console.log(reader)
+        this.$store.dispatch('networks/create', {
+          data: reader.result,
+          layer: 0,
+          coarsen_method: 'none',
+          uncoarsened_network: null,
+          title: 'a title',
+          description: 'a description',
+          filename: e.path[0].files[0].name,
+          // user: this.user._id
+          user: '5c51162561e2414b1f85ac0b'
+        }).then((res) => {
+          this.loading = false
+          this.text = 'file ' + e.path[0].files[0].name + 'loaded. Reload page to load more files'
+          this.findNetworks()
+        })
+      })
+    },
+    zoom (direction) {
+      let inc = 0.1
+      if (direction !== '+')
+        inc = -0.1
+      this.curscale += inc
+      this.app_.stage.scale.set(this.curscale)
+      this.app_.stage.x -= this.cwidth_ * inc / 2
+      this.app_.stage.y -= this.cheight_ * inc / 2
+    },
+    pan (direction) {
+      if (direction === 'l') {
+        this.app_.stage.x += -0.1 * this.cwidth_ / 2
+      } else if (direction === 'r') {
+        this.app_.stage.x += 0.1 * this.cwidth_ / 2
+      } else if (direction === 'u') {
+        this.app_.stage.y += -0.1 * this.cheight_ / 2
+      } else if (direction === 'd') {
+        this.app_.stage.y += 0.1 * this.cheight_ / 2
+      }
+    },
+    home () {
+      let s = this.app_.stage
+      if ( (s.scale.x === s.scale.y == 1) && (s.x === 0) && (s.y === 0) ) {
+        console.log('chieck ok')
+        if (this.saved_view) {
+          console.log('on saved_view ok')
+          // if so, set again zoom and pan as was 
+          s.scale.x = s.scale.y = this.saved_view.scale
+          s.x = this.saved_view.x
+          s.y = this.saved_view.y
+        }
+      } else {
+        this.saved_view = {
+          x: s.x,
+          y: s.y,
+          scale: s.scale.x
+        }
+        s.scale.x = s.scale.y = 1
+        s.x = s.y = 0
+      }
     },
     initPixi () {
       this.app_ = new PIXI.Application()
@@ -406,6 +471,7 @@ export default {
             __this.joinManyNodes(nodes_)
         }
       })
+      this.curscale = 1
       this.app_.stage.interactive = true
     },
     findNetworks () {
@@ -415,7 +481,6 @@ export default {
           return (i.layer === 0) && (i.filename.split('.').pop() === 'ncol')
         })
         this.network = this.networks_[0]
-        this.renderNetwork()
       })
     },
     renderNetwork () {
