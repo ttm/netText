@@ -328,7 +328,7 @@ export default {
         reduction: ['0.1', '0.1'],
         max_levels: ['5', '5'],
         global_min_vertices: ['100', '100'],
-        matching: ['gmb', 'gmb'],
+        matching: ['mlpb', 'mlpb'],
         similarity: ['weighted_common_neighbors', 'weighted_common_neighbors'],
         upper_bound: ['0.1', '0.1'],
         itr: ['10', '10'],
@@ -348,11 +348,12 @@ export default {
         'spectral',
         'spring'
       ],
-      layout: 'kamada',
+      layout: 'spring',
       snackbar: false,
       snacktext: 'msnacktext',
       curlevel: 0,
-      loaded: false
+      loaded: false,
+      mapping: false
     }
   },
   mounted () {
@@ -439,6 +440,8 @@ export default {
       d3.select('canvas').on('mousedown', function () {
         if (__this.tool === 'regionexplore') {
           __this.regionexplorestart = d3.mouse(this)
+          console.log('d3', d3.mouse(this))
+          console.log('pixi', __this.app_.renderer.plugins.interaction.mouse.global)
           __this.eregion = new PIXI.Graphics()
           // __this.eregion.beginFill(0x0000FF, 0.1)
           // __this.eregion.drawPolygon(...__this.regionexplorestart, ...__this.regionexplorestart)
@@ -449,8 +452,13 @@ export default {
       })
       d3.select('canvas').on('mousemove', function () {
         if (__this.tool === 'regionexplore' && __this.eregion) {
-          let p = d3.mouse(this)
-          let e = __this.regionexplorestart
+          let p_ = d3.mouse(this)
+          let e_ = __this.regionexplorestart
+          let scale = __this.app_.stage.scale.x
+          let panx = __this.app_.stage.x
+          let pany = __this.app_.stage.y
+          let e = [(e_[0] - panx)/scale, (e_[1] - pany)/scale]
+          let p = [(p_[0] - panx)/scale, (p_[1] - pany)/scale]
           __this.eregion.clear()
           __this.eregion.beginFill(0x0000FF, 0.3)
           __this.eregion.drawPolygon([e[0], e[1], e[0], p[1], p[0], p[1], p[0], e[1]])
@@ -496,6 +504,7 @@ export default {
       })
     },
     renderNetwork () {
+      this.mapping = true
       let turl = process.env.flaskURL + '/biMLDBtopdown/'
       $.post(
         turl,
@@ -503,9 +512,7 @@ export default {
         {
           netid: this.network._id,
           bi: this.bi,
-          layout: this.layout,
           dim: 2,
-          method: this.method
         }
       ).done( networks => { 
         this.networks = networks
@@ -613,7 +620,8 @@ export default {
             layout: this.layout,
             dim: 2,
             nodes: nodes,
-            links: links
+            links: links,
+            first: level === this.networks.length - 1
           }),
           contentType : 'application/json',
           type : 'POST',
@@ -942,7 +950,18 @@ export default {
       // make the rect:
       // find max and min x and y of all the nodes
       // make the rect
-      let bounds = nodes.map( n => n.getBounds() )
+      let sx = __this.app_.stage.x
+      let sy = __this.app_.stage.y
+      let scale = __this.app_.stage.scale.x
+      let bounds = nodes.map( n => { 
+        let b = n.getBounds() 
+        return {
+          x: (b.x - sx) / scale,
+          y: (b.y - sy) / scale,
+          width: b.width / scale,
+          height: b.height / scale,
+        }
+      })
       let maxx = Math.max(...bounds.map( b => b.x + b.width ))
       let maxy = Math.max(...bounds.map( b => b.y + b.height ))
       let minx = Math.min(...bounds.map( b => b.x ))
@@ -1075,8 +1094,10 @@ export default {
           }, 0)
         let lvis = Object.keys(this.links_[val]).length
         return val + ', nodes: ' + nvis +'/'+ this.networks[val].sources.length + ', links: ' + lvis +'/'+ this.networks[val].links.length
+      } else if (this.mapping) {
+        return 'loading ... (please wait)'
       } else {
-        return 'loading'
+        return '---'
       }
     },
   }
