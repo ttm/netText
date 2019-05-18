@@ -6,7 +6,7 @@
       <v-btn
         slot="activator"
         color="primary"
-        dark
+        :disabled="this.mapping || this.loaded"
       >
         {{ network ? network.filename : 'Select network' }}
       </v-btn>
@@ -138,13 +138,6 @@
         </td>
         <td class="tcolumn">
           <v-text-field
-            :label="'similarity'"
-            :left="true"
-            v-model="bi.similarity[index - 1]"
-          ></v-text-field>
-        </td>
-        <td class="tcolumn">
-          <v-text-field
             :label="'upper bound'"
             :left="true"
             v-model="bi.upper_bound[index - 1]"
@@ -184,8 +177,8 @@
   <v-btn
     slot="activator"
     color="green lighten-2"
-    dark
     @click="renderNetwork()"
+    :disabled="this.mapping || this.loaded"
   >
     Render network
   </v-btn>
@@ -366,11 +359,9 @@ export default {
       this.loading = true
       let reader = new FileReader()
       let file = e.target.files[0]
-      console.log('raw', e, e.path[0].files[0].name)
       reader.readAsText(file)
       let self = this
       reader.addEventListener('load', () => {
-        console.log(reader)
         this.$store.dispatch('networks/create', {
           data: reader.result,
           layer: 0,
@@ -411,9 +402,7 @@ export default {
     home () {
       let s = this.app_.stage
       if ( (s.scale.x === s.scale.y == 1) && (s.x === 0) && (s.y === 0) ) {
-        console.log('chieck ok')
         if (this.saved_view) {
-          console.log('on saved_view ok')
           // if so, set again zoom and pan as was 
           s.scale.x = s.scale.y = this.saved_view.scale
           s.x = this.saved_view.x
@@ -440,8 +429,6 @@ export default {
       d3.select('canvas').on('mousedown', function () {
         if (__this.tool === 'regionexplore') {
           __this.regionexplorestart = d3.mouse(this)
-          console.log('d3', d3.mouse(this))
-          console.log('pixi', __this.app_.renderer.plugins.interaction.mouse.global)
           __this.eregion = new PIXI.Graphics()
           // __this.eregion.beginFill(0x0000FF, 0.1)
           // __this.eregion.drawPolygon(...__this.regionexplorestart, ...__this.regionexplorestart)
@@ -536,7 +523,8 @@ export default {
         this.nodes.push([])
         this.opennodes.push({})
         this.childparent.push({})
-        this.nodescales.push(1 - 0.9 * ((this.curlevel - level) / this.curlevel)**0.5)
+        // this.nodescales.push(1 - 0.9 * ((this.curlevel - level) / this.curlevel)**0.5)
+        this.nodescales.push((1 / (this.curlevel - level + 1))**0.5)
         // this.nodecolors.push(0xFFFFFF*(1 - 0.9 * ((this.curlevel - level) / this.curlevel)**0.5))
         // this.linkcolors.push(0xFFFFFF*(0.9 * ((this.curlevel - level) / this.curlevel)**0.5))
         this.nodecolors.push(parseInt(ColourValues[level], 16))
@@ -676,7 +664,6 @@ export default {
           c_.oldy = c_.y
           c_.x += dx
           c_.y += dy
-          console.log('repositioned child', c_.id)
           this.redrawLinks(c_)
           this.repositionChildren(c_)
         })
@@ -775,27 +762,30 @@ export default {
     },
     resizeMetanode (node) {
       let MLdata = this.networks[node.level].ndata[node.id].MLdata
+      let sx = __this.app_.stage.x
+      let sy = __this.app_.stage.y
+      let scale = __this.app_.stage.scale.x
       if (!MLdata.isopen)
         return
       if (this.resizing === 'start') {
-        console.log('still on start')
         let m = __this.app_.renderer.plugins.interaction.mouse.global
-        this.rpos0 = [m.x, m.y]
+        this.rpos0 = [(m.x - sx) / scale, (m.y - sy) / scale]
         this.rnode = node
         return
       }
       this.rpos1 = __this.app_.renderer.plugins.interaction.mouse.global
-      let dx = this.rpos1.x - this.rpos0[0]
-      let dy = this.rpos1.y - this.rpos0[1]
+      let dx = ( (this.rpos1.x - sx) / scale - this.rpos0[0] )
+      let dy = ( (this.rpos1.y - sy) / scale - this.rpos0[1] )
       let n = this.rnode
+      let b0 = [(n.getBounds().x - sx) / scale , (n.getBounds().y - sy) / scale]
       if (this.rpos0[0] < n.x)
         dx *= -1
       if (this.rpos0[1] < n.y)
         dy *= -1
       let MLdata_ = this.networks[n.level].ndata[n.id].MLdata
       let path = MLdata_.paths[MLdata.paths.length - 1]
-      let sx = (2*dx + path[4] - path[0]) / (path[4] - path[0])
-      let sy = (2*dy + path[5] - path[1])/ (path[5] - path[1])
+      let sx_ = (2*dx + path[4] - path[0]) / (path[4] - path[0])
+      let sy_ = (2*dy + path[5] - path[1])/ (path[5] - path[1])
       path[4] += dx
       path[6] += dx
       path[0] -= dx
@@ -804,18 +794,19 @@ export default {
       path[5] += dy
       path[1] -= dy
       path[7] -= dy
-      console.log('ok inside', dx, dy, this.rpos1, this.rpos0)
       n.clear()
       n.beginFill(0xFFFFFF, .1)
       n.drawPolygon(path)
       n.endFill()
       let b = n.getBounds()
+      let b_ = {x: (b.x - sx) / scale, y: (b.y - sy) / scale}
       MLdata_.children[MLdata_.children.length - 1].forEach( c => {
         let c_ = this.nodes[n.level - 1][c]
-        let ddx = (c_.x - b.x-dx) * sx
-        let ddy = (c_.y - b.y-dy) * sy
-        c_.x = b.x + ddx
-        c_.y = b.y + ddy
+        let ddx = (c_.x - b0[0]) * sx_
+        let ddy = (c_.y - b0[1]) * sy_
+        console.log(ddx, ddy, b0, b_)
+        c_.x = b_.x + ddx
+        c_.y = b_.y + ddy
         this.redrawLinks(c_)
       })
     },
@@ -871,12 +862,10 @@ export default {
     redrawLinks (node) {
       let links_ = this.networks[node.level].ndata[node.id].aux.links_
       let nodes = this.nodes[node.level]
-      console.log('rlinks', node.id)
       links_.forEach( (l, i) => {
         let n1 = nodes[l[0]]
         let n2 = nodes[l[1]]
         if (!n1 || !n2) {
-          console.log('node node', n1, n2)
           return
         }
         let p1x = n1.x
@@ -892,10 +881,8 @@ export default {
         line.lineTo(p2x, p2y)
       })
       if (node.ids) {
-        console.log('ok, ids found')
         node.ids.forEach( id => {
           if (id !== node.id) {
-            console.log('ok, diff id found:', id, node.id)
             let node_ = this.nodes[node.level][id]
             node_.x = node.x
             node_.y = node.y
@@ -1080,6 +1067,19 @@ export default {
         MLdata_.children.push(children1.concat(children2))
         this.positionChildren(n1)
         this.specified_metanode = 0
+      }
+    },
+  },
+  watch: {
+    links: (val) => {
+      if (val) {
+        __this.links_.forEach( ll => {
+          Object.values(ll).forEach( l => l.visible = true )
+        })
+      } else {
+        __this.links_.forEach( ll => {
+          Object.values(ll).forEach( l => l.visible = false )
+        })
       }
     },
   },
