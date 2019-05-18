@@ -2,11 +2,11 @@
 <span>
 <v-layout align-center justify-center row fill-height>
   <v-flex text-xs-center>
-    <v-menu offset-y title="select the network">
+    <v-menu offset-y title="select the network" :disabled="mapping || loaded">
       <v-btn
         slot="activator"
         color="primary"
-        :disabled="this.mapping || this.loaded"
+        :disabled="mapping || loaded"
       >
         {{ network ? network.filename : 'Select network' }}
       </v-btn>
@@ -178,7 +178,7 @@
     slot="activator"
     color="green lighten-2"
     @click="renderNetwork()"
-    :disabled="this.mapping || this.loaded"
+    :disabled="mapping || loaded"
   >
     Render network
   </v-btn>
