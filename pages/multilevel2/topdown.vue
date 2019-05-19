@@ -959,8 +959,8 @@ export default {
         this.redrawLinks(node)
         return
       }
-      let dx = ( (this.rpos1[0] - sx) / scale - this.rpos0[0] )
-      let dy = ( (this.rpos1[1] - sy) / scale - this.rpos0[1] )
+      let dx = this.rpos1[0] - this.rpos0[0] 
+      let dy = this.rpos1[1] - this.rpos0[1] 
       let n = this.rnode
       let b0 = [(n.getBounds().x - sx) / scale , (n.getBounds().y - sy) / scale]
       if (this.rpos0[0] < n.x)
@@ -1115,8 +1115,8 @@ export default {
         node.ids.forEach( id => {
           if (id !== node.id) {
             let node_ = this.nodes[node.level][id]
-            node_.x = node.xx ? node.xx : node.x
-            node_.y = node.yy ? node.yy : node.y
+            node_.xx = node_.x = node.xx ? node.xx : node.x
+            node_.yy = node_.y = node.yy ? node.yy : node.y
             this.redrawLinks(node_)
           }
         })
@@ -1194,6 +1194,7 @@ export default {
       nodes.forEach( n => {
         n.clear()
         n.visible = false
+        n.isopen = false
       })
       let rect = nodes[0]
       rect.visible = true
