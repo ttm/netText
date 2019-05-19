@@ -250,6 +250,8 @@ function moveNode () {
     const newposition = this.data.getLocalPosition(this.parent)
     this.x = newposition.x
     this.y = newposition.y
+    if (__this.draggingnode) {
+    }
   }
 }
 function releaseNode () {
@@ -257,9 +259,24 @@ function releaseNode () {
     this.alpha *= 2
     this.dragging = false
     this.data = null
-    __this.repositionChildren(this)
-    __this.updateLinkPos(this)
-    __this.redrawLinks(this)
+    if (__this.tool !== 'dragregion') {
+      __this.repositionChildren(this)
+      __this.updateLinkPos(this)
+      __this.redrawLinks(this)
+    } else {
+      let dx = this.x - this.oldx
+      let dy = this.y - this.oldy
+      this.mnodes.forEach( n => {
+        if (n.xx) {
+          n.xx += dx
+          n.yy += dy
+        } else {
+          n.x += dx
+          n.y += dy
+        }
+        __this.redrawLinks(n)
+      })
+    }
   } else if (__this.tool === 'resize') {
     __this.resizing = 'end'
     __this.resizeMetanode(this)
@@ -277,12 +294,14 @@ function clickNode (event) {
   } else if (__this.tool === 'resize'){
     __this.resizing = 'start'
     __this.resizeMetanode(this)
-  } else if (__this.tool === 'drag'){
+  } else if (__this.tool === 'drag' || __this.tool === 'dragregion'){
     this.data = event.data // because of multitouch
     this.alpha *= 0.5
     this.dragging = true
+    __this.draggingnode = true
     this.oldx = this.x
     this.oldy = this.y
+    __this.selectednode = this
   } else {
     __this.snacktext = 'select a tool to interact with network'
     __this.snackbar = true
@@ -381,8 +400,8 @@ export default {
       let inc = 0.1
       if (direction !== '+')
         inc = -0.1
-      this.curscale += inc
-      this.app_.stage.scale.set(this.curscale)
+      this.app_.stage.scale.x += inc
+      this.app_.stage.scale.y += inc
       this.app_.stage.x -= this.cwidth_ * inc / 2
       this.app_.stage.y -= this.cheight_ * inc / 2
     },
@@ -399,7 +418,7 @@ export default {
     },
     home () {
       let s = this.app_.stage
-      if ( (s.scale.x === s.scale.y == 1) && (s.x === 0) && (s.y === 0) ) {
+      if ( (s.scale.x == 1) && (s.x === 0) && (s.y === 0) ) {
         if (this.saved_view) {
           // if so, set again zoom and pan as was 
           s.scale.x = s.scale.y = this.saved_view.scale
@@ -425,7 +444,35 @@ export default {
       this.cheight = 0.9 * document.getElementsByTagName('canvas')[0].height
       document.getElementById('toolbar').style.width = this.cwidth_ + 'px'
       d3.select('canvas').on('mousedown', function () {
-        if (__this.tool === 'regionexplore') {
+        if (__this.selectednode) {
+          let p = d3.mouse(this)
+          // let scale = __this.app_.stage.scale.x
+          // let panx = __this.app_.stage.x
+          // let pany = __this.app_.stage.y
+          // let p = [
+          //   (p[0] - panx) / scale,
+          //   (p[1] - pany) / scale,
+          // ]
+          let b = __this.selectednode.getBounds()
+          console.log('ok, trying', b, p)
+          if (p[0] < b.x || p[1] < b.y || p[0] > b.x + b.width || p[1] > b.y + b.height) {
+            console.log('ok, clicked out')
+            if (__this.tool === 'dragregion') {
+              console.log('ok, reset to drag')
+              __this.tool = 'drag'
+              __this.taux = true
+              __this.eregion.clear()
+              return
+              // delete __this.eregion
+            }
+          }
+        }
+        if (__this.tool === 'dragregion' && __this.selectednode && !__this.selectednode.name === 'rect') {
+          __this.tool = 'drag'
+          __this.eregion.clear()
+          delete __this.eregion
+        }
+        if ( __this.tool === 'regionexplore' || (__this.tool === 'drag' && !__this.dragginnode) ) {
           let p = d3.mouse(this)
           let scale = __this.app_.stage.scale.x
           let panx = __this.app_.stage.x
@@ -435,6 +482,8 @@ export default {
             (p[1] - pany) / scale,
           ]
           __this.eregion = new PIXI.Graphics()
+          __this.eregion.name = 'rect'
+          __this.eregion.buttonMode = true
           // __this.eregion.beginFill(0x0000FF, 0.1)
           // __this.eregion.drawPolygon(...__this.regionexplorestart, ...__this.regionexplorestart)
           // __this.eregion.drawRect(...__this.regionexplorestart, 0, 0)
@@ -443,7 +492,12 @@ export default {
         }
       })
       d3.select('canvas').on('mousemove', function () {
-        if (__this.tool === 'regionexplore' && __this.eregion) {
+        if ((__this.tool === 'regionexplore' || __this.tool === 'drag') && __this.eregion) {
+          if (__this.draggingnode && __this.selectednode.name !== 'rect') {
+            __this.eregion.clear()
+            delete __this.eregion
+            return
+          }
           let p_ = d3.mouse(this)
           let e = __this.regionexplorestart
           let scale = __this.app_.stage.scale.x
@@ -457,6 +511,70 @@ export default {
         }
       })
       d3.select('canvas').on('mouseup', function () {
+        if (__this.draggingnode) {
+          __this.draggingnode = false
+          return
+        }
+        if (__this.tool === 'drag') {
+          if (__this.taux) {
+            console.log('fazer gambi aqui man')
+            delete __this.taux
+            delete __this.regionexplorestart
+            __this.eregion.clear()
+            delete __this.eregion
+            return
+          }
+          let scale = __this.app_.stage.scale.x
+          let panx = __this.app_.stage.x
+          let pany = __this.app_.stage.y
+          let p = d3.mouse(this)
+          __this.regionexploreend = [
+            (p[0] - panx) / scale,
+            (p[1] - pany) / scale,
+          ]
+          let r1 = __this.regionexplorestart
+          let r2 = __this.regionexploreend
+          let maxx = Math.max(r1[0], r2[0])
+          let maxy = Math.max(r1[1], r2[1])
+          let minx = Math.min(r1[0], r2[0])
+          let miny = Math.min(r1[1], r2[1])
+          let c = [(maxx + minx) / 2, (maxy + miny) / 2]
+          let nodes = __this.nodes[__this.curlevel]
+          let nodes_ = []
+          nodes.forEach( n => {
+            let b_ = n.getBounds()
+            let b = {
+              x: (b_.x - panx) / scale,
+              y: (b_.y - pany) / scale,
+              width: b_.width / scale,
+              height: b_.height / scale,
+            }
+            if ( b.x >= minx && b.x + b.width <= maxx && b.y >= miny && b.y + b.height <= maxy ) {
+              // if (!__this.networks[n.level].ndata[n.id].isopen) {
+              //   __this.showChildren(n)
+              // }
+              nodes_.push(n)
+            }
+          })
+          __this.eregion.clear()
+          __this.eregion.x = c[0]
+          __this.eregion.y = c[1]
+          let dx = (maxx - minx) / 2
+          let dy = (maxy - miny) / 2
+          __this.eregion.beginFill(0x0000FF, 0.3)
+          __this.eregion.drawPolygon([
+            -dx, -dy,
+            -dx, dy,
+            dx, dy,
+            dx, -dy
+          ])
+          __this.moveManyNodes(nodes_)
+          __this.selectednode = __this.eregion
+          __this.tool = 'dragregion'
+          // else
+          //   __this.eregion.clear()
+          //   delete __this.eregion
+        }
         if (__this.tool === 'regionexplore') {
           let scale = __this.app_.stage.scale.x
           let panx = __this.app_.stage.x
@@ -495,8 +613,16 @@ export default {
             __this.joinManyNodes(nodes_)
         }
       })
-      this.curscale = 1
       this.app_.stage.interactive = true
+    },
+    moveManyNodes (nodes) {
+      this.eregion
+        .on('pointerdown', clickNode)
+        .on('pointerup', releaseNode)
+        .on('pointerupoutside', releaseNode)
+        .on('pointermove', moveNode)
+      this.eregion.interactive = true
+      this.eregion.mnodes = nodes
     },
     findNetworks () {
       this.$store.dispatch('networks/find').then(() => {
@@ -566,12 +692,12 @@ export default {
             .map( l => l[2])
             .reduce( (a, e) => a+e, 0)
           let mdata = {
-            children: children[i],
+            children: children[i].length,
             degree: neighbors.length,
             strength: strength,
             parent_: parents[i],
             level: level,
-            neighbors: neighbors,
+            // neighbors: neighbors,
             ID: i
           }
           let MLdata = {
@@ -580,6 +706,7 @@ export default {
             ids: [],
           }
           let aux = {
+            children: children[i],
             links: nodelinks[i],
             links_: nodelinks[i].map( l => links[l]),
             neighbors: neighbors,
@@ -617,6 +744,8 @@ export default {
     },
     placeOnCanvas (nodes, links, level, width, height, center) {
       let turl = process.env.flaskURL + '/layoutOnDemand/'
+      let [lonely, rest] = this.separateLonelyNodes(nodes, links)
+      let nodes_ = rest
       $.ajax(
         turl,
         // {see: 'this', and: 'thisother', num: 5}
@@ -624,19 +753,49 @@ export default {
           data: JSON.stringify({
             layout: this.layout,
             dim: 2,
-            nodes: nodes,
+            nodes: nodes_,
             links: links,
-            first: level === this.networks.length - 1
+            first: level === this.networks.length - 1,
+            lonely: Object.keys(lonely).length !== 0
           }),
           contentType : 'application/json',
           type : 'POST',
         },
       ).done( layout => {
         this.xxlayout = layout
-        this.mkLines(links, level, width, height, center, layout)
-        this.mkNodes(nodes, level, width, height, center, layout)
+        let layout_ = {...lonely, ...layout}
+        this.mdbug = [
+          lonely, rest, nodes, layout, layout_
+        ]
+        this.mkLines(links, level, width, height, center, layout_)
+        this.mkNodes(nodes, level, width, height, center, layout_)
         this.loaded = true
       })
+    },
+    separateLonelyNodes (nodes, links, layout) {
+      let lonely = []
+      let occurent = [...new Set( [].concat(...links) ) ]
+      nodes.forEach( n => {
+        if (!occurent.includes(n))
+          lonely.push(n)
+      })
+      if (lonely.length === 0)
+        return [{}, nodes]
+      else {
+        if (lonely.length === nodes.length)
+          return [{}, nodes]
+        else {
+          let lonelypos = lonely.reduce( (map, l, i) => {
+            map[l] = [
+              2 * i/(lonely.length - 1) - 1,
+              -1
+            ]
+            return map
+          }, {})
+          let rest = nodes.filter( n => !lonely.includes(n) )
+          return [lonelypos, rest]
+        }
+      }
     },
     mkLines (links, level, width, height, center, layout) {
       for (let i = 0; i < links.length; i++) {
@@ -978,7 +1137,7 @@ export default {
       MLdata.paths.push(this.pathrect)
       if (!MLdata.isopen)
         MLdata.children.push(
-          this.networks[node.level].ndata[node.id].mdata.children
+          this.networks[node.level].ndata[node.id].aux.children
       )
       this.positionChildren(node)
       MLdata.isopen = true
@@ -994,7 +1153,7 @@ export default {
       let ndata = this.networks[level].ndata
       let links = []
       children.forEach( c1 => {
-        let neighbors = ndata[c1].mdata.neighbors
+        let neighbors = ndata[c1].aux.neighbors
         children.forEach( c2 => {
           if (neighbors.includes(c2)) {
             let tlink = ndata[c1].aux.links_[neighbors.indexOf(c2)]
@@ -1135,12 +1294,12 @@ export default {
         n1.tint = 0xFFFFFF
         let children1, children2
         if (!MLdata_.isopen) {
-          children1 = this.networks[n1.level].ndata[n1.id].mdata.children
+          children1 = this.networks[n1.level].ndata[n1.id].aux.children
         } else {
           children1 = MLdata_.children[MLdata_.children.length - 1]
         }
         if (!MLdata.isopen) {
-          children2 = this.networks[n2.level].ndata[n2.id].mdata.children
+          children2 = this.networks[n2.level].ndata[n2.id].aux.children
         } else {
           children2 = MLdata.children[MLdata.children.length - 1]
         }
