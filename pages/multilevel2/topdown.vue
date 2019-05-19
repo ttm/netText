@@ -765,7 +765,7 @@ export default {
         this.xxlayout = layout
         let layout_ = {...lonely, ...layout}
         this.mdbug = [
-          lonely, rest, nodes, layout, layout_
+          lonely, rest, nodes, layout, layout_, links, nodes_
         ]
         this.mkLines(links, level, width, height, center, layout_)
         this.mkNodes(nodes, level, width, height, center, layout_)
@@ -774,7 +774,8 @@ export default {
     },
     separateLonelyNodes (nodes, links, layout) {
       let lonely = []
-      let occurent = [...new Set( [].concat(...links) ) ]
+      let links_ = links.map( l => [l[0], l[1]] )
+      let occurent = [...new Set( [].concat(...links_) ) ]
       nodes.forEach( n => {
         if (!occurent.includes(n))
           lonely.push(n)
@@ -785,13 +786,21 @@ export default {
         if (lonely.length === nodes.length)
           return [{}, nodes]
         else {
-          let lonelypos = lonely.reduce( (map, l, i) => {
-            map[l] = [
-              2 * i/(lonely.length - 1) - 1,
-              -1
-            ]
-            return map
-          }, {})
+          let lonelypos
+          if (lonely.length === 1) {
+            let l = lonely[0]
+            lonelypos = {
+              l: [0, -1]
+            }
+          } else {
+            lonelypos = lonely.reduce( (map, l, i) => {
+              map[l] = [
+                2 * i/(lonely.length - 1) - 1,
+                -1
+              ]
+              return map
+            }, {})
+          }
           let rest = nodes.filter( n => !lonely.includes(n) )
           return [lonelypos, rest]
         }
