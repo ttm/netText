@@ -238,6 +238,10 @@
         Close
       </v-btn>
     </v-snackbar>
+<v-footer class="pa-3">
+  <v-spacer></v-spacer>
+  <div>&copy;{{ new Date().getFullYear() }} - VICG-ICMC/USP, FAPESP 2017/05838-3</div>
+</v-footer>
 </span>
 </template>
 
@@ -454,11 +458,8 @@ export default {
           //   (p[1] - pany) / scale,
           // ]
           let b = __this.selectednode.getBounds()
-          console.log('ok, trying', b, p)
           if (p[0] < b.x || p[1] < b.y || p[0] > b.x + b.width || p[1] > b.y + b.height) {
-            console.log('ok, clicked out')
             if (__this.tool === 'dragregion') {
-              console.log('ok, reset to drag')
               __this.tool = 'drag'
               __this.taux = true
               __this.eregion.clear()
@@ -517,17 +518,16 @@ export default {
         }
         if (__this.tool === 'drag') {
           if (__this.taux) {
-            console.log('fazer gambi aqui man')
             delete __this.taux
             delete __this.regionexplorestart
             __this.eregion.clear()
             delete __this.eregion
             return
           }
+          let p = d3.mouse(this)
           let scale = __this.app_.stage.scale.x
           let panx = __this.app_.stage.x
           let pany = __this.app_.stage.y
-          let p = d3.mouse(this)
           __this.regionexploreend = [
             (p[0] - panx) / scale,
             (p[1] - pany) / scale,
@@ -953,7 +953,6 @@ export default {
       let m = __this.app_.renderer.plugins.interaction.mouse.global
       this.rpos1 = [(m.x - sx) / scale, (m.y - sy) / scale]
       if (this.rpos0[0] === this.rpos1[0] && this.rpos0[1] === this.rpos1[1]) {
-        console.log('reposition the edges to corners')
         this.rznode = node
         node.linkpos++
         this.updateLinkPos(node)
@@ -1010,7 +1009,6 @@ export default {
       let minyy = Math.min(...yy)
       MLdata_.children[MLdata_.children.length - 1].forEach( c => {
         let c_ = this.nodes[n.level - 1][c]
-        console.log(maxxx, minxx, maxyy, minyy, b.width, b.height)
         c_.x = b_.x + ( (c_.x - minxx) * (b_.width*0.9) / (maxxx - minxx) ) + b_.width * 0.05
         c_.y = b_.y + ( (c_.y - minyy) * (b_.height*0.9) / (maxyy - minyy) ) + b_.height * 0.05
         this.redrawLinks(c_)
@@ -1028,7 +1026,6 @@ export default {
         width: b.width / scale, height: b.height / scale
       }
       let lp = node.linkpos % 4
-      console.log(b_, node, lp, 'here man')
       if (lp === 0) {
         node.xx = b_.x + b_.width
         node.yy = b_.y + b_.height
@@ -1106,7 +1103,6 @@ export default {
         let p1y = n1.yy ? n1.yy : n1.y
         let p2x = n2.xx ? n2.xx : n2.x
         let p2y = n2.yy ? n2.yy : n2.y
-        console.log(p1x, p1y, p2x, p2y)
         let linkid = l[0]+'-'+l[1]
         let line = this.links_[node.level][linkid]
         if (!line)
@@ -1169,10 +1165,6 @@ export default {
       this.snackbar = true
     },
     joinManyNodes (nodes) {
-      // make the rect:
-      // find max and min x and y of all the nodes
-      // make the rect
-      console.log('yes, joinMany', nodes)
       let sx = __this.app_.stage.x
       let sy = __this.app_.stage.y
       let scale = __this.app_.stage.scale.x
