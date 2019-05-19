@@ -250,9 +250,6 @@ function moveNode () {
     const newposition = this.data.getLocalPosition(this.parent)
     this.x = newposition.x
     this.y = newposition.y
-    __this.nps = newposition
-    let px = this.x * 2/__this.cwidth - 1
-    let py = this.y * 2/__this.cheight - 1
   }
 }
 function releaseNode () {
@@ -261,6 +258,7 @@ function releaseNode () {
     this.dragging = false
     this.data = null
     __this.repositionChildren(this)
+    __this.updateLinkPos(this)
     __this.redrawLinks(this)
   } else if (__this.tool === 'resize') {
     __this.resizing = 'end'
@@ -428,7 +426,14 @@ export default {
       document.getElementById('toolbar').style.width = this.cwidth_ + 'px'
       d3.select('canvas').on('mousedown', function () {
         if (__this.tool === 'regionexplore') {
-          __this.regionexplorestart = d3.mouse(this)
+          let p = d3.mouse(this)
+          let scale = __this.app_.stage.scale.x
+          let panx = __this.app_.stage.x
+          let pany = __this.app_.stage.y
+          __this.regionexplorestart = [
+            (p[0] - panx) / scale,
+            (p[1] - pany) / scale,
+          ]
           __this.eregion = new PIXI.Graphics()
           // __this.eregion.beginFill(0x0000FF, 0.1)
           // __this.eregion.drawPolygon(...__this.regionexplorestart, ...__this.regionexplorestart)
@@ -440,11 +445,10 @@ export default {
       d3.select('canvas').on('mousemove', function () {
         if (__this.tool === 'regionexplore' && __this.eregion) {
           let p_ = d3.mouse(this)
-          let e_ = __this.regionexplorestart
+          let e = __this.regionexplorestart
           let scale = __this.app_.stage.scale.x
           let panx = __this.app_.stage.x
           let pany = __this.app_.stage.y
-          let e = [(e_[0] - panx)/scale, (e_[1] - pany)/scale]
           let p = [(p_[0] - panx)/scale, (p_[1] - pany)/scale]
           __this.eregion.clear()
           __this.eregion.beginFill(0x0000FF, 0.3)
@@ -454,7 +458,14 @@ export default {
       })
       d3.select('canvas').on('mouseup', function () {
         if (__this.tool === 'regionexplore') {
-          __this.regionexploreend = d3.mouse(this)
+          let scale = __this.app_.stage.scale.x
+          let panx = __this.app_.stage.x
+          let pany = __this.app_.stage.y
+          let p = d3.mouse(this)
+          __this.regionexploreend = [
+            (p[0] - panx) / scale,
+            (p[1] - pany) / scale,
+          ]
           __this.eregion.clear()
           delete __this.eregion
           let r1 = __this.regionexplorestart
@@ -466,7 +477,13 @@ export default {
           let nodes = __this.nodes[__this.curlevel]
           let nodes_ = []
           nodes.forEach( n => {
-            let b = n.getBounds()
+            let b_ = n.getBounds()
+            let b = {
+              x: (b_.x - panx) / scale,
+              y: (b_.y - pany) / scale,
+              width: b_.width / scale,
+              height: b_.height / scale,
+            }
             if ( b.x >= minx && b.x + b.width <= maxx && b.y >= miny && b.y + b.height <= maxy ) {
               // if (!__this.networks[n.level].ndata[n.id].isopen) {
               //   __this.showChildren(n)
@@ -718,6 +735,7 @@ export default {
           explore: 'click on nodes to show their child nodes',
           join: 'click on two open metanodes to join them',
           regionexplore: 'click and drag to open all nodes in region',
+          resize: 'click on open node and drag resize it',
         }[toolname]
         this.snackbar = true
         Array(...document.getElementsByClassName('ptbtn')).forEach( e => { e.style.backgroundColor = 'gray' })
@@ -773,9 +791,18 @@ export default {
         this.rnode = node
         return
       }
-      this.rpos1 = __this.app_.renderer.plugins.interaction.mouse.global
-      let dx = ( (this.rpos1.x - sx) / scale - this.rpos0[0] )
-      let dy = ( (this.rpos1.y - sy) / scale - this.rpos0[1] )
+      let m = __this.app_.renderer.plugins.interaction.mouse.global
+      this.rpos1 = [(m.x - sx) / scale, (m.y - sy) / scale]
+      if (this.rpos0[0] === this.rpos1[0] && this.rpos0[1] === this.rpos1[1]) {
+        console.log('reposition the edges to corners')
+        this.rznode = node
+        node.linkpos++
+        this.updateLinkPos(node)
+        this.redrawLinks(node)
+        return
+      }
+      let dx = ( (this.rpos1[0] - sx) / scale - this.rpos0[0] )
+      let dy = ( (this.rpos1[1] - sy) / scale - this.rpos0[1] )
       let n = this.rnode
       let b0 = [(n.getBounds().x - sx) / scale , (n.getBounds().y - sy) / scale]
       if (this.rpos0[0] < n.x)
@@ -799,16 +826,63 @@ export default {
       n.drawPolygon(path)
       n.endFill()
       let b = n.getBounds()
-      let b_ = {x: (b.x - sx) / scale, y: (b.y - sy) / scale}
+      let b_ = {
+        x: (b.x - sx) / scale, y: (b.y - sy) / scale,
+        width: b.width / scale, height: b.height / scale
+      }
       MLdata_.children[MLdata_.children.length - 1].forEach( c => {
         let c_ = this.nodes[n.level - 1][c]
         let ddx = (c_.x - b0[0]) * sx_
         let ddy = (c_.y - b0[1]) * sy_
-        console.log(ddx, ddy, b0, b_)
         c_.x = b_.x + ddx
         c_.y = b_.y + ddy
+      })
+      let xx = MLdata_.children[MLdata_.children.length - 1].map( c => {
+        let c_ = this.nodes[n.level - 1][c]
+        return c_.x
+      })
+      let yy = MLdata_.children[MLdata_.children.length - 1].map( c => {
+        let c_ = this.nodes[n.level - 1][c]
+        return c_.y
+      })
+      let maxxx = Math.max(...xx)
+      let minxx = Math.min(...xx)
+      let maxyy = Math.max(...yy)
+      let minyy = Math.min(...yy)
+      MLdata_.children[MLdata_.children.length - 1].forEach( c => {
+        let c_ = this.nodes[n.level - 1][c]
+        console.log(maxxx, minxx, maxyy, minyy, b.width, b.height)
+        c_.x = b_.x + ( (c_.x - minxx) * (b_.width*0.9) / (maxxx - minxx) ) + b_.width * 0.05
+        c_.y = b_.y + ( (c_.y - minyy) * (b_.height*0.9) / (maxyy - minyy) ) + b_.height * 0.05
         this.redrawLinks(c_)
       })
+      this.updateLinkPos(node)
+      this.redrawLinks(node)
+    },
+    updateLinkPos (node) {
+      let sx = __this.app_.stage.x
+      let sy = __this.app_.stage.y
+      let scale = __this.app_.stage.scale.x
+      let b = node.getBounds()
+      let b_ = {
+        x: (b.x - sx) / scale, y: (b.y - sy) / scale,
+        width: b.width / scale, height: b.height / scale
+      }
+      let lp = node.linkpos % 4
+      console.log(b_, node, lp, 'here man')
+      if (lp === 0) {
+        node.xx = b_.x + b_.width
+        node.yy = b_.y + b_.height
+      } else if (lp === 1) {
+        node.xx = b_.x + b_.width
+        node.yy = b_.y
+      } else if (lp === 2) {
+        node.xx = b_.x
+        node.yy = b_.y
+      } else if (lp === 3) {
+        node.xx = b_.x
+        node.yy = b_.y + b_.height
+      }
     },
     resizeNodes (direction) {
       let inc = 0.1
@@ -860,6 +934,7 @@ export default {
       })
     },
     redrawLinks (node) {
+      this.rdnode = node
       let links_ = this.networks[node.level].ndata[node.id].aux.links_
       let nodes = this.nodes[node.level]
       links_.forEach( (l, i) => {
@@ -868,10 +943,11 @@ export default {
         if (!n1 || !n2) {
           return
         }
-        let p1x = n1.x
-        let p1y = n1.y
-        let p2x = n2.x
-        let p2y = n2.y
+        let p1x = n1.xx ? n1.xx : n1.x
+        let p1y = n1.yy ? n1.yy : n1.y
+        let p2x = n2.xx ? n2.xx : n2.x
+        let p2y = n2.yy ? n2.yy : n2.y
+        console.log(p1x, p1y, p2x, p2y)
         let linkid = l[0]+'-'+l[1]
         let line = this.links_[node.level][linkid]
         if (!line)
@@ -884,8 +960,8 @@ export default {
         node.ids.forEach( id => {
           if (id !== node.id) {
             let node_ = this.nodes[node.level][id]
-            node_.x = node.x
-            node_.y = node.y
+            node_.x = node.xx ? node.xx : node.x
+            node_.y = node.yy ? node.yy : node.y
             this.redrawLinks(node_)
           }
         })
@@ -937,6 +1013,7 @@ export default {
       // make the rect:
       // find max and min x and y of all the nodes
       // make the rect
+      console.log('yes, joinMany', nodes)
       let sx = __this.app_.stage.x
       let sy = __this.app_.stage.y
       let scale = __this.app_.stage.scale.x
@@ -979,7 +1056,10 @@ export default {
       rect.scale.set(1)
       rect.x = c[0]
       rect.y = c[1]
+      rect.linkpos = 0
+      this.updateLinkPos(rect)
       this.redrawLinks(rect)
+      this.cnode = rect
       let tid = ids.join ('-')
 
       this.opennodes[tid] = rect
