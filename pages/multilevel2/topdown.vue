@@ -1052,8 +1052,10 @@ export default {
       if (direction !== '+')
         inc = -0.1
       this.nodes[this.curlevel].forEach( n => {
-        n.scale.x += inc
-        n.scale.y += inc
+        if (!n.isopen) {
+          n.scale.x += inc
+          n.scale.y += inc
+        }
       })
     },
     proportionalNodes (criterion) {
@@ -1064,15 +1066,19 @@ export default {
         info = this.networks[this.curlevel].ndata.map( i => i.mdata.degree )
       let imax = Math.max(...info)
       this.nodes[this.curlevel].forEach( (n, i) => {
-        let factor = ( 0.3 + 0.7 * info[i] / imax )
-        n.scale.x *= factor
-        n.scale.y *= factor
+        if (!n.isopen) {
+          let factor = ( 0.3 + 0.7 * info[i] / imax )
+          n.scale.x *= factor
+          n.scale.y *= factor
+        }
       })
     },
     restoreNodeSizes () {
       let scale = this.nodescales[this.curlevel]
       this.nodes[this.curlevel].forEach( n => {
-        n.scale.set(scale)
+        if (!n.isopen) {
+          n.scale.set(scale)
+        }
       })
     },
     nodeVisibility (direction) {
@@ -1206,6 +1212,7 @@ export default {
       })
       let rect = nodes[0]
       rect.visible = true
+      rect.isopen = true
       rect.lineStyle(2, 0xFFFFFF, 0.7)
       rect.beginFill(0xFFFFFF, .1)
       rect.drawPolygon(path_)
