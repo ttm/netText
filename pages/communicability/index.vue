@@ -105,7 +105,7 @@
   Render network
 </v-btn>
   <v-checkbox v-model="scentroid" label="show centroid"> </v-checkbox>
-  <v-checkbox v-model="ssphere" label="show sphere centrum"> </v-checkbox>
+  <v-checkbox v-model="ssphere" label="show sphere centre"> </v-checkbox>
   <v-checkbox v-model="sspheres" label="show sphere surface"> </v-checkbox>
 </v-layout>
 <canvas id="renderCanvas" touch-action="none"></canvas>
