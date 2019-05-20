@@ -381,6 +381,7 @@ export default {
       let reader = new FileReader()
       let file = e.target.files[0]
       reader.readAsText(file)
+      let path = e.path || (e.composedPath && e.composedPath())
       let self = this
       reader.addEventListener('load', () => {
         this.$store.dispatch('networks/create', {
@@ -390,12 +391,12 @@ export default {
           uncoarsened_network: null,
           title: 'a title',
           description: 'a description',
-          filename: e.path[0].files[0].name,
+          filename: path[0].files[0].name,
           // user: this.user._id
           user: '5c51162561e2414b1f85ac0b'
         }).then((res) => {
           this.loading = false
-          this.text = 'file ' + e.path[0].files[0].name + 'loaded. Reload page to load more files'
+          this.text = 'file ' + path[0].files[0].name + 'loaded. Reload page to load more files'
           this.findNetworks()
         })
       })
