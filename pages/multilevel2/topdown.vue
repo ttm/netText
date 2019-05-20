@@ -788,10 +788,8 @@ export default {
         else {
           let lonelypos
           if (lonely.length === 1) {
-            let l = lonely[0]
-            lonelypos = {
-              l: [0, -1]
-            }
+            lonelypos = {}
+            lonelypos[lonely[0]] = [0, -1]
           } else {
             lonelypos = lonely.reduce( (map, l, i) => {
               map[l] = [
@@ -1174,6 +1172,7 @@ export default {
       this.snackbar = true
     },
     joinManyNodes (nodes) {
+      console.log('node ids', nodes.map( i => i.id ))
       let sx = __this.app_.stage.x
       let sy = __this.app_.stage.y
       let scale = __this.app_.stage.scale.x
@@ -1254,6 +1253,37 @@ export default {
       }
       if (!this.specified_metanode) {
         this.specified_metanode = node
+        this.temptint = node.tint
+        node.tint = 0x00FFFF
+      } else {
+        let n1 = this.specified_metanode
+        n1.tint = this.temptint
+        let n2 = node
+        let nodes = [n1, n2]
+        let nodes_ = []
+        nodes.forEach( n => {
+          if (n.ids) {
+            n.ids.forEach( id => {
+              let tnode = this.nodes[n1.level][id]
+              nodes_.push(tnode)
+            })
+          }
+        })
+        let nodes__ = [...nodes, ...nodes_]
+        nodes__.sort( function (a, b) { return a.id - b.id } )
+        this.joinManyNodes(nodes__)
+        this.specified_metanode = undefined
+      }
+    },
+    joinMetanodes_ (node) {
+      let MLdata = this.networks[node.level].ndata[node.id].MLdata
+      if (!MLdata.isopen) {
+        this.snacktext = 'please choose an opened metanode'
+        this.snackbar = true
+        return
+      }
+      if (!this.specified_metanode) {
+        this.specified_metanode = node
         node.tint = 0x00FFFF
       } else {
         let n1 = this.specified_metanode
@@ -1293,7 +1323,6 @@ export default {
         n1.x = cx
         n1.y = cy
         MLdata_.paths.push(path)
-        n1.tint = 0xFFFFFF
         let children1, children2
         if (!MLdata_.isopen) {
           children1 = this.networks[n1.level].ndata[n1.id].aux.children
