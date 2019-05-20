@@ -6,15 +6,15 @@
     color="primary"
     dark
   >
-    {{ network ? network : 'Select network' }}
+    {{ network ? network.filename : 'Select network' }}
   </v-btn>
   <v-list>
     <v-list-tile
-      v-for="(net, index) in networks"
+      v-for="(net, index) in networks_"
       :key="index"
       @click="network = net"
     >
-      <v-list-tile-title color="primary">{{ net }}</v-list-tile-title>
+      <v-list-tile-title color="primary">{{ net.filename }}</v-list-tile-title>
     </v-list-tile>
     <v-list-tile>
 <input type="file" @change="upload">
@@ -134,7 +134,8 @@ export default {
   data () {
     return {
       networks: ['dolphins', 'zackar'],
-      network: 'dolphins',
+      networks_: [],
+      network: '',
       draw_net: false,
       temp: 1,
       mangle: 10,
@@ -186,8 +187,38 @@ export default {
     },
   },
   methods: {
+    findNetworks () {
+      this.$store.dispatch('networks/find').then(() => {
+        let networks_ = this.$store.getters['networks/list']
+        this.networks_ = networks_.filter(i => {
+          return (i.layer === 0) && (i.filename.split('.').pop() === 'txt')
+        })
+        this.network = this.networks_[0]
+      })
+    },
     upload (e) {
-      console.log('uploading to be implemented')
+      this.loading = true
+      let reader = new FileReader()
+      let file = e.target.files[0]
+      reader.readAsText(file)
+      let self = this
+      reader.addEventListener('load', () => {
+        this.$store.dispatch('networks/create', {
+          data: reader.result,
+          layer: 0,
+          coarsen_method: 'none',
+          uncoarsened_network: null,
+          title: 'a title',
+          description: 'a description',
+          filename: e.path[0].files[0].name,
+          // user: this.user._id
+          user: '5c51162561e2414b1f85ac0b'
+        }).then((res) => {
+          this.loading = false
+          this.text = 'file ' + e.path[0].files[0].name + 'loaded. Reload page to load more files'
+          this.findNetworks()
+        })
+      })
     },
     renderNetwork () {
       $.post(
@@ -196,8 +227,7 @@ export default {
         // `http://127.0.0.1:5000/communicability/`,
         // {see: 'this', and: 'thisother', num: 5}
         {
-          net: this.network,
-
+          netid: this.network._id,
           temp: this.temp,
           mangle: this.mangle,
 
@@ -347,6 +377,7 @@ export default {
         d3.select('body').style('overflow', 'scroll')
       })
     console.log(process.env.flaskURL)
+    this.findNetworks()
   }
 }
 </script>
