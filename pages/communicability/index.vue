@@ -86,7 +86,7 @@
 </div><br/>
 <div style="border:1px;border-style:solid;padding:5px">Visualization controls
   <div>
-    node sizes (just mouse over them)
+    node sizes
     <v-btn fab dark small color="primary" @click="updateSize(-0.1)">
       <v-icon dark>remove</v-icon>
     </v-btn>
