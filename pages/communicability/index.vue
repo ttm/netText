@@ -197,12 +197,16 @@ export default {
       })
     },
     upload (e) {
+      console.log('yey man', e)
       this.loading = true
       let reader = new FileReader()
       let file = e.target.files[0]
       reader.readAsText(file)
+      console.log('yey manooo', file)
+      let path = e.path || (e.composedPath && e.composedPath())
       let self = this
       reader.addEventListener('load', () => {
+        console.log('yeyow man')
         this.$store.dispatch('networks/create', {
           data: reader.result,
           layer: 0,
@@ -210,12 +214,13 @@ export default {
           uncoarsened_network: null,
           title: 'a title',
           description: 'a description',
-          filename: e.path[0].files[0].name,
+          filename: path[0].files[0].name,
           // user: this.user._id
           user: '5c51162561e2414b1f85ac0b'
         }).then((res) => {
+          console.log('yeyowha man')
           this.loading = false
-          this.text = 'file ' + e.path[0].files[0].name + 'loaded. Reload page to load more files'
+          this.text = 'file ' + path[0].files[0].name + 'loaded. Reload page to load more files'
           this.findNetworks()
         })
       })
