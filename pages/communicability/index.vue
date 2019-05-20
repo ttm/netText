@@ -95,6 +95,7 @@
     </v-btn>
   </div>
 </div>
+<v-layout row ml-4>
 <v-btn
   slot="activator"
   color="green lighten-2"
@@ -103,7 +104,17 @@
 >
   Render network
 </v-btn>
+  <v-checkbox v-model="scentroid" label="show centroid"> </v-checkbox>
+  <v-checkbox v-model="ssphere" label="show sphere centrum"> </v-checkbox>
+  <v-checkbox v-model="sspheres" label="show sphere surface"> </v-checkbox>
+</v-layout>
 <canvas id="renderCanvas" touch-action="none"></canvas>
+<v-layout row ml-4>
+<textarea id="statsbox">
+</textarea>
+<textarea id="statsbox2">
+</textarea>
+</v-layout>
 </span>
 </template>
 
@@ -113,6 +124,13 @@ import $ from 'jquery'
 import * as d3 from 'd3'
 
 export default {
+  head () {
+    return {
+      script: [
+        { src: '/libs/math5.10.3.js' },
+      ]
+    }
+  },
   data () {
     return {
       networks: ['dolphins', 'zackar'],
@@ -128,7 +146,10 @@ export default {
       dimredtype: 'MDS',
       lrate: 12,
       perplexity: 5,
-      minIters: 1
+      minIters: 1,
+      scentroid: false,
+      ssphere: false,
+      sspheres: false
     }
   },
   watch: {
@@ -138,7 +159,31 @@ export default {
       } else {
         this.minIters = 1
       }
-    }
+    },
+    scentroid: function (val) {
+      if (!this.network_data)
+        return
+      if (val)
+        this.csphere.isVisible = true
+      else
+        this.csphere.isVisible = false
+    },
+    ssphere: function (val) {
+      if (!this.network_data)
+        return
+      if (val)
+        this.sspherec.isVisible = true
+      else
+        this.sspherec.isVisible = false
+    },
+    sspheres: function (val) {
+      if (!this.network_data)
+        return
+      if (val)
+        this.ssurface.isVisible = true
+      else
+        this.ssurface.isVisible = false
+    },
   },
   methods: {
     upload (e) {
@@ -199,6 +244,72 @@ export default {
       }
       this.spheres = spheres
       this.lines = lines
+      this.mkCentroid()
+      this.mkBestSphere()
+    },
+    mkCentroid () {
+      let c = this.network_data.nodes.reduce( (c, i) => c = [c[0]+i[0], c[1]+i[1], c[2]+i[2]], [0,0,0])
+      let dists = this.network_data.nodes.map( n => ( (n[0] - c[0])**2 + (n[1] - c[1])**2 + (n[2] - c[2])**2 )**0.5 )
+      let mean = math.mean(dists)
+      let std = math.std(dists)
+      this.centroid = [
+        c, dists,
+        mean, std
+      ]
+      let sphere = BABYLON.MeshBuilder.CreateSphere('centroid', {diameter: 0.03 + this.diameter, updatable: 1}, this.scene)
+      sphere.position = new BABYLON.Vector3(...c)
+      sphere.isVisible = false
+      let material = new BABYLON.StandardMaterial("mMaterial", this.scene)
+      material.diffuseColor = new BABYLON.Color3(1, 0, 0)
+      sphere.material = material
+      this.csphere = sphere
+    },
+    mkBestSphere () {
+      let sphere = BABYLON.MeshBuilder.CreateSphere('bspherec', {diameter: 0.03 + this.diameter, updatable: 1}, this.scene)
+      sphere.position = new BABYLON.Vector3(...this.network_data.sdata.c)
+      sphere.isVisible = false
+      let material = new BABYLON.StandardMaterial("mMaterial2", this.scene)
+      material.diffuseColor = new BABYLON.Color3(0, 1, 0)
+      sphere.material = material
+      this.sspherec = sphere
+      this.mkBestSphereSurface()
+    },
+    mkBestSphereSurface () {
+      let sphere = BABYLON.MeshBuilder.CreateSphere('bsurface', {diameter: this.network_data.sdata.r*2, updatable: 1}, this.scene)
+      sphere.position = new BABYLON.Vector3(...this.network_data.sdata.c)
+      sphere.isVisible = false
+      let material = new BABYLON.StandardMaterial("mMaterial3", this.scene)
+      material.diffuseColor = new BABYLON.Color3(0, 0, 1)
+      material.alpha = 0.3
+      sphere.material = material
+      this.ssurface = sphere
+      this.placeStats()
+    },
+    placeStats () {
+      let a = document.getElementById('statsbox')
+      a.style.width = '40%'
+      a.style.height = '100px'
+      // a.innerHTML = JSON.stringify(this.network_data.sdata)
+      let s = this.network_data.sdata
+      a.innerHTML = '~~ best sphere stats ~~'
+      a.innerHTML += '\ncenter: ' + s.c.reduce( (st, i) => st += i.toFixed(3) + ', ', '' )
+      a.innerHTML += '\nradius: ' + s.r.toFixed(3)
+      a.innerHTML += '\ndistance mean: ' + s.mean.toFixed(3)
+      a.innerHTML += '\ndistance std: ' + s.std.toFixed(3)
+      a = document.getElementById('statsbox2')
+      a.style.width = '40%'
+      a.style.height = '100px'
+      a.innerHTML += '~~ centroid stats ~~'
+      let c = this.centroid
+      a.innerHTML += '\nposition: ' + c[0].reduce( (st, i) => st += i.toFixed(3) + ', ', '' )
+      a.innerHTML += '\ndistance mean: ' + c[2].toFixed(3)
+      a.innerHTML += '\ndistance std: ' + c[3].toFixed(3)
+      let d = (
+          (c[0][0] - s.c[0])**2
+        + (c[0][1] - s.c[1])**2
+        + (c[0][1] - s.c[1])**2
+      ) ** 0.5
+      a.innerHTML += '\ndistance to best sphere centre: ' + d.toFixed(3)
     },
     initBabylon () {
       this.canvas = document.getElementById('renderCanvas') // Get the canvas element
