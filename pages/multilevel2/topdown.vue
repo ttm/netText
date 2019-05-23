@@ -195,18 +195,14 @@
   <v-icon class="tbtn" @click="focusLevel('-')" title="focus less coarsed level">unfold_more</v-icon>
   <v-spacer></v-spacer>
   <v-icon class="tbtn" @click="randomColorize('n')" title="randomize node color">invert_colors</v-icon>
-  <v-icon class="tbtn" @click="resizeNodes('+')" title="decrease node size">control_camera</v-icon>
-  <v-icon class="tbtn" @click="resizeNodes('-')" title="increase node size">games</v-icon>
-  <v-icon class="tbtn" @click="proportionalNodes('degrees')" title="make node size proportional to degree">insert_chart</v-icon>
-  <v-icon class="tbtn" @click="proportionalNodes('children')" title="make node size proportional to number of children">insert_chart_outlined</v-icon>
+  <v-icon class="tbtn" id='rzbtn' @contextmenu="mhandler($event)" @click="mhandler" title="decrease node size">control_camera</v-icon>
+  <v-icon class="tbtn" id="ppbtn" @contextmenu="mhandler($event)" @click="mhandler($event)" title="make node size proportional to degree">insert_chart</v-icon>
   <v-icon class="tbtn" @click="restoreNodeSizes()" title="reinitializes node sizes">undo</v-icon>
-  <v-icon class="tbtn" @click="nodeVisibility('+')" title="decrease node transparency">hdr_strong</v-icon>
-  <v-icon class="tbtn" @click="nodeVisibility('-')" title="increase node transparency">hdr_weak</v-icon>
-  <v-icon class="tbtn" @click="rotateNodes()" title="rotate nodes">rotate_left</v-icon>
+  <v-icon class="tbtn" id='vzbtn' @contextmenu="mhandler($event)" @click="mhandler($event)" title="decrease node transparency">hdr_strong</v-icon>
+  <v-icon class="tbtn" id='rtbtn' @click="mhandler($event)" @contextmenu="mhandler($event)" title="rotate nodes">rotate_left</v-icon>
   <v-spacer></v-spacer>
   <v-icon class="tbtn" @click="randomColorize('l')" title="randomize link color">invert_colors_off</v-icon>
-  <v-icon class="tbtn" @click="linkVisibility('+')" title="decrease line transparency">drag_handle</v-icon>
-  <v-icon class="tbtn" @click="linkVisibility('-')" title="increase line transparency">power_input</v-icon>
+  <v-icon class="tbtn" id="lvzbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="decrease line transparency">power_input</v-icon>
   <v-spacer></v-spacer>
   <v-icon class="tbtn ptbtn" id="infobtn" @click="setTool('info')" title="get info on specific nodes">info</v-icon>
   <v-icon class="tbtn ptbtn" id="dragbtn" @click="setTool('drag')" title="drag nodes to reposition them">gesture</v-icon>
@@ -215,8 +211,7 @@
   <v-icon class="tbtn ptbtn" id="resizebtn" @click="setTool('resize')" title="resize open nodes (click on node and drag)">tab_unselected</v-icon>
   <v-spacer></v-spacer>
   <v-icon class="tbtn" @click="randomColorize('bg')" title="randomize background color">format_color_fill</v-icon>
-  <v-icon class="tbtn" @click="zoom('+')" title="zoom in">zoom_in</v-icon>
-  <v-icon class="tbtn" @click="zoom('-')" title="zoom out">zoom_out</v-icon>
+  <v-icon class="tbtn" id="zmbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="zoom in">zoom_in</v-icon>
   <v-icon class="tbtn" @click="pan('l')" title="pan left">chevron_left</v-icon>
   <v-icon class="tbtn" @click="pan('r')" title="pan right">chevron_right</v-icon>
   <v-icon class="tbtn" @click="pan('u')" title="pan up">expand_less</v-icon>
@@ -1048,6 +1043,41 @@ export default {
         node.yy = b_.y + b_.height
       }
     },
+    mhandler (e) {
+      e.preventDefault()
+      console.log('ha!', e)
+      if (e.srcElement.id === 'rzbtn') {
+        if (e.button === 0)
+          this.resizeNodes('+')
+        else
+          this.resizeNodes('-')
+      } else if (e.srcElement.id === 'vzbtn') {
+        if (e.button === 0)
+          this.nodeVisibility('-')
+        else
+          this.nodeVisibility('+')
+      } else if (e.srcElement.id === 'rtbtn') {
+        if (e.button === 0)
+          this.rotateNodes(0.1)
+        else
+          this.rotateNodes(-0.1)
+      } else if (e.srcElement.id === 'ppbtn') {
+        if (e.button === 0)
+          this.proportionalNodes('degree')
+        else
+          this.proportionalNodes('children')
+      } else if (e.srcElement.id === 'lvzbtn') {
+        if (e.button === 0)
+          this.linkVisibility('-')
+        else
+          this.linkVisibility('+')
+      } else if (e.srcElement.id === 'zmbtn') {
+        if (e.button === 0)
+          this.zoom('+')
+        else
+          this.zoom('-')
+      }
+    },
     resizeNodes (direction) {
       let inc = 0.1
       if (direction !== '+')
@@ -1090,9 +1120,9 @@ export default {
         l.alpha += inc
       })
     },
-    rotateNodes () {
+    rotateNodes (val) {
       this.nodes[this.curlevel].forEach( n => {
-        n.rotation -= 0.1
+        n.rotation -= val
       })
     },
     linkVisibility (direction) {
@@ -1399,4 +1429,5 @@ export default {
   font-size: 20px;
   margin-right: 4px;
 }
+/* vim: set ft=vue: */
 </style>
