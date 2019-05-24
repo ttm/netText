@@ -29,6 +29,18 @@ export default {
       document.getElementById('renderCanvas').appendChild(this.app_.view)
       this.cwidth = document.getElementsByTagName('canvas')[0].width
       this.cheight = document.getElementsByTagName('canvas')[0].height
+      PIXI.Graphics.prototype.updateLineStyle = function(lineWidth, color, alpha){   
+        __this.mthing = this
+        var len = this.graphicsData.length;    
+        for (var i = 0; i < len; i++) {        
+          var data = this.graphicsData[i];
+          data.lineWidth = lineWidth;        
+          data.lineColor = color;        
+          data.alpha = alpha;   
+          this.dirty++;        
+          this.clearDirty++;    
+        }    
+      }
     },
     mkTriangle(p) {
       // const triangle = new PIXI.Mesh(this.geometry, this.shader);
@@ -56,6 +68,8 @@ export default {
       line.lineStyle(1, 0xffff00)
       line.moveTo(...p1)
       line.lineTo(...p2)
+      line.hitArea = line.getBounds()
+      line.interactive = true
       this.app_.stage.addChild(line)
       this.lines.push(line)
     },
@@ -82,3 +96,6 @@ export default {
   }
 }
 </script>
+<style>
+/* vim: set ft=vue: */
+</style>

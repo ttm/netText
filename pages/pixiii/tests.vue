@@ -60,6 +60,12 @@ export default {
       line.moveTo(...p1)
       line.lineTo(...p2)
       this.app_.stage.addChild(line)
+      this.mline = line
+    },
+    cgLine () {
+      this.mline.lineWidth = 100
+      this.mline.dirty++
+      this.mline.clearDirty++
     },
   },
   mounted () {
@@ -72,3 +78,6 @@ export default {
   }
 }
 </script>
+<style>
+/* vim: set ft=vue: */
+</style>
