@@ -23,24 +23,6 @@
         </v-list-tile>
       </v-list>
     </v-menu>
-    <v-menu offset-y title="select the layout">
-      <v-btn
-        slot="activator"
-        color="primary"
-        dark
-      >
-        {{ layout ? layout : 'Select' }}
-      </v-btn>
-      <v-list>
-        <v-list-tile
-          v-for="(lay, index) in layouts"
-          :key="index"
-          @click="layout = lay"
-        >
-          <v-list-tile-title color="primary">{{ lay }}</v-list-tile-title>
-        </v-list-tile>
-      </v-list>
-    </v-menu>
   </v-flex>
 </v-layout>
 <v-flex mt-1>
@@ -183,6 +165,25 @@
     Render network
   </v-btn>
   <v-checkbox v-model="links" label="show links"> </v-checkbox>
+  <v-menu offset-y title="select the layout">
+    <v-btn
+      slot="activator"
+      color="primary"
+      dark
+    >
+      {{ layout ? layout : 'Select' }}
+    </v-btn>
+    <v-list>
+      <v-list-tile
+        v-for="(lay, index) in layouts"
+        :key="index"
+        @click="layout = lay"
+      >
+        <v-list-tile-title color="primary">{{ lay }}</v-list-tile-title>
+      </v-list-tile>
+    </v-list>
+  </v-menu>
+  <v-spacer></v-spacer>
   <v-text-field
     v-model="curlevelinfo"
     label="level on focus"
@@ -190,6 +191,9 @@
     readonly
   ></v-text-field>
 </v-layout>
+<v-layout row>
+</v-flex>
+<div>
 <v-system-bar id="toolbar" window dark>
   <v-icon class="tbtn" @click="focusLevel('+')" title="focus on coarser level">unfold_less</v-icon>
   <v-icon class="tbtn" @click="focusLevel('-')" title="focus less coarsed level">unfold_more</v-icon>
@@ -221,6 +225,30 @@
   <v-icon class="tbtn" @click="home()" title="toogle initial and current zoom and pan">home</v-icon>
 </v-system-bar>
 <div id="renderCanvas"></div>
+</div>
+</v-flex>
+<v-flex>
+<table id='ltable' v-if="loaded">
+  <tr>
+    <th>level</th>
+    <th>layer 1</th>
+    <th>layer 2</th>
+    <th>links</th>
+  </tr>
+  <tr v-for="(level, index) in networks.length" :id="'trl' + index">
+    <td>{{ level - 1 }}</td>
+    <td>{{ nvis[0] }} / {{networks[level - 1].fltwo}}</td>
+    <td>{{ nvis[1] }} / {{networks[level - 1].sources.length - networks[level - 1].fltwo}}</td>
+    <td>{{lvis}} / {{networks[level-1].links.length}}</td>
+  </tr>
+  <tr>
+    <td>Eve</td>
+    <td>Jackson</td>
+    <td>94</td>
+  </tr>
+</table>
+</v-flex>
+</v-layout>
     <v-snackbar
       v-model="snackbar"
       :multi-line="true"
@@ -420,6 +448,7 @@ export default {
       colortolink: '#194d33',
       cbdialog: false,
       colortobg: '#194d33',
+      nvis: [0,0],
     }
   },
   components: {
@@ -1502,6 +1531,9 @@ export default {
     },
   },
   watch: {
+    curlevel (val) {
+      console.log(val)
+    },
     cndialog (val) {
       if (!val) {
         console.log(this.colortonode)
@@ -1559,6 +1591,8 @@ export default {
             return total
           }, [0, 0])
         let lvis = Object.keys(this.links_[val]).length
+        this.nvis = nvis
+        this.lvis = lvis
         return val + ', nodes: ' + nvis[0] +'/' + fltwo + ', ' + nvis[1] + '/' + (this.networks[val].sources.length - fltwo) + '; links: ' + lvis +'/'+ this.networks[val].links.length
       } else if (this.mapping) {
         return 'loading ... (please wait)'
@@ -1586,6 +1620,12 @@ export default {
 .v-system-bar--window .v-icon {
   font-size: 20px;
   margin-right: 4px;
+}
+#ltable {
+  border-collapse: collapse;
+}
+#ltable th {
+  background-color: gray
 }
 /* vim: set ft=vue: */
 </style>
