@@ -1,9 +1,5 @@
 <template>
 <span>
-	<button class="jscolor {valueElement:'chosen-value', onFineChange:'setTextColor(this)'}">
-		Pick text color
-	</button>
-	HEX value: <input id="chosen-value" value="000000">
 <v-layout align-center justify-center row fill-height>
   <v-flex text-xs-center>
     <v-menu offset-y title="select the network" :disabled="mapping || loaded">
@@ -198,14 +194,14 @@
   <v-icon class="tbtn" @click="focusLevel('+')" title="focus on coarser level">unfold_less</v-icon>
   <v-icon class="tbtn" @click="focusLevel('-')" title="focus less coarsed level">unfold_more</v-icon>
   <v-spacer></v-spacer>
-  <v-icon class="tbtn" @click="randomColorize('n')" title="randomize node color">invert_colors</v-icon>
+  <v-icon class="tbtn" id="ncbtn" @contextmenu="mhandler($event)" @click="randomColorize('n')" title="randomize node color">invert_colors</v-icon>
   <v-icon class="tbtn" id='rzbtn' @contextmenu="mhandler($event)" @click="mhandler" title="decrease node size">control_camera</v-icon>
   <v-icon class="tbtn" id="ppbtn" @contextmenu="mhandler($event)" @click="mhandler($event)" title="make node size proportional to degree">insert_chart</v-icon>
   <v-icon class="tbtn" @click="restoreNodeSizes()" title="reinitializes node sizes">undo</v-icon>
   <v-icon class="tbtn" id='vzbtn' @contextmenu="mhandler($event)" @click="mhandler($event)" title="decrease node transparency">hdr_strong</v-icon>
   <v-icon class="tbtn" id='rtbtn' @click="mhandler($event)" @contextmenu="mhandler($event)" title="rotate nodes">rotate_left</v-icon>
   <v-spacer></v-spacer>
-  <v-icon class="tbtn" @click="randomColorize('l')" title="randomize link color">invert_colors_off</v-icon>
+  <v-icon class="tbtn" id="lcbtn" @click="randomColorize('l')" @contextmenu="mhandler($event)" title="randomize link color">invert_colors_off</v-icon>
   <v-icon class="tbtn" id="lvzbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="decrease line transparency">power_input</v-icon>
   <v-icon class="tbtn" id="lppbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="make line transparency proportional to link weight">view_day</v-icon>
   <v-icon class="tbtn" @click="restoreLinks()" title="reinitializes link properties">undo</v-icon>
@@ -216,7 +212,7 @@
   <v-icon class="tbtn ptbtn" id="joinbtn" @click="setTool('join')" title="join opened metanodes">border_outer</v-icon>
   <v-icon class="tbtn ptbtn" id="resizebtn" @click="setTool('resize')" title="resize open nodes (click on node and drag)">tab_unselected</v-icon>
   <v-spacer></v-spacer>
-  <v-icon class="tbtn" @click="randomColorize('bg')" title="randomize background color">format_color_fill</v-icon>
+  <v-icon class="tbtn" id="bcbtn" @click="randomColorize('bg')" @contextmenu="mhandler($event)" title="randomize background color">format_color_fill</v-icon>
   <v-icon class="tbtn" id="zmbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="zoom in">zoom_in</v-icon>
   <v-icon class="tbtn" @click="pan('l')" title="pan left">chevron_left</v-icon>
   <v-icon class="tbtn" @click="pan('r')" title="pan right">chevron_right</v-icon>
@@ -243,12 +239,57 @@
   <v-spacer></v-spacer>
   <div>&copy;{{ new Date().getFullYear() }} - VICG-ICMC/USP, FAPESP 2017/05838-3</div>
 </v-footer>
+<v-dialog v-model="cndialog" style="text-align:center" dark max-width="225px" persistent>
+  <v-card>
+  <div style="display:inline-block">
+      <no-ssr>
+      <Chrome v-model="colortonode" style="display:inline-block"/>
+      </no-ssr>
+    </div>
+          <v-spacer></v-spacer>
+
+          <v-btn
+            color="green darken-1"
+            flat="flat"
+            @click="clayer = 0; cndialog = false"
+          >
+            layer 1
+          </v-btn>
+
+          <v-btn
+            color="green darken-1"
+            flat="flat"
+            @click="clayer = 1; cndialog = false"
+          >
+            layer 2
+          </v-btn>
+  </v-card>
+</v-dialog>
+<v-dialog v-model="cldialog" style="text-align:center" dark max-width="225px">
+  <v-card>
+  <div style="display:inline-block">
+      <no-ssr>
+      <Chrome v-model="colortolink" style="display:inline-block"/>
+      </no-ssr>
+  </div>
+  </v-card>
+</v-dialog>
+<v-dialog v-model="cbdialog" style="text-align:center" dark max-width="225px">
+  <v-card>
+  <div style="display:inline-block">
+      <no-ssr>
+      <Chrome v-model="colortobg" style="display:inline-block"/>
+      </no-ssr>
+  </div>
+  </v-card>
+</v-dialog>
 </span>
 </template>
 
 <script>
 import $ from 'jquery'
 import * as d3 from 'd3'
+import { Chrome } from 'vue-color'
 
 function moveNode () {
   if (this.dragging) {
@@ -332,7 +373,7 @@ export default {
       script: [
         // { src: '/libs/pixi4.8.7.js' },
         { src: '/libs/pixi5.0.2.js' },
-        { src: '/libs/jscolor.js' },
+        { src: '/libs/vue-color.min.js' },
       ]
     }
   },
@@ -371,12 +412,21 @@ export default {
       snacktext: 'msnacktext',
       curlevel: 0,
       loaded: false,
-      mapping: false
+      mapping: false,
+      cndialog: false,
+      colortonode: '#194d33',
+      clayer: 0,
+      cldialog: false,
+      colortolink: '#194d33',
+      cbdialog: false,
+      colortobg: '#194d33',
     }
+  },
+  components: {
+    Chrome,
   },
   mounted () {
     window.__this = this
-    window.setTextColor = this.setTextColor
     this.initPixi()
     this.findNetworks()
   },
@@ -961,9 +1011,26 @@ export default {
       else
         things = Object.values(this.links_[this.curlevel])
       let rcolor = Math.floor(Math.random() * 0xFFFFFF)
-      things.forEach( t => {
-        t.tint = rcolor
-      })
+      if (item === 'n') {
+        let c = rcolor
+        let fltwo = this.networks[this.curlevel].fltwo
+        if (this.clayer === 0) {
+          this.nodes[this.curlevel].forEach( n => {
+            if (n.id < fltwo)
+              n.tint = c
+          })
+        } else {
+          this.nodes[this.curlevel].forEach( n => {
+            if (n.id >= fltwo)
+              n.tint = c
+          })
+        }
+        this.clayer = (this.clayer + 1) % 2
+      } else {
+        things.forEach( t => {
+          t.tint = rcolor
+        })
+      }
     },
     resizeMetanode (node) {
       let MLdata = this.networks[node.level].ndata[node.id].MLdata
@@ -1106,6 +1173,12 @@ export default {
           this.proportionalLinks('trans')
         else
           this.proportionalLinks('thick')
+      } else if (e.srcElement.id === 'ncbtn') {
+        this.cndialog = true
+      } else if (e.srcElement.id === 'lcbtn') {
+        this.cldialog = true
+      } else if (e.srcElement.id === 'bcbtn') {
+        this.cbdialog = true
       }
     },
     resizeNodes (direction) {
@@ -1427,11 +1500,40 @@ export default {
         this.specified_metanode = 0
       }
     },
-    setTextColor (thing) {
-      console.log(thing)
-    },
   },
   watch: {
+    cndialog (val) {
+      if (!val) {
+        console.log(this.colortonode)
+        let fltwo = this.networks[this.curlevel].fltwo
+        let c = parseInt(this.colortonode.hex.split("#")[1], 16)
+        if (this.clayer === 0) {
+          this.nodes[this.curlevel].forEach( n => {
+            if (n.id < fltwo)
+              n.tint = c
+          })
+        } else {
+          this.nodes[this.curlevel].forEach( n => {
+            if (n.id >= fltwo)
+              n.tint = c
+          })
+        }
+      }
+    },
+    cldialog (val) {
+      if (!val) {
+        let c = parseInt(this.colortolink.hex.split("#")[1], 16)
+        Object.values(this.links_[this.curlevel]).forEach( l => {
+            l.tint = c
+        })
+      }
+    },
+    cbdialog (val) {
+      if (!val) {
+        let c = parseInt(this.colortobg.hex.split("#")[1], 16)
+        this.app_.renderer.backgroundColor = c
+      }
+    },
     links: (val) => {
       if (val) {
         __this.links_.forEach( ll => {
