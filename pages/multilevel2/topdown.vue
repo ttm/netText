@@ -1,5 +1,9 @@
 <template>
 <span>
+	<button class="jscolor {valueElement:'chosen-value', onFineChange:'setTextColor(this)'}">
+		Pick text color
+	</button>
+	HEX value: <input id="chosen-value" value="000000">
 <v-layout align-center justify-center row fill-height>
   <v-flex text-xs-center>
     <v-menu offset-y title="select the network" :disabled="mapping || loaded">
@@ -185,7 +189,7 @@
   <v-checkbox v-model="links" label="show links"> </v-checkbox>
   <v-text-field
     v-model="curlevelinfo"
-    label="current level"
+    label="level on focus"
     outline
     readonly
   ></v-text-field>
@@ -203,6 +207,8 @@
   <v-spacer></v-spacer>
   <v-icon class="tbtn" @click="randomColorize('l')" title="randomize link color">invert_colors_off</v-icon>
   <v-icon class="tbtn" id="lvzbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="decrease line transparency">power_input</v-icon>
+  <v-icon class="tbtn" id="lppbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="make line transparency proportional to link weight">view_day</v-icon>
+  <v-icon class="tbtn" @click="restoreLinks()" title="reinitializes link properties">undo</v-icon>
   <v-spacer></v-spacer>
   <v-icon class="tbtn ptbtn" id="infobtn" @click="setTool('info')" title="get info on specific nodes">info</v-icon>
   <v-icon class="tbtn ptbtn" id="dragbtn" @click="setTool('drag')" title="drag nodes to reposition them">gesture</v-icon>
@@ -315,8 +321,10 @@ const ColourValues = [
   "200000", "002000", "000020", "202000", "200020", "002020", "202020",
   "600000", "006000", "000060", "606000", "600060", "006060", "606060",
   "A00000", "00A000", "0000A0", "A0A000", "A000A0", "00A0A0", "A0A0A0",
-  "E00000", "00E000", "0000E0", "E0E000", "E000E0", "00E0E0", "E0E0E0",
+  "E00000", "00E000", "0000E0", "E0E000", "E000E0", "00E0E0"
 ]
+// , "E0E0E0",
+// ]
 
 export default {
   head () {
@@ -324,6 +332,7 @@ export default {
       script: [
         // { src: '/libs/pixi4.8.7.js' },
         { src: '/libs/pixi5.0.2.js' },
+        { src: '/libs/jscolor.js' },
       ]
     }
   },
@@ -367,6 +376,7 @@ export default {
   },
   mounted () {
     window.__this = this
+    window.setTextColor = this.setTextColor
     this.initPixi()
     this.findNetworks()
   },
@@ -648,10 +658,11 @@ export default {
       })
     },
     mkAuxiliaryData () {
+      this.l2hex = true
       this.mkPaths()
+      this.nodecolors = ColourValues.map( c => parseInt(c, 16) )
+      this.linkcolors = ColourValues.reverse().map( c => parseInt(c, 16) )
       this.nodescales = []
-      this.nodecolors = []
-      this.linkcolors = []
       this.ndata = []
       this.nodes = []
       this.opennodes = []
@@ -666,8 +677,6 @@ export default {
         this.nodescales.push((1 / (this.curlevel - level + 1))**0.5)
         // this.nodecolors.push(0xFFFFFF*(1 - 0.9 * ((this.curlevel - level) / this.curlevel)**0.5))
         // this.linkcolors.push(0xFFFFFF*(0.9 * ((this.curlevel - level) / this.curlevel)**0.5))
-        this.nodecolors.push(parseInt(ColourValues[level], 16))
-        this.linkcolors.push(parseInt(ColourValues[ColourValues.length - 1 - level], 16))
         let links = this.networks[level].links
         let children = this.networks[level].children
         let parents = this.networks[level].parents
@@ -716,7 +725,7 @@ export default {
         }
         this.networks[level].ndata = ndata
       }
-      this.nodecolors.reverse()
+      // this.nodecolors.reverse()
     },
     mkPaths () {
       this.radius = 10
@@ -731,6 +740,17 @@ export default {
       this.path = [p1x, p1y, p2x, p2y, p3x, p3y]
       let r = this.radius
       this.pathrect = [-r, -r, -r, r, r, r, r, -r]
+      let an = Math.PI/3
+      let s = Math.sin(an)
+      let c = Math.cos(an)
+      this.pathhex = [
+        r, 0,
+        r*c, -r*s,
+        -r*c, -r*s,
+        -r, 0,
+        -r*c, r*s,
+        r*c, r*s
+      ]
     },
     mapNetworkToScreen () {
       let nodes = this.networks[this.curlevel].sources.map( (e,i) => i )
@@ -815,6 +835,7 @@ export default {
           line.lineTo(p2x, p2y)
         } else {
           let line = this.mkLine([p1x, p1y], [p2x, p2y], level)
+          line.tweight = l[2]
           this.links_[level][l[0]+'-'+l[1]] = line
         }
       }
@@ -849,6 +870,8 @@ export default {
       }
     },
     mkNodes (nodes, level, width, height, center, layout) {
+      let l2path = this.l2hex ? this.pathhex : this.path
+      let fltwo = this.networks[level].fltwo
       for (let i = 0; i < nodes.length; i++) {
         let nid = nodes[i]
         let p = layout[nid]
@@ -859,9 +882,9 @@ export default {
           const node = new PIXI.Graphics()
           node.lineStyle(0)
           node.beginFill(0xFFFFFF)
-          node.drawPolygon(this.path)
+          node.drawPolygon(fltwo <= nid ? l2path : this.path)
           node.endFill()
-          node.tint = this.nodecolors[level]
+          node.tint = this.nodecolors[level * 2 + (fltwo <= nid ? 1 : 0)]
           node.x = px
           node.y = py
           node.interactive = level === this.curlevel
@@ -876,6 +899,8 @@ export default {
           node.level = level
           node.scale.x *= this.nodescales[level]
           node.scale.y *= this.nodescales[level]
+          // if (fltwo <= nid)
+          //   node.rotation = Math.PI
           this.app_.stage.addChild(node)
           this.nodes[level][nodes[i]] = node
         } else {
@@ -1076,6 +1101,11 @@ export default {
           this.zoom('+')
         else
           this.zoom('-')
+      } else if (e.srcElement.id === 'lppbtn') {
+        if (e.button === 0)
+          this.proportionalLinks('trans')
+        else
+          this.proportionalLinks('thick')
       }
     },
     resizeNodes (direction) {
@@ -1123,6 +1153,26 @@ export default {
     rotateNodes (val) {
       this.nodes[this.curlevel].forEach( n => {
         n.rotation -= val
+      })
+    },
+    proportionalLinks (param) {
+      let mweight = Math.max(
+        ...Object.values(this.links_[this.curlevel]).map(
+          l => l.tweight
+        )
+      )
+      console.log('max weight', mweight)
+      if (param === 'trans') {
+        Object.values(this.links_[this.curlevel]).forEach( l => {
+          l.alpha *= 0.1 + 0.9 * l.tweight / mweight
+        })
+      } else {
+        console.log('line thickness not implemented')
+      }
+    },
+    restoreLinks () {
+      Object.values(this.links_[this.curlevel]).forEach( l => {
+        l.alpha = 0.4
       })
     },
     linkVisibility (direction) {
@@ -1377,6 +1427,9 @@ export default {
         this.specified_metanode = 0
       }
     },
+    setTextColor (thing) {
+      console.log(thing)
+    },
   },
   watch: {
     links: (val) => {
@@ -1395,13 +1448,16 @@ export default {
     curlevelinfo: function () {
       let val = this.curlevel
       if (this.loaded) {
+        let fltwo = this.networks[val].fltwo
         let nvis = this.nodes[val].reduce(
           (total, i) => {
             let count = i !== undefined ? 1 : 0
-            return total + count
-          }, 0)
+            let layer = i.id >= fltwo ? 1: 0
+            total[layer] += count
+            return total
+          }, [0, 0])
         let lvis = Object.keys(this.links_[val]).length
-        return val + ', nodes: ' + nvis +'/'+ this.networks[val].sources.length + ', links: ' + lvis +'/'+ this.networks[val].links.length
+        return val + ', nodes: ' + nvis[0] +'/' + fltwo + ', ' + nvis[1] + '/' + (this.networks[val].sources.length - fltwo) + '; links: ' + lvis +'/'+ this.networks[val].links.length
       } else if (this.mapping) {
         return 'loading ... (please wait)'
       } else {
