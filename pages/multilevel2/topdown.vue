@@ -1,5 +1,6 @@
 <template>
 <span>
+  <h1> MlBiNetViz <i class="fa fa-question-circle mhelp" style="font-size:28px;color:blue"></i></h1>
 <v-layout align-center justify-center row>
   <v-flex text-xs-center>
     <v-menu offset-y title="select the network" :disabled="mapping || loaded">
@@ -30,7 +31,7 @@
 <v-card flat dark>
   <v-layout align-center justify-center>
     <v-flex>
-      <table>
+      <table id='bimltab'>
       <span
         v-for="index in nlayers" :key="index"
       >
@@ -184,6 +185,8 @@
       </v-list-tile>
     </v-list>
   </v-menu>
+  <textarea id="iinfo"></textarea>
+  <v-spacer></v-spacer>
   <v-spacer></v-spacer>
 </v-layout>
 <v-layout row>
@@ -229,7 +232,7 @@
     <th class="lthead">C</th>
   </tr>
   <tr v-for="(level, index) in networks.length" :id="'trl' + index">
-    <td @click="chLevel(index)" :id="'tdl' + index" v-bind:class="index === curlevel ? 'highd': ''">{{ index }}</td>
+    <td @click="chLevel(index)" @contextmenu="mhandler($event)" :id="'tdl' + index" v-bind:class="index === curlevel ? 'highd': ''">{{ index }}</td>
     <td>{{ nvis_[index] ? nvis_[index][0] : 0 }} / {{networks[index].fltwo}}</td>
     <td @click="uColor(index, 0)" :id="'tcl0_' + index"></td>
     <td>{{ nvis_[index] ? nvis_[index][1] : 0 }} / {{networks[index].sources.length - networks[index].fltwo}}</td>
@@ -360,8 +363,12 @@ function releaseNode () {
 function clickNode (event) {
   __this.mnode = this
   if (__this.tool === 'info') {
-    __this.snacktext = __this.networks[this.level].ndata[this.id].mdata
-    __this.snackbar = true
+    // __this.snacktext = __this.networks[this.level].ndata[this.id].mdata
+    // __this.snackbar = true
+    let s = JSON.stringify(__this.networks[this.level].ndata[this.id].mdata)
+    s = s.slice(1, s.length - 1).replace(/"/g,'').replace(/,/g, ', ')
+    __this.iinfo.textContent += s + '\n'
+    __this.iinfo.scrollTop = __this.iinfo.scrollHeight
   } else if (__this.tool === 'explore'){
     __this.showChildren(this)
   } else if (__this.tool === 'join'){
@@ -403,7 +410,10 @@ export default {
         // { src: '/libs/pixi4.8.7.js' },
         { src: '/libs/pixi5.0.2.js' },
         { src: '/libs/vue-color.min.js' },
-      ]
+      ],
+      link: [
+        { rel: 'stylesheet', href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css' }
+      ],
     }
   },
   data () {
@@ -463,6 +473,9 @@ export default {
     window.__this = this
     this.initPixi()
     this.findNetworks()
+    $('.mhelp').click(function () {
+      console.log('mk cool help man')
+    })
   },
   methods: {
     upload (e) {
@@ -800,9 +813,27 @@ export default {
         }
       ).done( networks => { 
         this.networks = networks
-        this.curlevel = networks.length - 1
+        if (this.otherlayer === undefined)
+          this.curlevel = networks.length - 1
+        else {
+          this.nodes.forEach( nn => {
+            nn.forEach( n => n.clear() )
+          })
+          this.links_.forEach( ll => {
+            Object.values(ll).forEach( l => l.clear() )
+          })
+          this.curlevel = this.otherlayer
+        }
         this.mkAuxiliaryData()
         this.mapNetworkToScreen()
+        let e = document.getElementById('iinfo')
+        e.style.width = '700px'
+        e.style.border = '2px solid #0000ff'
+        e.style.margin = '2px'
+        e.style.padding = '2px'
+        e.textContent = '~ info on demand ~\n'
+        this.iinfo = e
+        $('#bimltab').find('*').attr('disabled', 'disabled').addClass('v-btn--disabled')
       })
     },
     colorTable () {
@@ -829,15 +860,21 @@ export default {
         l.lineStyle(w * inc, 0xFFFFFF)
         l.alpha = 0.4
         l.tint = c
-        l.moveTo(...l.p1)
-        l.lineTo(...l.p2)
+        let n1 = this.nodes[l.level][l.ll[0]]
+        let n2 = this.nodes[l.level][l.ll[1]]
+        let p1 = [n1.x, n1.y]
+        let p2 = [n2.x, n2.y]
+        l.moveTo(...p1)
+        l.lineTo(...p2)
       })
     },
     mkAuxiliaryData () {
       this.l2hex = true
       this.mkPaths()
-      this.nodecolors = ColourValues.map( c => parseInt(c, 16) )
-      this.linkcolors = ColourValues.reverse().map( c => parseInt(c, 16) )
+      if (!this.nodecolors) {
+        this.nodecolors = ColourValues.map( c => parseInt(c, 16) )
+        this.linkcolors = ColourValues.reverse().map( c => parseInt(c, 16) )
+      }
       this.max_weights = this.networks.map( n => Math.max( ...n.links.map( l => l[2] ) ) )
       this.nodescales = []
       this.ndata = []
@@ -874,13 +911,13 @@ export default {
             .map( l => l[2])
             .reduce( (a, e) => a+e, 0)
           let mdata = {
-            children: children[i].length,
+            ID: i,
+            level: level,
+            predecessors: children[i].length,
+            successor: parents[i],
             degree: neighbors.length,
             strength: strength,
-            parent_: parents[i],
-            level: level,
             // neighbors: neighbors,
-            ID: i
           }
           let MLdata = {
             paths: [],
@@ -962,6 +999,8 @@ export default {
         ]
         this.mkLines(links, level, width, height, center, layout_)
         this.mkNodes(nodes, level, width, height, center, layout_)
+        if (!this.loaded)
+          this.zoom('-')
         this.loaded = true
         this.updateElementsCount()
       })
@@ -1035,13 +1074,15 @@ export default {
         } else {
           let line = this.mkLine([p1x, p1y], [p2x, p2y], l[2], level)
           line.tweight = l[2]
+          line.level = level
+          line.ll = l
           this.links_[level][l[0]+'-'+l[1]] = line
         }
       }
     },
     mkLine (p1, p2, weight, level) {
       let line = new PIXI.Graphics()
-      line.lineStyle(1 + 9 * weight / this.max_weights[level] , 0xFFFFFF)
+      line.lineStyle(1 + (9 * weight / this.max_weights[level]) / (this.networks.length - level) , 0xFFFFFF)
       line.tint = this.linkcolors[level]
       line.moveTo(...p1)
       line.lineTo(...p2)
@@ -1362,6 +1403,11 @@ export default {
           this.cgLineThickness('+')
         else
           this.cgLineThickness('-')
+      } else if (e.srcElement.id.slice(0, 3) === 'tdl') {
+        let level = Number(e.srcElement.id[e.srcElement.id.length-1])
+        console.log('tlevel', level)
+        this.otherlayer = level
+        this.renderNetwork()
       }
     },
     resizeNodes (direction) {
@@ -1851,6 +1897,9 @@ export default {
 }
 .container {
   max-width: 1280px;
+}
+.mhelp {
+  cursor: pointer;
 }
 /* vim: set ft=vue: */
 </style>
