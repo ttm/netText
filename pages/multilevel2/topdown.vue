@@ -1,6 +1,6 @@
 <template>
 <span>
-<v-layout align-center justify-center row fill-height>
+<v-layout align-center justify-center row>
   <v-flex text-xs-center>
     <v-menu offset-y title="select the network" :disabled="mapping || loaded">
       <v-btn
@@ -23,6 +23,7 @@
         </v-list-tile>
       </v-list>
     </v-menu>
+  <div id="ninfo"></div>
   </v-flex>
 </v-layout>
 <v-flex mt-1>
@@ -195,6 +196,7 @@
   <v-icon class="tbtn" id='vzbtn' @contextmenu="mhandler($event)" @click="mhandler($event)" title="decrease node transparency">hdr_strong</v-icon>
   <v-icon class="tbtn" id='rtbtn' @click="mhandler($event)" @contextmenu="mhandler($event)" title="rotate nodes">rotate_left</v-icon>
   <v-spacer></v-spacer>
+  <v-icon class="tbtn" id="lwtbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="increase/decrease line width with left/right click">vertical_align_center</v-icon>
   <v-icon class="tbtn" id="lvzbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="decrease line transparency">power_input</v-icon>
   <v-icon class="tbtn" id="lppbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="make line transparency proportional to link weight">view_day</v-icon>
   <v-icon class="tbtn" @click="restoreLinks()" title="reinitializes link properties">undo</v-icon>
@@ -382,14 +384,14 @@ function clickNode (event) {
 }
 
 const ColourValues = [
-  "FF0000", "00FF00", "0000FF", "FFFF00", "FF00FF", "00FFFF", "000000",
+  "FF0000", "00FF00", "0000FF", "FFFF00", "FF00FF", "00FFFF",
   "800000", "008000", "000080", "808000", "800080", "008080", "808080",
   "C00000", "00C000", "0000C0", "C0C000", "C000C0", "00C0C0", "C0C0C0",
   "400000", "004000", "000040", "404000", "400040", "004040", "404040",
   "200000", "002000", "000020", "202000", "200020", "002020", "202020",
   "600000", "006000", "000060", "606000", "600060", "006060", "606060",
   "A00000", "00A000", "0000A0", "A0A000", "A000A0", "00A0A0", "A0A0A0",
-  "E00000", "00E000", "0000E0", "E0E000", "E000E0", "00E0E0"
+  "E00000", "00E000", "0000FF", "E000E0", "00E0E0"
 ]
 // , "E0E0E0",
 // ]
@@ -500,18 +502,27 @@ export default {
       this.app_.stage.y += (c2.y - c1.y) * this.app_.stage.scale.x
       // this.app_.stage.x -= this.cwidth_ * inc / 2
       // this.app_.stage.y -= this.cheight_ * inc / 2
-      this.mkPivot()
     },
     rotateScene(direction) {
+      if (this.tool && this.tool !== 'info')
+        this.setTool('info')
       let inc = Math.PI/32
       if (direction !== '+')
         inc *= -1
       // this.app_.stage.x += dist * Math.cos(inc)
       // this.app_.stage.y -= dist * Math.sin(inc)
-      this.app_.stage.rotation += inc
-      this.mkPivot()
-      this.app_.stage.x -= this.dddx
-      this.app_.stage.y -= this.dddy
+      this.mcont.rotation += inc
+      this.nodes.forEach( l => {
+        l.forEach( n => {
+          if (n) {
+            if (!n.isopen) {
+              n.rotation -= inc
+              // this.updateLinkPos(n)
+              // this.redrawLinks(n)
+            }
+          }
+        })
+      })
       // this.app_.stage.x += (c2.x - c1.x) * this.app_.stage.scale.x
       // this.app_.stage.y += (c2.y - c1.y) * this.app_.stage.scale.x
     },
@@ -575,6 +586,13 @@ export default {
       this.cheight_ = document.getElementsByTagName('canvas')[0].height
       this.cwidth =  0.9 * document.getElementsByTagName('canvas')[0].width
       this.cheight = 0.9 * document.getElementsByTagName('canvas')[0].height
+      this.app_.renderer.backgroundColor = 0xFFFFFF
+      this.mcont = new PIXI.Container();
+      this.mcont.x = this.cwidth_ / 2;
+      this.mcont.y = this.cheight_ / 2;
+      this.mcont.pivot.x = this.cwidth_ / 2;
+      this.mcont.pivot.y = this.cheight_ / 2;
+      this.app_.stage.addChild(this.mcont)
       document.getElementById('toolbar').style.width = this.cwidth_ + 'px'
       let c1 = this.getCenter()
       this.dist = ( c1.x ** 2 + c1.y ** 2 ) ** 0.5
@@ -799,11 +817,28 @@ export default {
         console.log(i, 'ok')
       }
     },
+    cgLineThickness (direction) {
+      let inc = 1.1
+      if (direction !== '+')
+        inc = 1 / inc
+      Object.values(this.links_[this.curlevel]).forEach( l => {
+        let c = l.tint
+        let a = l.alpha
+        let w = l.line.width
+        l.clear()
+        l.lineStyle(w * inc, 0xFFFFFF)
+        l.alpha = 0.4
+        l.tint = c
+        l.moveTo(...l.p1)
+        l.lineTo(...l.p2)
+      })
+    },
     mkAuxiliaryData () {
       this.l2hex = true
       this.mkPaths()
       this.nodecolors = ColourValues.map( c => parseInt(c, 16) )
       this.linkcolors = ColourValues.reverse().map( c => parseInt(c, 16) )
+      this.max_weights = this.networks.map( n => Math.max( ...n.links.map( l => l[2] ) ) )
       this.nodescales = []
       this.ndata = []
       this.nodes = []
@@ -998,20 +1033,22 @@ export default {
           line.moveTo(p1x, p1y)
           line.lineTo(p2x, p2y)
         } else {
-          let line = this.mkLine([p1x, p1y], [p2x, p2y], level)
+          let line = this.mkLine([p1x, p1y], [p2x, p2y], l[2], level)
           line.tweight = l[2]
           this.links_[level][l[0]+'-'+l[1]] = line
         }
       }
     },
-    mkLine (p1, p2, level) {
+    mkLine (p1, p2, weight, level) {
       let line = new PIXI.Graphics()
-      line.lineStyle(1, 0xFFFFFF)
+      line.lineStyle(1 + 9 * weight / this.max_weights[level] , 0xFFFFFF)
       line.tint = this.linkcolors[level]
       line.moveTo(...p1)
       line.lineTo(...p2)
       line.alpha = 0.4
-      this.app_.stage.addChild(line)
+      line.p1 = p1
+      line.p2 = p2
+      this.mcont.addChild(line)
       return line
     },
     repositionChildren (node) {
@@ -1065,7 +1102,7 @@ export default {
           node.scale.y *= this.nodescales[level]
           // if (fltwo <= nid)
           //   node.rotation = Math.PI
-          this.app_.stage.addChild(node)
+          this.mcont.addChild(node)
           this.nodes[level][nodes[i]] = node
         } else {
           node_.x = px
@@ -1074,6 +1111,15 @@ export default {
       }
     },
     setTool (toolname) {
+      if (toolname !== 'info') {
+        this.nodes.forEach( l => {
+          l.forEach( n => {
+            if (!n.isopen)
+              n.rotation += this.mcont.rotation
+          })
+        })
+        this.mcont.rotation = 0
+      }
       let b = document.getElementById(toolname+'btn')
       if (this.tool === toolname) {
         this.tool = ''
@@ -1311,6 +1357,11 @@ export default {
           this.rotateScene('+')
         else
           this.rotateScene('-')
+      } else if (e.srcElement.id === 'lwtbtn') {
+        if (e.button === 0)
+          this.cgLineThickness('+')
+        else
+          this.cgLineThickness('-')
       }
     },
     resizeNodes (direction) {
@@ -1661,6 +1712,20 @@ export default {
     },
   },
   watch: {
+    network (val) {
+      let a = document.getElementById('ninfo')
+      a.textContent='loading info...'
+      let turl = process.env.flaskURL + '/biMLDBgetinfo/'
+      $.post(
+        turl,
+        // {see: 'this', and: 'thisother', num: 5}
+        {
+          netid: this.network._id,
+        }
+      ).done( info => { 
+        a.textContent =  '( ' + info.n1 + " nodes in first layer, " + info.n2 + " nodes in the second layer, and " + info.l + ' links )'
+      })
+    },
     cAllDialog (val) {
       if (!val) {
         if (!this.colorAny.hex)
