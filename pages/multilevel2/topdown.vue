@@ -189,17 +189,12 @@
 </v-flex>
 <div>
 <v-system-bar id="toolbar" window dark>
-  <v-icon class="tbtn" @click="focusLevel('+')" title="focus on coarser level">unfold_less</v-icon>
-  <v-icon class="tbtn" @click="focusLevel('-')" title="focus less coarsed level">unfold_more</v-icon>
-  <v-spacer></v-spacer>
-  <v-icon class="tbtn" id="ncbtn" @contextmenu="mhandler($event)" @click="randomColorize('n')" title="randomize node color">invert_colors</v-icon>
   <v-icon class="tbtn" id='rzbtn' @contextmenu="mhandler($event)" @click="mhandler" title="decrease node size">control_camera</v-icon>
   <v-icon class="tbtn" id="ppbtn" @contextmenu="mhandler($event)" @click="mhandler($event)" title="make node size proportional to degree">insert_chart</v-icon>
   <v-icon class="tbtn" @click="restoreNodeSizes()" title="reinitializes node sizes">undo</v-icon>
   <v-icon class="tbtn" id='vzbtn' @contextmenu="mhandler($event)" @click="mhandler($event)" title="decrease node transparency">hdr_strong</v-icon>
   <v-icon class="tbtn" id='rtbtn' @click="mhandler($event)" @contextmenu="mhandler($event)" title="rotate nodes">rotate_left</v-icon>
   <v-spacer></v-spacer>
-  <v-icon class="tbtn" id="lcbtn" @click="randomColorize('l')" @contextmenu="mhandler($event)" title="randomize link color">invert_colors_off</v-icon>
   <v-icon class="tbtn" id="lvzbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="decrease line transparency">power_input</v-icon>
   <v-icon class="tbtn" id="lppbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="make line transparency proportional to link weight">view_day</v-icon>
   <v-icon class="tbtn" @click="restoreLinks()" title="reinitializes link properties">undo</v-icon>
@@ -212,10 +207,9 @@
   <v-spacer></v-spacer>
   <v-icon class="tbtn" id="bcbtn" @click="randomColorize('bg')" @contextmenu="mhandler($event)" title="randomize background color">format_color_fill</v-icon>
   <v-icon class="tbtn" id="zmbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="zoom in">zoom_in</v-icon>
-  <v-icon class="tbtn" @click="pan('l')" title="pan left">chevron_left</v-icon>
-  <v-icon class="tbtn" @click="pan('r')" title="pan right">chevron_right</v-icon>
-  <v-icon class="tbtn" @click="pan('u')" title="pan up">expand_less</v-icon>
-  <v-icon class="tbtn" @click="pan('d')" title="pan down">expand_more</v-icon>
+  <v-icon class="tbtn" id="lrbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="pan left">code</v-icon>
+  <v-icon class="tbtn" id="udbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="pan up">unfold_more</v-icon>
+  <v-icon class="tbtn" id='rtsbtn' @click="mhandler($event)" @contextmenu="mhandler($event)" title="rotate nodes">rotate_left</v-icon>
   <v-icon class="tbtn" @click="home()" title="toogle initial and current zoom and pan">home</v-icon>
 </v-system-bar>
 <div id="renderCanvas"></div>
@@ -226,15 +220,22 @@
   <tr>
     <th class="lthead">level</th>
     <th class="lthead">layer 1</th>
+    <th class="lthead">C</th>
     <th class="lthead">layer 2</th>
+    <th class="lthead">C</th>
     <th class="lthead">links</th>
+    <th class="lthead">C</th>
   </tr>
-  <tr v-for="(level, index) in networks.length" :id="'trl' + index" @click="chLevel(index)">
-    <td :id="'tdl' + index" v-bind:class="index === curlevel ? 'highd': ''">{{ index }}</td>
+  <tr v-for="(level, index) in networks.length" :id="'trl' + index">
+    <td @click="chLevel(index)" :id="'tdl' + index" v-bind:class="index === curlevel ? 'highd': ''">{{ index }}</td>
     <td>{{ nvis_[index] ? nvis_[index][0] : 0 }} / {{networks[index].fltwo}}</td>
+    <td @click="uColor(index, 0)" :id="'tcl0_' + index"></td>
     <td>{{ nvis_[index] ? nvis_[index][1] : 0 }} / {{networks[index].sources.length - networks[index].fltwo}}</td>
+    <td @click="uColor(index, 1)" :id="'tcl1_' + index"></td>
     <td>{{ nlinks[index] ? nlinks[index] : 0 }} / {{networks[index].links.length}}</td>
+    <td @click="uColor(index, 2)" :id="'tcli_' + index"></td>
   </tr>
+  <span :banana="tloaded = true"></span>
 </table>
 </v-flex>
 </v-layout>
@@ -256,6 +257,15 @@
   <v-spacer></v-spacer>
   <div>&copy;{{ new Date().getFullYear() }} - VICG-ICMC/USP, FAPESP 2017/05838-3</div>
 </v-footer>
+<v-dialog v-model="cAllDialog" style="text-align:center" dark max-width="225px">
+  <v-card>
+  <div style="display:inline-block">
+      <no-ssr>
+      <Chrome v-model="colorAny" style="display:inline-block" :disableAlpha="true"/>
+      </no-ssr>
+    </div>
+  </v-card>
+</v-dialog>
 <v-dialog v-model="cndialog" style="text-align:center" dark max-width="225px" persistent>
   <v-card>
   <div style="display:inline-block">
@@ -438,7 +448,10 @@ export default {
       cbdialog: false,
       colortobg: '#194d33',
       nvis_: [],
-      nlinks: []
+      nlinks: [],
+      tloaded: 0,
+      cAllDialog: false,
+      colorAny: '',
     }
   },
   components: {
@@ -479,10 +492,28 @@ export default {
       let inc = 0.1
       if (direction !== '+')
         inc = -0.1
+      let c1 = this.getCenter()
       this.app_.stage.scale.x += inc
       this.app_.stage.scale.y += inc
-      this.app_.stage.x -= this.cwidth_ * inc / 2
-      this.app_.stage.y -= this.cheight_ * inc / 2
+      let c2 = this.getCenter()
+      this.app_.stage.x += (c2.x - c1.x) * this.app_.stage.scale.x
+      this.app_.stage.y += (c2.y - c1.y) * this.app_.stage.scale.x
+      // this.app_.stage.x -= this.cwidth_ * inc / 2
+      // this.app_.stage.y -= this.cheight_ * inc / 2
+      this.mkPivot()
+    },
+    rotateScene(direction) {
+      let inc = Math.PI/32
+      if (direction !== '+')
+        inc *= -1
+      // this.app_.stage.x += dist * Math.cos(inc)
+      // this.app_.stage.y -= dist * Math.sin(inc)
+      this.app_.stage.rotation += inc
+      this.mkPivot()
+      this.app_.stage.x -= this.dddx
+      this.app_.stage.y -= this.dddy
+      // this.app_.stage.x += (c2.x - c1.x) * this.app_.stage.scale.x
+      // this.app_.stage.y += (c2.y - c1.y) * this.app_.stage.scale.x
     },
     pan (direction) {
       if (direction === 'l') {
@@ -495,24 +526,47 @@ export default {
         this.app_.stage.y += 0.1 * this.cheight_ / 2
       }
     },
+    getCenter () {
+      let s = this.app_.stage
+      let c = {
+        x: (this.cwidth_ - 2*s.x) / (2*s.scale.x),
+        y: (this.cheight_ - 2*s.y) / (2*s.scale.y)
+      }
+      return c
+    },
     home () {
       let s = this.app_.stage
-      if ( (s.scale.x == 1) && (s.x === 0) && (s.y === 0) ) {
+      if ( (s.scale.x == 1) && (s.x === 0) && (s.y === 0) && (s.rotation === 0) ) {
         if (this.saved_view) {
           // if so, set again zoom and pan as was 
           s.scale.x = s.scale.y = this.saved_view.scale
           s.x = this.saved_view.x
           s.y = this.saved_view.y
+          s.rotation = this.saved_view.rotation
         }
       } else {
         this.saved_view = {
           x: s.x,
           y: s.y,
-          scale: s.scale.x
+          scale: s.scale.x,
+          rotation: s.rotation
         }
         s.scale.x = s.scale.y = 1
-        s.x = s.y = 0
+        s.x = 0
+        s.y = 0
+        s.rotation = 0
       }
+    },
+    mkPivot () {
+      let v = new PIXI.Graphics()
+      let c = this.getCenter()
+      v.x=c.x
+      v.y=c.y
+      v.beginFill(0xFF0000)
+      v.drawPolygon(__this.path)
+      v.endFill()
+      __this.app_.stage.addChild(v)
+      return v
     },
     initPixi () {
       this.app_ = new PIXI.Application()
@@ -522,6 +576,13 @@ export default {
       this.cwidth =  0.9 * document.getElementsByTagName('canvas')[0].width
       this.cheight = 0.9 * document.getElementsByTagName('canvas')[0].height
       document.getElementById('toolbar').style.width = this.cwidth_ + 'px'
+      let c1 = this.getCenter()
+      this.dist = ( c1.x ** 2 + c1.y ** 2 ) ** 0.5
+      this.beta = Math.acos(c1.x/this.dist)
+      let x2 = Math.cos(this.beta + 0.1) * this.dist
+      let y2 = Math.sin(this.beta + 0.1) * this.dist
+      this.dddx = (x2 - c1.x)
+      this.dddy = (y2 - c1.y)
       d3.select('canvas').on('mousedown', function () {
         if (__this.selectednode) {
           let p = d3.mouse(this)
@@ -725,6 +786,18 @@ export default {
         this.mkAuxiliaryData()
         this.mapNetworkToScreen()
       })
+    },
+    colorTable () {
+      for (let i = 0; i < this.networks.length; i++) {
+        console.log(i)
+        let cl1 = this.nodecolors[i * 2 ].toString(16)
+        let cl2 = this.nodecolors[i * 2 + 1].toString(16)
+        let cli = this.linkcolors[i].toString(16)
+        document.getElementById('tcl0_' + i).style.backgroundColor = '#'+('0'.repeat(6-cl1.length)) + cl1
+        document.getElementById('tcl1_' + i).style.backgroundColor = '#'+('0'.repeat(6-cl2.length)) + cl2
+        document.getElementById('tcli_' + i).style.backgroundColor = '#'+('0'.repeat(6-cli.length)) + cli
+        console.log(i, 'ok')
+      }
     },
     mkAuxiliaryData () {
       this.l2hex = true
@@ -961,7 +1034,7 @@ export default {
       }
     },
     mkNodes (nodes, level, width, height, center, layout) {
-      let l2path = this.l2hex ? this.pathhex : this.path
+      let l2path = this.l2hex ? this.path : this.path
       let fltwo = this.networks[level].fltwo
       for (let i = 0; i < nodes.length; i++) {
         let nid = nodes[i]
@@ -1219,7 +1292,25 @@ export default {
       } else if (e.srcElement.id === 'lcbtn') {
         this.cldialog = true
       } else if (e.srcElement.id === 'bcbtn') {
+        let c = this.app_.renderer.backgroundColor.toString(16).split('.')[0]
+        c = '#' + ('0'.repeat(6 - c.length)) + c
+        this.colortobg = c
         this.cbdialog = true
+      } else if (e.srcElement.id === 'lrbtn') {
+        if (e.button === 0)
+          this.pan('l')
+        else
+          this.pan('r')
+      } else if (e.srcElement.id === 'udbtn') {
+        if (e.button === 0)
+          this.pan('d')
+        else
+          this.pan('u')
+      } else if (e.srcElement.id === 'rtsbtn') {
+        if (e.button === 0)
+          this.rotateScene('+')
+        else
+          this.rotateScene('-')
       }
     },
     resizeNodes (direction) {
@@ -1266,7 +1357,8 @@ export default {
     },
     rotateNodes (val) {
       this.nodes[this.curlevel].forEach( n => {
-        n.rotation -= val
+        if (!n.isopen)
+          n.rotation -= val
       })
     },
     proportionalLinks (param) {
@@ -1343,6 +1435,7 @@ export default {
         MLdata.children.push(
           this.networks[node.level].ndata[node.id].aux.children
       )
+      node.rotation = 0
       this.positionChildren(node)
       MLdata.isopen = true
     },
@@ -1443,6 +1536,7 @@ export default {
       MLdata.children.push( children_ )
       MLdata.paths.push( path_ )
       
+      rect.rotation = 0
       this.positionChildren(rect)
       MLdata.isopen = true
     },
@@ -1550,13 +1644,64 @@ export default {
         })
       })
     },
+    uColor (level, layer) {
+      console.log('level layer', level, layer)
+      // get the correct color
+      this.cLevel = level
+      this.cLayer = layer
+      let c
+      if (layer < 2) {
+        c = this.nodecolors[level * 2 + layer].toString(16)
+      } else {
+        c = this.linkcolors[level].toString(16)
+      }
+      c = '#' + ('0'.repeat(6 - c.length)) + c
+      this.colorAny = c
+      this.cAllDialog = true
+    },
   },
   watch: {
+    cAllDialog (val) {
+      if (!val) {
+        if (!this.colorAny.hex)
+          return
+        let c = parseInt(this.colorAny.hex.split("#")[1], 16)
+        let tid
+        if (this.cLayer < 2) {
+          let fltwo = this.networks[this.cLevel].fltwo
+          if (this.cLayer === 0) {
+            this.nodes[this.cLevel].forEach( n => {
+              if (n.id < fltwo)
+                n.tint = c
+            })
+          } else {
+            this.nodes[this.cLevel].forEach( n => {
+              if (n.id >= fltwo)
+                n.tint = c
+            })
+          }
+          tid = 'tcl' + this.cLayer + '_' + this.cLevel
+          this.nodecolors[this.cLevel * 2 + this.cLayer] = c
+        } else {
+          Object.values(this.links_[this.cLevel]).forEach( l => {
+              l.tint = c
+          })
+          tid = 'tcli' + '_' + this.cLevel
+          this.linkcolors[this.cLevel] = c
+        }
+        document.getElementById(tid).style.backgroundColor = this.colorAny.hex
+      }
+    },
+    tloaded (val) {
+      if (val) {
+        this.colorTable()
+      }
+    },
     cndialog (val) {
       if (!val) {
-        console.log(this.colortonode)
         let fltwo = this.networks[this.curlevel].fltwo
         let c = parseInt(this.colortonode.hex.split("#")[1], 16)
+        console.log(c)
         if (this.clayer === 0) {
           this.nodes[this.curlevel].forEach( n => {
             if (n.id < fltwo)
@@ -1580,6 +1725,8 @@ export default {
     },
     cbdialog (val) {
       if (!val) {
+        if (!this.colortobg.hex)
+          return
         let c = parseInt(this.colortobg.hex.split("#")[1], 16)
         this.app_.renderer.backgroundColor = c
       }
@@ -1636,6 +1783,9 @@ export default {
 }
 .highd {
   background-color: orange;
+}
+.container {
+  max-width: 1280px;
 }
 /* vim: set ft=vue: */
 </style>
