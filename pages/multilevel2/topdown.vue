@@ -1,7 +1,7 @@
 <template>
 <span>
   <h1> MlBiNetViz <i class="fa fa-question-circle mhelp" style="font-size:28px;color:blue"></i></h1>
-<v-layout align-center justify-center row>
+<v-layout align-center justify-center row id="startstuff">
   <v-flex text-xs-center>
     <v-menu offset-y title="select the network" :disabled="mapping || loaded">
       <v-btn
@@ -28,7 +28,7 @@
   </v-flex>
 </v-layout>
 <v-flex mt-1>
-<v-card flat dark>
+<v-card flat dark id="bicard">
   <v-layout align-center justify-center>
     <v-flex>
       <table id='bimltab'>
@@ -1900,6 +1900,12 @@ export default {
 }
 .mhelp {
   cursor: pointer;
+}
+#startstuff {
+  width: 800px;
+}
+#bicard {
+  width: 800px;
 }
 /* vim: set ft=vue: */
 </style>
