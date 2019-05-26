@@ -184,12 +184,6 @@
     </v-list>
   </v-menu>
   <v-spacer></v-spacer>
-  <v-text-field
-    v-model="curlevelinfo"
-    label="level on focus"
-    outline
-    readonly
-  ></v-text-field>
 </v-layout>
 <v-layout row>
 </v-flex>
@@ -230,21 +224,16 @@
 <v-flex>
 <table id='ltable' v-if="loaded">
   <tr>
-    <th>level</th>
-    <th>layer 1</th>
-    <th>layer 2</th>
-    <th>links</th>
+    <th class="lthead">level</th>
+    <th class="lthead">layer 1</th>
+    <th class="lthead">layer 2</th>
+    <th class="lthead">links</th>
   </tr>
-  <tr v-for="(level, index) in networks.length" :id="'trl' + index">
-    <td>{{ level - 1 }}</td>
-    <td>{{ nvis[0] }} / {{networks[level - 1].fltwo}}</td>
-    <td>{{ nvis[1] }} / {{networks[level - 1].sources.length - networks[level - 1].fltwo}}</td>
-    <td>{{lvis}} / {{networks[level-1].links.length}}</td>
-  </tr>
-  <tr>
-    <td>Eve</td>
-    <td>Jackson</td>
-    <td>94</td>
+  <tr v-for="(level, index) in networks.length" :id="'trl' + index" @click="chLevel(index)">
+    <td :id="'tdl' + index" v-bind:class="index === curlevel ? 'highd': ''">{{ index }}</td>
+    <td>{{ nvis_[index] ? nvis_[index][0] : 0 }} / {{networks[index].fltwo}}</td>
+    <td>{{ nvis_[index] ? nvis_[index][1] : 0 }} / {{networks[index].sources.length - networks[index].fltwo}}</td>
+    <td>{{ nlinks[index] ? nlinks[index] : 0 }} / {{networks[index].links.length}}</td>
   </tr>
 </table>
 </v-flex>
@@ -448,7 +437,8 @@ export default {
       colortolink: '#194d33',
       cbdialog: false,
       colortobg: '#194d33',
-      nvis: [0,0],
+      nvis_: [],
+      nlinks: []
     }
   },
   components: {
@@ -865,7 +855,29 @@ export default {
         this.mkLines(links, level, width, height, center, layout_)
         this.mkNodes(nodes, level, width, height, center, layout_)
         this.loaded = true
+        this.updateElementsCount()
       })
+    },
+    updateElementsCount () {
+      let nvis_ = []
+      for (let i = 0; i < this.networks.length; i++) {
+        let fltwo = this.networks[i].fltwo
+        let nvis = this.nodes[i].reduce(
+          (total, n) => {
+            let count = n !== undefined ? 1 : 0
+            let layer = n.id >= fltwo ? 1: 0
+            total[layer] += count
+            return total
+          }, [0, 0])
+        nvis_.push(nvis)
+      }
+      this.nvis_ = nvis_
+
+      let nlinks = []
+      for (let i = 0; i < this.networks.length; i++) {
+        nlinks.push(Object.keys(this.links_[i]).length)
+      }
+      this.nlinks = nlinks
     },
     separateLonelyNodes (nodes, links, layout) {
       let lonely = []
@@ -1529,11 +1541,17 @@ export default {
         this.specified_metanode = 0
       }
     },
+    chLevel (val) {
+      console.log(val)
+      this.curlevel = val
+      this.nodes.forEach( (nodes_, level_) => {
+        nodes_.forEach( n => {
+          n.interactive = level_ === val
+        })
+      })
+    },
   },
   watch: {
-    curlevel (val) {
-      console.log(val)
-    },
     cndialog (val) {
       if (!val) {
         console.log(this.colortonode)
@@ -1578,29 +1596,6 @@ export default {
       }
     },
   },
-  computed: {
-    curlevelinfo: function () {
-      let val = this.curlevel
-      if (this.loaded) {
-        let fltwo = this.networks[val].fltwo
-        let nvis = this.nodes[val].reduce(
-          (total, i) => {
-            let count = i !== undefined ? 1 : 0
-            let layer = i.id >= fltwo ? 1: 0
-            total[layer] += count
-            return total
-          }, [0, 0])
-        let lvis = Object.keys(this.links_[val]).length
-        this.nvis = nvis
-        this.lvis = lvis
-        return val + ', nodes: ' + nvis[0] +'/' + fltwo + ', ' + nvis[1] + '/' + (this.networks[val].sources.length - fltwo) + '; links: ' + lvis +'/'+ this.networks[val].links.length
-      } else if (this.mapping) {
-        return 'loading ... (please wait)'
-      } else {
-        return '---'
-      }
-    },
-  }
 }
 </script>
 
@@ -1622,10 +1617,25 @@ export default {
   margin-right: 4px;
 }
 #ltable {
-  border-collapse: collapse;
+  margin:10px;
+  border-collapse: separate;
 }
+#ltable td {
+  padding-left: 8px;
+  padding-right: 4px;
+  text-align: left;
+}
+
 #ltable th {
-  background-color: gray
+  background-color: gray;
+  padding-left: 8px;
+  padding-right: 4px;
+  text-align: left;
+}
+.lthead {
+}
+.highd {
+  background-color: orange;
 }
 /* vim: set ft=vue: */
 </style>
