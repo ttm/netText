@@ -222,7 +222,7 @@
   <v-icon class="tbtn" id='rtsbtn' @click="mhandler($event)" @contextmenu="mhandler($event)" title="rotate canvas counterclockwise/clockwise with left/right click. Selecting 'drag', 'open node', 'join nodes' or 'resize open node' tools will reset canvas rotation">rotate_left</v-icon>
   <v-icon class="tbtn" @click="home()" @contextmenu="mhandler($event)" title="toogle initial and current zoom and pan with click">home</v-icon>
 </v-system-bar>
-<div id="renderCanvas"></div>
+<div @contextmenu="mhandler($event)" id="renderCanvas"></div>
 </div>
 </v-flex>
 <v-flex>
@@ -457,6 +457,7 @@ export default {
       tloaded: 0,
       cAllDialog: false,
       colorAny: '',
+      tool: '',
     }
   },
   components: {
@@ -610,6 +611,8 @@ export default {
           delete __this.eregion
           delete __this.regionexplorestart
           delete __this.regionexploreend
+          if (__this.tool === 'dragregion')
+            __this.tool = 'drag'
         }
       })
       d3.select('canvas').on('mousedown', function () {
@@ -621,6 +624,14 @@ export default {
               __this.tool = 'drag'
               __this.taux = true
               __this.eregion.clear()
+              delete __this.selectednode
+              let scale = __this.app_.stage.scale.x
+              let panx = __this.app_.stage.x
+              let pany = __this.app_.stage.y
+              __this.regionexplorestart = [
+                (p[0] - panx) / scale,
+                (p[1] - pany) / scale,
+              ]
               return
             }
           }
@@ -629,6 +640,14 @@ export default {
           __this.tool = 'drag'
           __this.eregion.clear()
           delete __this.eregion
+        }
+        if (__this.tool === 'dragregion' && !__this.selectednode.name === 'rect') {
+          // check if click is inside eregion, if not, reset 
+          let p = d3.mouse(this)
+          __this.regionexplorestart = [
+            (p[0] - panx) / scale,
+            (p[1] - pany) / scale,
+          ]
         }
         if ( __this.tool === 'regionexplore' || (__this.tool === 'drag' && !__this.dragginnode) ) {
           let p = d3.mouse(this)
@@ -658,6 +677,7 @@ export default {
           let panx = __this.app_.stage.x
           let pany = __this.app_.stage.y
           let p = [(p_[0] - panx)/scale, (p_[1] - pany)/scale]
+          console.log(e, p)
           __this.eregion.clear()
           __this.eregion.beginFill(0x0000FF, 0.3)
           __this.eregion.drawPolygon([e[0], e[1], e[0], p[1], p[0], p[1], p[0], e[1]])
@@ -687,6 +707,11 @@ export default {
           ]
           let r1 = __this.regionexplorestart
           let r2 = __this.regionexploreend
+          if ((r1[0] === r2[0]) && (r1[1] === r2[1])) {
+            delete __this.regionexplorestart
+            delete __this.regionexploreend
+            return
+          }
           let maxx = Math.max(r1[0], r2[0])
           let maxy = Math.max(r1[1], r2[1])
           let minx = Math.min(r1[0], r2[0])
@@ -1819,6 +1844,9 @@ export default {
     },
   },
   watch: {
+    tool (val) {
+      console.log(val)
+    },
     network (val) {
       let a = document.getElementById('ninfo')
       a.textContent='loading info...'
