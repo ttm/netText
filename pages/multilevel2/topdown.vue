@@ -234,11 +234,11 @@
   <tr v-for="(level, index) in networks.length" :id="'trl' + index">
     <td @click="chLevel(index)" @contextmenu="mhandler($event)" :id="'tdl' + index" v-bind:class="index === curlevel ? 'highd': ''">{{ index }}</td>
     <td>{{ nvis_[index] ? nvis_[index][0] : 0 }} / {{networks[index].fltwo}}</td>
-    <td @click="uColor(index, 0)" :id="'tcl0_' + index"></td>
+    <td @contextmenu="cgShape($event, index, 0)" @click="uColor(index, 0)" :id="'tcl0_' + index"></td>
     <td>{{ nvis_[index] ? nvis_[index][1] : 0 }} / {{networks[index].sources.length - networks[index].fltwo}}</td>
-    <td @click="uColor(index, 1)" :id="'tcl1_' + index"></td>
+    <td @contextmenu="cgShape($event, index, 1)" @click="uColor(index, 1)" :id="'tcl1_' + index"></td>
     <td>{{ nlinks[index] ? nlinks[index] : 0 }} / {{networks[index].links.length}}</td>
-    <td @click="uColor(index, 2)" :id="'tcli_' + index"></td>
+    <td @contextmenu="showHideLinks($event, index)"@click="uColor(index, 2)" :id="'tcli_' + index"></td>
   </tr>
   <span :banana="tloaded = true"></span>
 </table>
@@ -444,7 +444,9 @@ export default {
         'random',
         'shell',
         'spectral',
-        'spring'
+        'spring',
+        'h-bipartite',
+        'v-bipartite',
       ],
       layout: 'spring',
       snackbar: false,
@@ -827,13 +829,42 @@ export default {
         this.mkAuxiliaryData()
         this.mapNetworkToScreen()
         let e = document.getElementById('iinfo')
-        e.style.width = '700px'
+        e.style.width = '100%'
         e.style.border = '2px solid #0000ff'
         e.style.margin = '2px'
         e.style.padding = '2px'
         e.textContent = '~ info on demand ~\n'
         this.iinfo = e
         $('#bimltab').find('*').attr('disabled', 'disabled').addClass('v-btn--disabled')
+      })
+    },
+    showHideLinks(e, level) {
+      e.preventDefault()
+      if (this.links)
+        Object.values(this.links_[level]).forEach( l => l.visible = !l.visible )
+    },
+    cgShape(e, level, layer) {
+      e.preventDefault()
+      let fltwo = this.networks[level].fltwo
+      let path
+      if (this.layers_alternative[level][layer]) {
+        // restore triangles
+        this.layers_alternative[level][layer] = 0
+        console.log('mktri man')
+        path = this.path
+      } else {
+        // make hexagons
+        this.layers_alternative[level][layer] = 1
+        console.log('mkhex man')
+        path = this.pathhex
+      }
+      this.nodes[level].forEach( n => {
+        if ( ((n.id < fltwo) != layer) && (!n.isopen) ) {
+          n.clear()
+          n.beginFill(0xFFFFFF)
+          n.drawPolygon(path)
+          n.endFill()
+        }
       })
     },
     colorTable () {
@@ -853,13 +884,9 @@ export default {
       if (direction !== '+')
         inc = 1 / inc
       Object.values(this.links_[this.curlevel]).forEach( l => {
-        let c = l.tint
-        let a = l.alpha
         let w = l.line.width
         l.clear()
         l.lineStyle(w * inc, 0xFFFFFF)
-        l.alpha = 0.4
-        l.tint = c
         let n1 = this.nodes[l.level][l.ll[0]]
         let n2 = this.nodes[l.level][l.ll[1]]
         let p1 = [n1.x, n1.y]
@@ -876,6 +903,7 @@ export default {
         this.linkcolors = ColourValues.reverse().map( c => parseInt(c, 16) )
       }
       this.max_weights = this.networks.map( n => Math.max( ...n.links.map( l => l[2] ) ) )
+      this.layers_alternative = this.networks.map( n => [0, 0] )
       this.nodescales = []
       this.ndata = []
       this.nodes = []
@@ -976,6 +1004,14 @@ export default {
       let turl = process.env.flaskURL + '/layoutOnDemand/'
       let [lonely, rest] = this.separateLonelyNodes(nodes, links)
       let nodes_ = rest
+      let l0 = []
+      if (this.layout.slice(2) === 'bipartite') {
+        let fltwo = this.networks[level].fltwo
+        nodes_.forEach( n => {
+          if (fltwo > n)
+            l0.push(n)
+        })
+      }
       $.ajax(
         turl,
         // {see: 'this', and: 'thisother', num: 5}
@@ -986,7 +1022,8 @@ export default {
             nodes: nodes_,
             links: links,
             first: level === this.networks.length - 1,
-            lonely: Object.keys(lonely).length !== 0
+            lonely: Object.keys(lonely).length !== 0,
+            l0: l0
           }),
           contentType : 'application/json',
           type : 'POST',
@@ -1008,21 +1045,32 @@ export default {
     updateElementsCount () {
       let nvis_ = []
       for (let i = 0; i < this.networks.length; i++) {
-        let fltwo = this.networks[i].fltwo
-        let nvis = this.nodes[i].reduce(
-          (total, n) => {
-            let count = n !== undefined ? 1 : 0
-            let layer = n.id >= fltwo ? 1: 0
-            total[layer] += count
-            return total
-          }, [0, 0])
+        let nvis
+        console.log('this man', i, this.otherlayer)
+        if ((this.otherlayer !== undefined) && i > this.otherlayer) {
+          nvis = [0,0]
+        } else {
+          let fltwo = this.networks[i].fltwo
+          nvis = this.nodes[i].reduce(
+            (total, n) => {
+              let count = n !== undefined ? 1 : 0
+              let layer = n.id >= fltwo ? 1: 0
+              total[layer] += count
+              return total
+            }, [0, 0]
+          )
+        }
         nvis_.push(nvis)
       }
       this.nvis_ = nvis_
 
       let nlinks = []
       for (let i = 0; i < this.networks.length; i++) {
-        nlinks.push(Object.keys(this.links_[i]).length)
+        if ((this.otherlayer !== undefined) && i > this.otherlayer) {
+          nlinks.push(0)
+        } else {
+          nlinks.push(Object.keys(this.links_[i]).length)
+        }
       }
       this.nlinks = nlinks
     },
@@ -1112,7 +1160,7 @@ export default {
       }
     },
     mkNodes (nodes, level, width, height, center, layout) {
-      let l2path = this.l2hex ? this.path : this.path
+      let l2path = this.l2hex ? this.pathhex : this.path
       let fltwo = this.networks[level].fltwo
       for (let i = 0; i < nodes.length; i++) {
         let nid = nodes[i]
@@ -1122,9 +1170,11 @@ export default {
         let node_ = this.nodes[level][nodes[i]]
         if (!node_) { // node is not created still
           const node = new PIXI.Graphics()
-          node.lineStyle(0)
+          let layer = fltwo <= nid ? 1 : 0
+          node.layer = layer
+          node.lineStyle(1, 0x0000FF)
           node.beginFill(0xFFFFFF)
-          node.drawPolygon(fltwo <= nid ? l2path : this.path)
+          node.drawPolygon(this.layers_alternative[level][layer] ? l2path : this.path )
           node.endFill()
           node.tint = this.nodecolors[level * 2 + (fltwo <= nid ? 1 : 0)]
           node.x = px
@@ -1404,8 +1454,7 @@ export default {
         else
           this.cgLineThickness('-')
       } else if (e.srcElement.id.slice(0, 3) === 'tdl') {
-        let level = Number(e.srcElement.id[e.srcElement.id.length-1])
-        console.log('tlevel', level)
+        let level = Number(e.srcElement.id.slice(3))
         this.otherlayer = level
         this.renderNetwork()
       }
@@ -1414,6 +1463,7 @@ export default {
       let inc = 0.1
       if (direction !== '+')
         inc = -0.1
+      this.nodescales[this.curlevel] += inc
       this.nodes[this.curlevel].forEach( n => {
         if (!n.isopen) {
           n.scale.x += inc
@@ -1470,12 +1520,30 @@ export default {
           l.alpha *= 0.1 + 0.9 * l.tweight / mweight
         })
       } else {
-        console.log('line thickness not implemented')
+        Object.values(this.links_[this.curlevel]).forEach( l => {
+          let w = l.line.width
+          l.clear()
+          l.lineStyle(w * (w / mweight)**0.3 , 0xFFFFFF)
+          let n1 = this.nodes[l.level][l.ll[0]]
+          let n2 = this.nodes[l.level][l.ll[1]]
+          let p1 = [n1.x, n1.y]
+          let p2 = [n2.x, n2.y]
+          l.moveTo(...p1)
+          l.lineTo(...p2)
+        })
       }
     },
     restoreLinks () {
       Object.values(this.links_[this.curlevel]).forEach( l => {
         l.alpha = 0.4
+        l.clear()
+        l.lineStyle(l.tweight , 0xFFFFFF)
+        let n1 = this.nodes[l.level][l.ll[0]]
+        let n2 = this.nodes[l.level][l.ll[1]]
+        let p1 = [n1.x, n1.y]
+        let p2 = [n2.x, n2.y]
+        l.moveTo(...p1)
+        l.lineTo(...p2)
       })
     },
     linkVisibility (direction) {
@@ -1906,6 +1974,12 @@ export default {
 }
 #bicard {
   width: 800px;
+}
+[id^="tcl"] {
+  cursor: pointer;
+}
+[id^="tdl"] {
+  cursor: pointer;
 }
 /* vim: set ft=vue: */
 </style>
