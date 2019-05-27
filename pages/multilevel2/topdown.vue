@@ -171,7 +171,6 @@
   >
     Render network
   </v-btn>
-  <v-checkbox v-model="links" label="show links"> </v-checkbox>
   <v-menu offset-y title="select the layout">
     <v-btn
       slot="activator"
@@ -190,6 +189,7 @@
       </v-list-tile>
     </v-list>
   </v-menu>
+  <v-checkbox v-model="links" label="show links" v-show="loaded"> </v-checkbox>
   <textarea id="iinfo" v-show="loaded"></textarea>
   <v-spacer></v-spacer>
   <v-spacer></v-spacer>
@@ -677,7 +677,6 @@ export default {
           let panx = __this.app_.stage.x
           let pany = __this.app_.stage.y
           let p = [(p_[0] - panx)/scale, (p_[1] - pany)/scale]
-          console.log(e, p)
           __this.eregion.clear()
           __this.eregion.beginFill(0x0000FF, 0.3)
           __this.eregion.drawPolygon([e[0], e[1], e[0], p[1], p[0], p[1], p[0], e[1]])
@@ -785,10 +784,8 @@ export default {
             let tparent = __this.childparent[__this.curlevel][nodes_[0].id]
             let texit = false
             nodes_.forEach( n => {
-              console.log(n.id, __this.childparent[__this.curlevel][n.id], tparent, 'HOOOW')
               if (tparent !== __this.childparent[__this.curlevel][n.id]) {
                 texit = true
-                console.log('ok, found the buggy stuff')
                 return
               }
             })
@@ -964,7 +961,7 @@ export default {
           let aux = {
             children: children[i],
             links: nodelinks[i],
-            links_: nodelinks[i].map( l => links[l]),
+          links_: nodelinks[i].map( l => links[l]),
             neighbors: neighbors,
             source: sources[i],
           }
@@ -1526,7 +1523,7 @@ export default {
       Object.values(this.links_[this.curlevel]).forEach( l => {
         l.alpha = 0.4
         l.clear()
-        l.lineStyle(l.tweight , 0xFFFFFF)
+        l.lineStyle(1 + (9 * l.tweight / this.max_weights[l.level]), 0xFFFFFF)
         let n1 = this.nodes[l.level][l.ll[0]]
         let n2 = this.nodes[l.level][l.ll[1]]
         let p1 = [n1.x, n1.y]
@@ -1616,7 +1613,7 @@ export default {
 
       this.placeOnCanvas(children, links, level, dx*2, dy*2, c)
 
-      this.iinfo.textContent += '\nshown children ' + children + ' at level ' + level
+      this.iinfo.textContent += '\nshown predecessor ' + children + ' at level ' + level
       this.iinfo.scrollTop = this.iinfo.scrollHeight
     },
     joinManyNodes (nodes) {
@@ -1653,25 +1650,27 @@ export default {
       // let ids = nodes.map( n => n.id )
       let ids = []
       nodes.forEach( n => {
-        n.clear()
-        n.visible = false
-        n.isopen = false
-        n.interactive = false
-        n.isjoined = true
-        ids.push(n.id)
         if (!n.isopen) {
           let mdata = this.networks[this.curlevel].ndata[n.id].mdata
           tdegree += mdata.degree
           tstrength += mdata.strength
           tchildren += mdata.predecessors
           tparents.push(mdata.successor)
+          ids.push(n.id)
         } else {
           let J = n.joinData
-          tdegree += j.degree
-          tstrength += j.strength
-          tchildren += j.predecessors
-          tparents.push(j.successors)
+          tdegree += J.degree
+          tstrength += J.strength
+          tchildren += J.predecessors
+          tparents.push(J.successors)
+          ids = ids.concat(J.ids)
+          delete n.joinData
         }
+        n.clear()
+        n.visible = false
+        n.isopen = false
+        n.interactive = false
+        n.isjoined = true
       })
       if (this.curlevel === this.networks.length -1)
         tparents = null
@@ -1702,7 +1701,7 @@ export default {
       this.cnode = rect
       let tid = ids.join ('-')
 
-      this.opennodes[tid] = rect
+      this.opennodes[rect.level][tid] = rect
 
       // plot children:
       // get the children of all the nodes
@@ -1741,18 +1740,19 @@ export default {
         n1.tint = this.temptint
         let n2 = node
         let nodes = [n1, n2]
-        let nodes_ = []
-        nodes.forEach( n => {
-          if (n.ids) {
-            n.ids.forEach( id => {
-              let tnode = this.nodes[n1.level][id]
-              nodes_.push(tnode)
-            })
-          }
-        })
-        let nodes__ = [...nodes, ...nodes_]
-        nodes__.sort( function (a, b) { return a.id - b.id } )
-        this.joinManyNodes(nodes__)
+        // let nodes_ = []
+        // nodes.forEach( n => {
+        //   n.ids.forEach( id => {
+        //     if (id !== n1.id & id !== n2.id) {
+        //       let tnode = this.nodes[n1.level][id]
+        //       nodes_.push(tnode)
+        //     }
+        //   })
+        // })
+        // let nodes__ = [...nodes, ...nodes_]
+        // nodes__.sort( function (a, b) { return a.id - b.id } )
+        // this.joinManyNodes(nodes__)
+        this.joinManyNodes(nodes)
         this.specified_metanode = undefined
       }
     },
@@ -1844,9 +1844,6 @@ export default {
     },
   },
   watch: {
-    tool (val) {
-      console.log(val)
-    },
     network (val) {
       let a = document.getElementById('ninfo')
       a.textContent='loading info...'
