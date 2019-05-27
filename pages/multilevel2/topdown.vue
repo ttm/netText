@@ -353,7 +353,7 @@ function clickNode (event) {
   __this.mnode = this
   if (__this.tool === 'info') {
     let s = JSON.stringify(__this.networks[this.level].ndata[this.id].mdata)
-    s = s.slice(1, s.length - 1).replace(/"/g,'').replace(/,/g, ', ')
+    s = s.slice(1, s.length - 1).replace(/"/g,'').replace(/,/g, ', ').replace('successor', 'successor id').replace(/:/g, '\: ')
     __this.iinfo.textContent += '\n' + s
     __this.iinfo.scrollTop = __this.iinfo.scrollHeight
   } else if (__this.tool === 'explore'){
@@ -460,9 +460,6 @@ export default {
     window.__this = this
     this.initPixi()
     this.findNetworks()
-    $('.mhelp').click(function () {
-      console.log('mk cool help man')
-    })
   },
   methods: {
     upload (e) {
@@ -601,16 +598,17 @@ export default {
       let y2 = Math.sin(this.beta + 0.1) * this.dist
       this.dddx = (x2 - c1.x)
       this.dddy = (y2 - c1.y)
+      d3.select('canvas').on('mouseout', function () {
+        if (__this.eregion) {
+          __this.eregion.clear()
+          delete __this.eregion
+          delete __this.regionexplorestart
+          delete __this.regionexploreend
+        }
+      })
       d3.select('canvas').on('mousedown', function () {
         if (__this.selectednode) {
           let p = d3.mouse(this)
-          // let scale = __this.app_.stage.scale.x
-          // let panx = __this.app_.stage.x
-          // let pany = __this.app_.stage.y
-          // let p = [
-          //   (p[0] - panx) / scale,
-          //   (p[1] - pany) / scale,
-          // ]
           let b = __this.selectednode.getBounds()
           if (p[0] < b.x || p[1] < b.y || p[0] > b.x + b.width || p[1] > b.y + b.height) {
             if (__this.tool === 'dragregion') {
@@ -618,7 +616,6 @@ export default {
               __this.taux = true
               __this.eregion.clear()
               return
-              // delete __this.eregion
             }
           }
         }
@@ -639,10 +636,6 @@ export default {
           __this.eregion = new PIXI.Graphics()
           __this.eregion.name = 'rect'
           __this.eregion.buttonMode = true
-          // __this.eregion.beginFill(0x0000FF, 0.1)
-          // __this.eregion.drawPolygon(...__this.regionexplorestart, ...__this.regionexplorestart)
-          // __this.eregion.drawRect(...__this.regionexplorestart, 0, 0)
-          // __this.eregion.endFill()
           __this.app_.stage.addChild(__this.eregion)
         }
       })
@@ -704,9 +697,6 @@ export default {
               height: b_.height / scale,
             }
             if ( b.x >= minx && b.x + b.width <= maxx && b.y >= miny && b.y + b.height <= maxy ) {
-              // if (!__this.networks[n.level].ndata[n.id].isopen) {
-              //   __this.showChildren(n)
-              // }
               nodes_.push(n)
             }
           })
@@ -725,9 +715,6 @@ export default {
           __this.moveManyNodes(nodes_)
           __this.selectednode = __this.eregion
           __this.tool = 'dragregion'
-          // else
-          //   __this.eregion.clear()
-          //   delete __this.eregion
         }
         if (__this.tool === 'regionexplore') {
           let scale = __this.app_.stage.scale.x
@@ -749,6 +736,8 @@ export default {
           let nodes = __this.nodes[__this.curlevel]
           let nodes_ = []
           nodes.forEach( n => {
+            if (!n.interactive)
+              return
             let b_ = n.getBounds()
             let b = {
               x: (b_.x - panx) / scale,
@@ -757,14 +746,28 @@ export default {
               height: b_.height / scale,
             }
             if ( b.x >= minx && b.x + b.width <= maxx && b.y >= miny && b.y + b.height <= maxy ) {
-              // if (!__this.networks[n.level].ndata[n.id].isopen) {
-              //   __this.showChildren(n)
-              // }
               nodes_.push(n)
             }
           })
-          if (nodes_.length > 0)
+          // test if nodes have more then one successor
+          if (nodes_.length > 0) {
+            let tparent = __this.childparent[__this.curlevel][nodes_[0].id]
+            let texit = false
+            nodes_.forEach( n => {
+              console.log(n.id, __this.childparent[__this.curlevel][n.id], tparent, 'HOOOW')
+              if (tparent !== __this.childparent[__this.curlevel][n.id]) {
+                texit = true
+                console.log('ok, found the buggy stuff')
+                return
+              }
+            })
+            if (texit) {
+              __this.iinfo.textContent += '\nChoosing nodes in more then one successor is not allowed. Please join successors furst.'
+              __this.iinfo.scrollTop = __this.iinfo.scrollHeight
+              return
+            }
             __this.joinManyNodes(nodes_)
+          }
         }
       })
       this.app_.stage.interactive = true
@@ -792,7 +795,6 @@ export default {
       let turl = process.env.flaskURL + '/biMLDBtopdown/'
       $.post(
         turl,
-        // {see: 'this', and: 'thisother', num: 5}
         {
           netid: this.network._id,
           bi: this.bi,
@@ -833,14 +835,10 @@ export default {
       let fltwo = this.networks[level].fltwo
       let path
       if (this.layers_alternative[level][layer]) {
-        // restore triangles
         this.layers_alternative[level][layer] = 0
-        console.log('mktri man')
         path = this.path
       } else {
-        // make hexagons
         this.layers_alternative[level][layer] = 1
-        console.log('mkhex man')
         path = this.pathhex
       }
       this.nodes[level].forEach( n => {
@@ -854,14 +852,12 @@ export default {
     },
     colorTable () {
       for (let i = 0; i < this.networks.length; i++) {
-        console.log(i)
         let cl1 = this.nodecolors[i * 2 ].toString(16)
         let cl2 = this.nodecolors[i * 2 + 1].toString(16)
         let cli = this.linkcolors[i].toString(16)
         document.getElementById('tcl0_' + i).style.backgroundColor = '#'+('0'.repeat(6-cl1.length)) + cl1
         document.getElementById('tcl1_' + i).style.backgroundColor = '#'+('0'.repeat(6-cl2.length)) + cl2
         document.getElementById('tcli_' + i).style.backgroundColor = '#'+('0'.repeat(6-cli.length)) + cli
-        console.log(i, 'ok')
       }
     },
     cgLineThickness (direction) {
@@ -900,10 +896,7 @@ export default {
         this.nodes.push([])
         this.opennodes.push({})
         this.childparent.push({})
-        // this.nodescales.push(1 - 0.9 * ((this.curlevel - level) / this.curlevel)**0.5)
         this.nodescales.push((1 / (this.curlevel - level + 1))**0.5)
-        // this.nodecolors.push(0xFFFFFF*(1 - 0.9 * ((this.curlevel - level) / this.curlevel)**0.5))
-        // this.linkcolors.push(0xFFFFFF*(0.9 * ((this.curlevel - level) / this.curlevel)**0.5))
         let links = this.networks[level].links
         let children = this.networks[level].children
         let parents = this.networks[level].parents
@@ -952,7 +945,6 @@ export default {
         }
         this.networks[level].ndata = ndata
       }
-      // this.nodecolors.reverse()
     },
     mkPaths () {
       this.radius = 10
@@ -999,7 +991,6 @@ export default {
       }
       $.ajax(
         turl,
-        // {see: 'this', and: 'thisother', num: 5}
         {
           data: JSON.stringify({
             layout: this.layout,
@@ -1031,7 +1022,6 @@ export default {
       let nvis_ = []
       for (let i = 0; i < this.networks.length; i++) {
         let nvis
-        console.log('this man', i, this.otherlayer)
         if ((this.otherlayer !== undefined) && i > this.otherlayer) {
           nvis = [0,0]
         } else {
@@ -1132,7 +1122,6 @@ export default {
       if (ndata.MLdata.isopen) {
         let dx = node.x - node.oldx
         let dy = node.y - node.oldy
-        // get children
         ndata.MLdata.children[ndata.MLdata.children.length -1].forEach( c => {
           let c_ = this.nodes[node.level - 1][c]
           c_.oldx = c_.x
@@ -1153,7 +1142,7 @@ export default {
         let px = (1 + p[0]) * width/2 + center[0]
         let py = (1 + p[1]) * height/2 + center[1]
         let node_ = this.nodes[level][nodes[i]]
-        if (!node_) { // node is not created still
+        if (!node_) {
           const node = new PIXI.Graphics()
           let layer = fltwo <= nid ? 1 : 0
           node.layer = layer
@@ -1176,8 +1165,6 @@ export default {
           node.level = level
           node.scale.x *= this.nodescales[level]
           node.scale.y *= this.nodescales[level]
-          // if (fltwo <= nid)
-          //   node.rotation = Math.PI
           this.mcont.addChild(node)
           this.nodes[level][nodes[i]] = node
         } else {
@@ -1219,7 +1206,7 @@ export default {
       }
       this.nodes.forEach( (nodes_, level_) => {
         nodes_.forEach( n => {
-          n.interactive = level_ === level
+          n.interactive = (level_ === level) && n.visible
         })
       })
       this.curlevel = level
@@ -1361,7 +1348,6 @@ export default {
     },
     mhandler (e) {
       e.preventDefault()
-      console.log('ha!', e)
       if (e.srcElement.id === 'rzbtn') {
         if (e.button === 0)
           this.resizeNodes('+')
@@ -1487,7 +1473,6 @@ export default {
           l => l.tweight
         )
       )
-      console.log('max weight', mweight)
       if (param === 'trans') {
         Object.values(this.links_[this.curlevel]).forEach( l => {
           l.alpha *= 0.1 + 0.9 * l.tweight / mweight
@@ -1604,7 +1589,6 @@ export default {
       this.iinfo.scrollTop = this.iinfo.scrollHeight
     },
     joinManyNodes (nodes) {
-      console.log('node ids', nodes.map( i => i.id ))
       let sx = __this.app_.stage.x
       let sy = __this.app_.stage.y
       let scale = __this.app_.stage.scale.x
@@ -1635,10 +1619,13 @@ export default {
         n.clear()
         n.visible = false
         n.isopen = false
+        n.interactive = false
+        n.isjoined = true
       })
       let rect = nodes[0]
       rect.visible = true
       rect.isopen = true
+      rect.interactive = true
       rect.lineStyle(2, 0xFFFFFF, 0.7)
       rect.beginFill(0xFFFFFF, .1)
       rect.drawPolygon(path_)
@@ -1774,7 +1761,6 @@ export default {
       }
     },
     chLevel (val) {
-      console.log(val)
       this.curlevel = val
       this.nodes.forEach( (nodes_, level_) => {
         nodes_.forEach( n => {
@@ -1783,7 +1769,6 @@ export default {
       })
     },
     uColor (level, layer) {
-      console.log('level layer', level, layer)
       // get the correct color
       this.cLevel = level
       this.cLayer = layer
@@ -1853,7 +1838,6 @@ export default {
       if (!val) {
         let fltwo = this.networks[this.curlevel].fltwo
         let c = parseInt(this.colortonode.hex.split("#")[1], 16)
-        console.log(c)
         if (this.clayer === 0) {
           this.nodes[this.curlevel].forEach( n => {
             if (n.id < fltwo)
