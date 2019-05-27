@@ -1613,7 +1613,7 @@ export default {
 
       this.placeOnCanvas(children, links, level, dx*2, dy*2, c)
 
-      this.iinfo.textContent += '\nshown predecessor ' + children + ' at level ' + level
+      this.iinfo.textContent += '\nshown predecessor(s) ' + children + ' at level ' + level
       this.iinfo.scrollTop = this.iinfo.scrollHeight
     },
     joinManyNodes (nodes) {
