@@ -1,6 +1,10 @@
 <template>
 <span>
-  <h1> MlBiNetViz <i class="fa fa-question-circle mhelp" style="font-size:28px;color:blue"></i></h1>
+  <h1> MlBiNetViz
+    <nuxt-link to="/multilevel2/about">
+      <i class="fa fa-question-circle mhelp" style="font-size:28px;color:blue"></i>
+    </nuxt-link>
+  </h1>
 <v-layout align-center justify-center row id="startstuff">
   <v-flex text-xs-center>
     <v-menu offset-y title="select the network" :disabled="mapping || loaded">
