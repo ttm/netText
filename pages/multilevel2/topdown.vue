@@ -352,8 +352,14 @@ function releaseNode () {
 function clickNode (event) {
   __this.mnode = this
   if (__this.tool === 'info') {
-    let s = JSON.stringify(__this.networks[this.level].ndata[this.id].mdata)
-    s = s.slice(1, s.length - 1).replace(/"/g,'').replace(/,/g, ', ').replace('successor', 'successor id').replace(/:/g, '\: ')
+    let s
+    if (!this.isopen) {
+      s = JSON.stringify(__this.networks[this.level].ndata[this.id].mdata)
+      s = s.slice(1, s.length - 1).replace(/"/g,'').replace(/,/g, ', ').replace('successor', 'successor id').replace(/:/g, '\: ')
+    } else {
+      s = JSON.stringify(this.joinData)
+      s = s.slice(1, s.length - 1).replace(/"/g,'').replace(/,/g, ', ').replace('successors', 'successor ids').replace(/:/g, '\: ')
+    }
     __this.iinfo.textContent += '\n' + s
     __this.iinfo.scrollTop = __this.iinfo.scrollHeight
   } else if (__this.tool === 'explore'){
@@ -1615,14 +1621,46 @@ export default {
       this.mmc = c
       this.mmpath_ = path_
       this.mmbounds = bounds
+      let tdegree = 0
+      let tstrength = 0
+      let tchildren = 0
+      let tparents = []
+      // let ids = nodes.map( n => n.id )
+      let ids = []
       nodes.forEach( n => {
         n.clear()
         n.visible = false
         n.isopen = false
         n.interactive = false
         n.isjoined = true
+        ids.push(n.id)
+        if (!n.isopen) {
+          let mdata = this.networks[this.curlevel].ndata[n.id].mdata
+          tdegree += mdata.degree
+          tstrength += mdata.strength
+          tchildren += mdata.predecessors
+          tparents.push(mdata.successor)
+        } else {
+          let J = n.joinData
+          tdegree += j.degree
+          tstrength += j.strength
+          tchildren += j.predecessors
+          tparents.push(j.successors)
+        }
       })
+      if (this.curlevel === this.networks.length -1)
+        tparents = null
       let rect = nodes[0]
+      ids.sort( (a, b) => a - b )
+      rect.ids = ids
+      rect.joinData = {
+        ids: ids,
+        level: this.curlevel,
+        predecessors: tchildren,
+        successors: tparents,
+        degree: tdegree,
+        strength: tstrength,
+      }
       rect.visible = true
       rect.isopen = true
       rect.interactive = true
@@ -1630,9 +1668,6 @@ export default {
       rect.beginFill(0xFFFFFF, .1)
       rect.drawPolygon(path_)
       rect.endFill()
-      let ids = nodes.map( n => n.id )
-      ids.sort( (a, b) => a - b )
-      rect.ids = ids
       rect.scale.set(1)
       rect.x = c[0]
       rect.y = c[1]
