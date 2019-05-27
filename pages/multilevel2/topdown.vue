@@ -1,13 +1,13 @@
 <template>
 <span>
-  <h1> MlBiNetViz
+  <h1><span title="Visualization of (large) Bipartite Networks assisted by Multilevel Strategies"> MlBiNetViz</span>
     <nuxt-link to="/multilevel2/about">
       <i class="fa fa-question-circle mhelp" style="font-size:28px;color:blue"></i>
     </nuxt-link>
   </h1>
 <v-layout align-center justify-center row id="startstuff">
   <v-flex text-xs-center>
-    <v-menu offset-y title="select the network" :disabled="mapping || loaded">
+    <v-menu offset-y title="select or upload network" :disabled="mapping || loaded">
       <v-btn
         slot="activator"
         color="primary"
@@ -167,6 +167,7 @@
     color="green lighten-2"
     @click="renderNetwork()"
     :disabled="mapping || loaded"
+    title="click to map network to canvas"
   >
     Render network
   </v-btn>
@@ -189,37 +190,37 @@
       </v-list-tile>
     </v-list>
   </v-menu>
-  <textarea id="iinfo"></textarea>
+  <textarea id="iinfo" v-show="loaded"></textarea>
   <v-spacer></v-spacer>
   <v-spacer></v-spacer>
 </v-layout>
 <v-layout row>
 </v-flex>
 <div>
-<v-system-bar id="toolbar" window dark>
-  <v-icon class="tbtn" id='rzbtn' @contextmenu="mhandler($event)" @click="mhandler" title="decrease node size">control_camera</v-icon>
-  <v-icon class="tbtn" id="ppbtn" @contextmenu="mhandler($event)" @click="mhandler($event)" title="make node size proportional to degree">insert_chart</v-icon>
-  <v-icon class="tbtn" @click="restoreNodeSizes()" title="reinitializes node sizes">undo</v-icon>
-  <v-icon class="tbtn" id='vzbtn' @contextmenu="mhandler($event)" @click="mhandler($event)" title="decrease node transparency">hdr_strong</v-icon>
-  <v-icon class="tbtn" id='rtbtn' @click="mhandler($event)" @contextmenu="mhandler($event)" title="rotate nodes">rotate_left</v-icon>
+<v-system-bar id="toolbar" window dark v-show="loaded">
+  <v-icon class="tbtn" id='rzbtn' @contextmenu="mhandler($event)" @click="mhandler" title="increase/decrease node size with left/right click">control_camera</v-icon>
+  <v-icon class="tbtn" id="ppbtn" @contextmenu="mhandler($event)" @click="mhandler($event)" title="emphasize node size proportionality to degree/number of predecessors with left/right click">insert_chart</v-icon>
+  <v-icon class="tbtn" @click="restoreNodeSizes()" title="reset node proportionality">undo</v-icon>
+  <v-icon class="tbtn" id='vzbtn' @contextmenu="mhandler($event)" @click="mhandler($event)" title="increase/decrease node transparency with left/right click">hdr_strong</v-icon>
+  <v-icon class="tbtn" id='rtbtn' @click="mhandler($event)" @contextmenu="mhandler($event)" title="rotate nodes counterclockwise/clockwise with left/right click">rotate_left</v-icon>
   <v-spacer></v-spacer>
-  <v-icon class="tbtn" id="lwtbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="increase/decrease line width with left/right click">vertical_align_center</v-icon>
-  <v-icon class="tbtn" id="lvzbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="decrease line transparency">power_input</v-icon>
-  <v-icon class="tbtn" id="lppbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="make line transparency proportional to link weight">view_day</v-icon>
-  <v-icon class="tbtn" @click="restoreLinks()" title="reinitializes link properties">undo</v-icon>
+  <v-icon class="tbtn" id="lwtbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="increase/decrease link width with left/right click">vertical_align_center</v-icon>
+  <v-icon class="tbtn" id="lvzbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="increase/decrease link transparency with left/right click">power_input</v-icon>
+  <v-icon class="tbtn" id="lppbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="emphasize link transparency/width proportionality to link weight with left/right click">view_day</v-icon>
+  <v-icon class="tbtn" @click="restoreLinks()" title="reset link proportionality">undo</v-icon>
   <v-spacer></v-spacer>
-  <v-icon class="tbtn ptbtn" id="infobtn" @click="setTool('info')" title="get info on specific nodes">info</v-icon>
-  <v-icon class="tbtn ptbtn" id="dragbtn" @click="setTool('drag')" title="drag nodes to reposition them">gesture</v-icon>
-  <v-icon class="tbtn ptbtn" id="regionexplorebtn" @click="setTool('regionexplore')" title="open regions of nodes into child nodes (click and drag)">explore</v-icon>
-  <v-icon class="tbtn ptbtn" id="joinbtn" @click="setTool('join')" title="join opened metanodes">border_outer</v-icon>
-  <v-icon class="tbtn ptbtn" id="resizebtn" @click="setTool('resize')" title="resize open nodes (click on node and drag)">tab_unselected</v-icon>
+  <v-icon class="tbtn ptbtn" id="infobtn" @click="setTool('info')" title="get info by clicking on specific nodes">info</v-icon>
+  <v-icon class="tbtn ptbtn" id="dragbtn" @click="setTool('drag')" title="drag nodes to reposition them, drag on canvas to attain a draggable selection of nodes (click outside region to reset tool)">gesture</v-icon>
+  <v-icon class="tbtn ptbtn" id="regionexplorebtn" @click="setTool('regionexplore')" title="drag on canvas to open selection of nodes into child nodes (click and drag)">explore</v-icon>
+  <v-icon class="tbtn ptbtn" id="joinbtn" @click="setTool('join')" title="click on two open nodes to join them">border_outer</v-icon>
+  <v-icon class="tbtn ptbtn" id="resizebtn" @click="setTool('resize')" title="resize open nodes (click on node and drag). Also optimizes predecessor positions to better fit open node's rectangular region. If open node is clicked, but no drag is executed, changes the corner to which the links are attached">tab_unselected</v-icon>
   <v-spacer></v-spacer>
-  <v-icon class="tbtn" id="bcbtn" @click="randomColorize('bg')" @contextmenu="mhandler($event)" title="randomize background color">format_color_fill</v-icon>
-  <v-icon class="tbtn" id="zmbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="zoom in">zoom_in</v-icon>
-  <v-icon class="tbtn" id="lrbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="pan left">code</v-icon>
-  <v-icon class="tbtn" id="udbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="pan up">unfold_more</v-icon>
-  <v-icon class="tbtn" id='rtsbtn' @click="mhandler($event)" @contextmenu="mhandler($event)" title="rotate nodes">rotate_left</v-icon>
-  <v-icon class="tbtn" @click="home()" title="toogle initial and current zoom and pan">home</v-icon>
+  <v-icon class="tbtn" id="bcbtn" @contextmenu="randomColorize($event,'bg')" @click="mhandler($event)" title="choose/randomize background color with left/right click">format_color_fill</v-icon>
+  <v-icon class="tbtn" id="zmbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="zoom in/out with left/right click">zoom_in</v-icon>
+  <v-icon class="tbtn" id="lrbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="pan left/right with left/right click">code</v-icon>
+  <v-icon class="tbtn" id="udbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="pan down/up with left/right click">unfold_more</v-icon>
+  <v-icon class="tbtn" id='rtsbtn' @click="mhandler($event)" @contextmenu="mhandler($event)" title="rotate canvas counterclockwise/clockwise with left/right click. Selecting 'drag', 'open node', 'join nodes' or 'resize open node' tools will reset canvas rotation">rotate_left</v-icon>
+  <v-icon class="tbtn" @click="home()" @contextmenu="mhandler($event)" title="toogle initial and current zoom and pan with click">home</v-icon>
 </v-system-bar>
 <div id="renderCanvas"></div>
 </div>
@@ -236,13 +237,13 @@
     <th class="lthead">C</th>
   </tr>
   <tr v-for="(level, index) in networks.length" :id="'trl' + index">
-    <td @click="chLevel(index)" @contextmenu="mhandler($event)" :id="'tdl' + index" v-bind:class="index === curlevel ? 'highd': ''">{{ index }}</td>
+    <td @click="chLevel(index)" @contextmenu="mhandler($event)" :id="'tdl' + index" v-bind:class="index === curlevel ? 'highd': ''" :title="'left click to select level ' + index + ' for tools to act on. Right click to reinitialize visualization in level ' + index">{{ index }}</td>
     <td>{{ nvis_[index] ? nvis_[index][0] : 0 }} / {{networks[index].fltwo}}</td>
-    <td @contextmenu="cgShape($event, index, 0)" @click="uColor(index, 0)" :id="'tcl0_' + index"></td>
+    <td @contextmenu="cgShape($event, index, 0)" @click="uColor(index, 0)" :id="'tcl0_' + index" title="left click to change color, right click to change shape"></td>
     <td>{{ nvis_[index] ? nvis_[index][1] : 0 }} / {{networks[index].sources.length - networks[index].fltwo}}</td>
-    <td @contextmenu="cgShape($event, index, 1)" @click="uColor(index, 1)" :id="'tcl1_' + index"></td>
+    <td @contextmenu="cgShape($event, index, 1)" @click="uColor(index, 1)" :id="'tcl1_' + index" title="left click to change color, right click to change shape"></td>
     <td>{{ nlinks[index] ? nlinks[index] : 0 }} / {{networks[index].links.length}}</td>
-    <td @contextmenu="showHideLinks($event, index)"@click="uColor(index, 2)" :id="'tcli_' + index"></td>
+    <td @contextmenu="showHideLinks($event, index)"@click="uColor(index, 2)" :id="'tcli_' + index" title="left click to change color, right click to show/hide"></td>
   </tr>
   <span :banana="tloaded = true"></span>
 </table>
@@ -283,7 +284,6 @@
       </no-ssr>
     </div>
           <v-spacer></v-spacer>
-
           <v-btn
             color="green darken-1"
             flat="flat"
@@ -291,7 +291,6 @@
           >
             layer 1
           </v-btn>
-
           <v-btn
             color="green darken-1"
             flat="flat"
@@ -1256,7 +1255,8 @@ export default {
       })
       this.curlevel = level
     },
-    randomColorize (item) {
+    randomColorize (e, item) {
+      e.preventDefault()
       if (item === 'bg') {
         this.app_.renderer.backgroundColor = Math.random() * 0xFFFFFF
       }
@@ -1449,9 +1449,9 @@ export default {
           this.pan('u')
       } else if (e.srcElement.id === 'rtsbtn') {
         if (e.button === 0)
-          this.rotateScene('+')
-        else
           this.rotateScene('-')
+        else
+          this.rotateScene('+')
       } else if (e.srcElement.id === 'lwtbtn') {
         if (e.button === 0)
           this.cgLineThickness('+')
