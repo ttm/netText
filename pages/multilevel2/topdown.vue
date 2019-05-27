@@ -249,20 +249,6 @@
 </table>
 </v-flex>
 </v-layout>
-    <v-snackbar
-      v-model="snackbar"
-      :multi-line="true"
-      :timeout="6000"
-    >
-      {{ snacktext }}
-      <v-btn
-        color="pink"
-        flat
-        @click="snackbar = false"
-      >
-        Close
-      </v-btn>
-    </v-snackbar>
 <v-footer class="pa-3">
   <v-spacer></v-spacer>
   <div>&copy;{{ new Date().getFullYear() }} - VICG-ICMC/USP, FAPESP 2017/05838-3</div>
@@ -366,11 +352,9 @@ function releaseNode () {
 function clickNode (event) {
   __this.mnode = this
   if (__this.tool === 'info') {
-    // __this.snacktext = __this.networks[this.level].ndata[this.id].mdata
-    // __this.snackbar = true
     let s = JSON.stringify(__this.networks[this.level].ndata[this.id].mdata)
     s = s.slice(1, s.length - 1).replace(/"/g,'').replace(/,/g, ', ')
-    __this.iinfo.textContent += s + '\n'
+    __this.iinfo.textContent += '\n' + s
     __this.iinfo.scrollTop = __this.iinfo.scrollHeight
   } else if (__this.tool === 'explore'){
     __this.showChildren(this)
@@ -388,8 +372,8 @@ function clickNode (event) {
     this.oldy = this.y
     __this.selectednode = this
   } else {
-    __this.snacktext = 'select a tool to interact with network'
-    __this.snackbar = true
+    __this.iinfo.textContent += '\nselect a tool to interact with network'
+    __this.iinfo.scrollTop = __this.iinfo.scrollHeight
   }
 }
 
@@ -452,8 +436,6 @@ export default {
         'v-bipartite',
       ],
       layout: 'spring',
-      snackbar: false,
-      snacktext: 'msnacktext',
       curlevel: 0,
       loaded: false,
       mapping: false,
@@ -836,7 +818,7 @@ export default {
         e.style.border = '2px solid #0000ff'
         e.style.margin = '2px'
         e.style.padding = '2px'
-        e.textContent = '~ info on demand ~\n'
+        e.textContent = '~ info on demand ~'
         this.iinfo = e
         $('#bimltab').find('*').attr('disabled', 'disabled').addClass('v-btn--disabled')
       })
@@ -1220,15 +1202,6 @@ export default {
         b.style.backgroundColor = "gray"
       } else {
         this.tool = toolname
-        this.snacktext = {
-          info: 'click on nodes for info',
-          drag: 'click and hold on node to drag',
-          explore: 'click on nodes to show their child nodes',
-          join: 'click on two open metanodes to join them',
-          regionexplore: 'click and drag to open all nodes in region',
-          resize: 'click on open node and drag resize it',
-        }[toolname]
-        this.snackbar = true
         Array(...document.getElementsByClassName('ptbtn')).forEach( e => { e.style.backgroundColor = 'gray' })
         b.style.backgroundColor = "black"
       }
@@ -1240,13 +1213,9 @@ export default {
         level = this.curlevel - 1
       if (level === this.networks.length) {
         level--
-        this.snacktext = 'coarsest level reached'
-        this.snackbar = true
       }
       if (level === -1) {
         level++
-        this.snacktext = 'original network reached'
-        this.snackbar = true
       }
       this.nodes.forEach( (nodes_, level_) => {
         nodes_.forEach( n => {
@@ -1631,8 +1600,8 @@ export default {
 
       this.placeOnCanvas(children, links, level, dx*2, dy*2, c)
 
-      this.snacktext = 'shown children ' + children + ' at level ' + level
-      this.snackbar = true
+      this.iinfo.textContent += '\nshown children ' + children + ' at level ' + level
+      this.iinfo.scrollTop = this.iinfo.scrollHeight
     },
     joinManyNodes (nodes) {
       console.log('node ids', nodes.map( i => i.id ))
@@ -1712,8 +1681,8 @@ export default {
     joinMetanodes (node) {
       let MLdata = this.networks[node.level].ndata[node.id].MLdata
       if (!MLdata.isopen) {
-        this.snacktext = 'please choose an opened metanode'
-        this.snackbar = true
+        this.iinfo.textContent += '\nplease choose an opened metanode'
+        this.iinfo.scrollTop = this.iinfo.scrollHeight
         return
       }
       if (!this.specified_metanode) {
@@ -1743,8 +1712,8 @@ export default {
     joinMetanodes_ (node) {
       let MLdata = this.networks[node.level].ndata[node.id].MLdata
       if (!MLdata.isopen) {
-        this.snacktext = 'please choose an opened metanode'
-        this.snackbar = true
+        this.iinfo.textContent += '\nplease choose an opened metanode'
+        this.iinfo.scrollTop = this.iinfo.scrollHeight
         return
       }
       if (!this.specified_metanode) {
