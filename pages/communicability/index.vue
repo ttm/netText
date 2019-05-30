@@ -351,6 +351,7 @@ export default {
         let pos1_ = new BABYLON.Vector3(pos1[0], pos1[1], pos1[2])
         let pos2_ = new BABYLON.Vector3(pos2[0], pos2[1], pos2[2])
         var line = BABYLON.MeshBuilder.CreateLines('line' + i, {points: [pos1_, pos2_], updatable: 1}, this.scene)
+        line.color = BABYLON.Color3.Black()
         lines.push(line)
       }
       this.spheres = spheres
@@ -435,6 +436,7 @@ export default {
       this.engine = new BABYLON.Engine(this.canvas, true) // Generate the BABYLON 3D engine
 
       this.scene = new BABYLON.Scene(this.engine)
+      this.scene.clearColor = BABYLON.Color3.White();
       var camera = new BABYLON.ArcRotateCamera('Camera', Math.PI / 2, Math.PI / 2, 2, BABYLON.Vector3.Zero(), this.scene)
       camera.attachControl(this.canvas, true)
       camera.wheelPrecision = 100
