@@ -321,9 +321,9 @@ export default {
         }
         this.draw_net = true
         this.network_data = network
-        this.plotData()
         let ev = network.ev
         this.nclusters = this.ncluin + ev.indexOf(Math.max(...ev))
+        this.plotData()
       })
     },
     plotData () {
@@ -341,7 +341,7 @@ export default {
           node.push(0)
         let sphere = BABYLON.MeshBuilder.CreateSphere('sphere' + i, {diameter: 0.03 + this.diameter, updatable: 1}, this.scene)
         sphere.position = new BABYLON.Vector3(node[0], node[1], node[2])
-        sphere.material = this.materials[this.network_data.clusts[0][i]]
+        sphere.material = this.materials[this.network_data.clusts[this.nclusters - this.ncluin][i]]
         // console.log(this.materials[this.network_data.clusts[0][i]], this.network_data.clusts[0][i])
         spheres.push(sphere)
       }
