@@ -193,7 +193,7 @@ export default {
       mangle: 10,
       dimensions: 3,
       inits: 3,
-      iters: 1000,
+      iters: 100,
       nsize:1,
       diameter: 0.03,
       dimredtype: 'MDS',
