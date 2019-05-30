@@ -1,6 +1,6 @@
 <template>
 <span>
-  <h1><span title="Visualization of (large) Bipartite Networks assisted by Multilevel Strategies"> MlBiNetViz</span>
+  <h1><span title="Visualization of (large) Bipartite Networks assisted by Multilevel Strategies"> MlBiNetVis</span>
     <nuxt-link to="/multilevel2/about">
       <i class="fa fa-question-circle mhelp" style="font-size:28px;color:blue"></i>
     </nuxt-link>

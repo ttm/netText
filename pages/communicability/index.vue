@@ -21,7 +21,7 @@
     </v-list-tile>
   </v-list>
 </v-menu>
-<div style="border:1px;border-style:solid;padding:5px">Communicability settings
+<div style="border:1px;border-style:solid;padding:5px">Communicability calculation settings
   <v-slider
     v-model="temp"
     thumb-label="always"
@@ -36,6 +36,24 @@
     :max="1000"
     :min="1"
     :label="'minimum angle x 10e-6'"
+    :step="1"
+  ></v-slider>
+</div><br/>
+<div style="border:1px;border-style:solid;padding:5px">Community detection settings
+  <v-slider
+    v-model="ncluin"
+    thumb-label="always"
+    :max="10"
+    :min="1"
+    :label="'min number of communities'"
+    :step="1"
+  ></v-slider>
+  <v-slider
+    v-model="nclu"
+    thumb-label="always"
+    :max="100"
+    :min="2"
+    :label="'max number of communities'"
     :step="1"
   ></v-slider>
 </div><br/>
@@ -94,6 +112,27 @@
       <v-icon dark>add</v-icon>
     </v-btn>
   </div>
+  <v-slider
+    v-model="lopacity"
+    thumb-label="always"
+    :max="1"
+    :min="0"
+    :label="'line opacity'"
+    :step="0.01"
+    v-if="loaded"
+    @change="cgLineTrans"
+  ></v-slider>
+  <v-slider
+    v-model="nclusters"
+    thumb-label="always"
+    :max="nclu"
+    :min="ncluin"
+    :label="'number of clusters'"
+    :step="1"
+    v-if="loaded"
+    @change="cgNClu"
+    always-dirty
+  ></v-slider>
 </div>
 <v-layout row ml-4>
 <v-btn
@@ -114,6 +153,8 @@
 </textarea>
 <textarea id="statsbox2">
 </textarea>
+<textarea id="statsbox3">
+</textarea>
 </v-layout>
 </span>
 </template>
@@ -122,6 +163,17 @@
 import * as BABYLON from 'babylonjs'
 import $ from 'jquery'
 import * as d3 from 'd3'
+
+const ColourValues = [
+  "0000FF", "FFFF00", "FF00FF", "00FFFF",
+  "800000", "008000", "000080", "808000", "800080", "008080", "808080",
+  "C00000", "00C000", "0000C0", "C0C000", "C000C0", "00C0C0", "C0C0C0",
+  "400000", "004000", "000040", "404000", "400040", "004040", "404040",
+  "200000", "002000", "000020", "202000", "200020", "002020", "202020",
+  "600000", "006000", "000060", "606000", "600060", "006060", "606060",
+  "A00000", "00A000", "0000A0", "A0A000", "A000A0", "00A0A0", "A0A0A0",
+  "E00000", "00E000", "0000FF", "E000E0", "00E0E0"
+]
 
 export default {
   head () {
@@ -150,7 +202,12 @@ export default {
       minIters: 1,
       scentroid: false,
       ssphere: false,
-      sspheres: false
+      sspheres: false,
+      nclu: 6,
+      ncluin: 2,
+      lopacity: 1,
+      loaded: false,
+      nclusters: 1
     }
   },
   watch: {
@@ -187,6 +244,9 @@ export default {
     },
   },
   methods: {
+    cgLineTrans () {
+       this.lines.forEach( l => l.alpha = this.lopacity )
+    },
     findNetworks () {
       this.$store.dispatch('networks/find').then(() => {
         let networks_ = this.$store.getters['networks/list']
@@ -225,6 +285,15 @@ export default {
         })
       })
     },
+    cgNClu () {
+      console.log(this.nclusters)
+      for (let i = 0; i < this.network_data.nodes.length; i++) {
+        let s = this.spheres[i]
+        s.material = this.materials[
+          this.network_data.clusts[this.nclusters - this.ncluin][i]
+        ]
+      }
+    },
     renderNetwork () {
       $.post(
         // `http://rfabbri.vicg.icmc.usp.br:5000/communicability/`,
@@ -241,7 +310,9 @@ export default {
           iters: this.iters,
           dimredtype: this.dimredtype,
           lrate: this.lrate,
-          perplexity: this.perplexity
+          perplexity: this.perplexity,
+          nclu: this.nclu,
+          ncluin: this.ncluin,
         }
       ).done( network => { 
         console.log(network)
@@ -251,11 +322,14 @@ export default {
         this.draw_net = true
         this.network_data = network
         this.plotData()
+        let ev = network.ev
+        this.nclusters = this.ncluin + ev.indexOf(Math.max(...ev))
       })
     },
     plotData () {
       if (!this.babylon_initialized) {
         this.initBabylon()
+        this.mkMaterials()
       }
       let spheres = []
       let lines = []
@@ -267,6 +341,8 @@ export default {
           node.push(0)
         let sphere = BABYLON.MeshBuilder.CreateSphere('sphere' + i, {diameter: 0.03 + this.diameter, updatable: 1}, this.scene)
         sphere.position = new BABYLON.Vector3(node[0], node[1], node[2])
+        sphere.material = this.materials[this.network_data.clusts[0][i]]
+        // console.log(this.materials[this.network_data.clusts[0][i]], this.network_data.clusts[0][i])
         spheres.push(sphere)
       }
       for (let i = 0; i < links.length; i++) {
@@ -281,6 +357,7 @@ export default {
       this.lines = lines
       this.mkCentroid()
       this.mkBestSphere()
+      this.loaded = true
     },
     mkCentroid () {
       let c = this.network_data.nodes.reduce( (c, i) => c = [c[0]+i[0], c[1]+i[1], c[2]+i[2]], [0,0,0])
@@ -322,7 +399,7 @@ export default {
     },
     placeStats () {
       let a = document.getElementById('statsbox')
-      a.style.width = '40%'
+      a.style.width = '30%'
       a.style.height = '100px'
       // a.innerHTML = JSON.stringify(this.network_data.sdata)
       let s = this.network_data.sdata
@@ -332,7 +409,7 @@ export default {
       a.innerHTML += '\ndistance mean: ' + s.mean.toFixed(3)
       a.innerHTML += '\ndistance std: ' + s.std.toFixed(3)
       a = document.getElementById('statsbox2')
-      a.style.width = '40%'
+      a.style.width = '30%'
       a.style.height = '100px'
       a.innerHTML += '~~ centroid stats ~~'
       let c = this.centroid
@@ -345,6 +422,13 @@ export default {
         + (c[0][1] - s.c[1])**2
       ) ** 0.5
       a.innerHTML += '\ndistance to best sphere centre: ' + d.toFixed(3)
+      a = document.getElementById('statsbox3')
+      a.style.width = '30%'
+      a.style.height = '100px'
+      a.innerHTML += '~~ community stats ~~'
+      this.network_data.ev.forEach( (e, i) => {
+        a.innerHTML += '\nclust ' + (i + this.ncluin) + ': ' + e.toFixed(3)
+      })
     },
     initBabylon () {
       this.canvas = document.getElementById('renderCanvas') // Get the canvas element
@@ -363,6 +447,24 @@ export default {
         selff.engine.resize()
       })
     },
+    mkMaterials () {
+      let materials = []
+      for (let i = 0; i < this.nclu; i++) {
+        let material = new BABYLON.StandardMaterial("cMaterial"+i, this.scene)
+        material.diffuseColor = new BABYLON.Color3(...this.parseColor(i))
+        // ok
+        console.log(this.parseColor(i), 'tcolor man')
+        materials.push(material)
+      }
+      this.materials = materials
+    },
+    parseColor(i) {
+      let c = ColourValues[i]
+      let r = parseInt(c.slice(0, 2), 16) / 255
+      let g = parseInt(c.slice(2, 4), 16) / 255
+      let b = parseInt(c.slice(4), 16) / 255
+      return [r, g, b]
+    },
     updateSize (val) {
       this.spheres.forEach(e => {
         e.scaling.x *= 1 + val
@@ -373,6 +475,7 @@ export default {
   },
   mounted () {
     window.__this = this
+    this.colors = ColourValues
     this.prev_size = 1
     d3.select('canvas')
       .on('mouseenter', function () {
