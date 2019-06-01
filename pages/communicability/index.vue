@@ -1,10 +1,13 @@
 <template>
 <span>
-<v-menu offset-y>
+  network: 
+<v-menu offset-y class="setstuff"
+  :disabled="loaded"
+>
   <v-btn
     slot="activator"
     color="primary"
-    dark
+    :disabled="loaded"
   >
     {{ network ? network.filename : 'Select network' }}
   </v-btn>
@@ -13,6 +16,7 @@
       v-for="(net, index) in networks_"
       :key="index"
       @click="network = net"
+      :disabled="loaded"
     >
       <v-list-tile-title color="primary">{{ net.filename }}</v-list-tile-title>
     </v-list-tile>
@@ -21,90 +25,213 @@
     </v-list-tile>
   </v-list>
 </v-menu>
-<div style="border:1px;border-style:solid;padding:5px">Communicability calculation settings
+<v-layout row>
+<v-card flat dark style="padding:20px;width:800px;">
+Communicability
+<v-layout row>
+  <v-flex class="px-3">
   <v-slider
     v-model="temp"
-    thumb-label="always"
     :max="10"
     :min="0"
     :label="'temperature'"
     :step="0.01"
+    class="setstuff"
+    :disabled="loaded"
   ></v-slider>
+  </v-flex>
+  <v-flex shrink style="width: 50px">
+  <v-text-field
+    v-model="temp"
+    class="mt-0 setstuff"
+    hide-details
+    single-line
+    type="number"
+    :disabled="loaded"
+  ></v-text-field>
+  </v-flex>
+</v-layout>
+<v-layout row>
+  <v-flex class="px-3">
   <v-slider
     v-model="mangle"
-    thumb-label="always"
     :max="1000"
     :min="1"
     :label="'minimum angle x 10e-6'"
     :step="1"
+    class="setstuff"
+    :disabled="loaded"
   ></v-slider>
-</div><br/>
-<div style="border:1px;border-style:solid;padding:5px">Community detection settings
-  <v-slider
-    v-model="ncluin"
-    thumb-label="always"
-    :max="10"
+  </v-flex>
+  <v-flex shrink style="width: 50px">
+  <v-text-field
+    v-model="mangle"
+    class="mt-0 setstuff"
+    hide-details
+    single-line
+    type="number"
+    :disabled="loaded"
+  ></v-text-field>
+  </v-flex>
+</v-layout>
+<v-layout align-center justify-start row>
+  <span style="color:rgba(255,255,255,0.7);font-size:16px;">
+    number of communities:
+  </span>
+  <v-flex shrink style="width: 50px" ml-3>
+  <v-text-field
+    v-model="nc[0]"
+    type="number"
+    :label="'min'"
+    class="setstuff"
+    :disabled="loaded"
+  ></v-text-field>
+  </v-flex>
+  <v-flex class="px-3">
+  <v-range-slider
+    v-model="nc"
+    :max="40"
     :min="1"
-    :label="'min number of communities'"
     :step="1"
-  ></v-slider>
-  <v-slider
-    v-model="nclu"
-    thumb-label="always"
-    :max="100"
-    :min="2"
-    :label="'max number of communities'"
-    :step="1"
-  ></v-slider>
-</div><br/>
-<div style="border:1px;border-style:solid;padding:5px">Dimensionality Reduction settings
-  <v-radio-group v-model="dimensions" :label="'dimensions of layout'">
+    class="setstuff"
+    :disabled="loaded"
+  ></v-range-slider>
+  </v-flex>
+  <v-flex shrink style="width: 50px">
+  <v-text-field
+    v-model="nc[1]"
+    type="number"
+    :label="'max'"
+    class="setstuff"
+    :disabled="loaded"
+  ></v-text-field>
+  </v-flex>
+</v-layout>
+</v-card>
+</v-layout>
+<v-layout row>
+<v-card flat dark style="padding:20px;width:800px;margin-top:10px;">
+Dimensionality Reduction
+<v-layout row>
+  <v-radio-group v-model="dimensions" :label="'dimensions of layout'"
+    class="setstuff"
+    :disabled="loaded"
+  >
     <v-radio :label="'2'" :value="2"></v-radio>
     <v-radio :label="'3'" :value="3"></v-radio>
   </v-radio-group>
-  <v-radio-group v-model="dimredtype" :label="'type of dim reduction'">
+  <v-radio-group v-model="dimredtype" :label="'type of dim reduction'" style="margin-left:20px;"
+    class="setstuff"
+    :disabled="loaded"
+  >
     <v-radio :label="'MDS'" :value="'MDS'"></v-radio>
     <v-radio :label="'t-SNE'" :value="'t-SNE'"></v-radio>
   </v-radio-group>
+</v-layout>
+<v-layout row>
+  <v-flex class="px-3">
   <v-slider
     v-model="iters"
-    thumb-label="always"
-    :max="10000"
+    :max="1000"
     :min="minIters"
     :label="'iterations'"
     :step="1"
+    class="setstuff"
+    :disabled="loaded"
   ></v-slider>
+  </v-flex>
+  <v-flex shrink style="width: 50px">
+  <v-text-field
+    v-model="iters"
+    class="mt-0 setstuff"
+    hide-details
+    single-line
+    type="number"
+    :disabled="loaded"
+  ></v-text-field>
+  </v-flex>
+</v-layout>
+<v-layout row
+  v-if="dimredtype === 'MDS'"
+>
+  <v-flex class="px-3">
   <v-slider
     v-model="inits"
-    thumb-label="always"
-    :max="1000"
+    :max="100"
     :min="1"
     :label="'initializations'"
     :step="1"
-    v-if="dimredtype === 'MDS'"
+    class="setstuff"
+    :disabled="loaded"
   ></v-slider>
+  </v-flex>
+  <v-flex shrink style="width: 50px">
+  <v-text-field
+    v-model="inits"
+    class="mt-0 setstuff"
+    hide-details
+    single-line
+    type="number"
+    :disabled="loaded"
+  ></v-text-field>
+  </v-flex>
+</v-layout>
+<v-layout row
+  v-if="dimredtype === 't-SNE'"
+>
+  <v-flex class="px-3">
   <v-slider
     v-model="perplexity"
-    thumb-label="always"
     :max="1000"
     :min="1"
     :label="'perplexity'"
     :step="1"
-    v-if="dimredtype === 't-SNE'"
+    class="setstuff"
+    :disabled="loaded"
   ></v-slider>
+  </v-flex>
+  <v-flex shrink style="width: 50px">
+  <v-text-field
+    v-model="perplexity"
+    class="mt-0 setstuff"
+    hide-details
+    single-line
+    type="number"
+    :disabled="loaded"
+  ></v-text-field>
+  </v-flex>
+</v-layout>
+<v-layout row
+  v-if="dimredtype === 't-SNE'"
+>
+  <v-flex class="px-3">
   <v-slider
     v-model="lrate"
-    thumb-label="always"
     :max="1000"
     :min="1"
     :label="'learning rate'"
     :step="1"
-    v-if="dimredtype === 't-SNE'"
+    class="setstuff"
+    :disabled="loaded"
   ></v-slider>
-</div><br/>
-<div style="border:1px;border-style:solid;padding:5px">Visualization controls
+  </v-flex>
+  <v-flex shrink style="width: 50px">
+  <v-text-field
+    v-model="lrate"
+    class="mt-0 setstuff"
+    hide-details
+    single-line
+    type="number"
+    :disabled="loaded"
+  ></v-text-field>
+  </v-flex>
+</v-layout>
+</v-card>
+</v-layout>
+<div style="border:1px;border-style:solid;padding:5px;margin-top:10px;width:800px;" v-show="loaded">Visualization controls
+  <v-layout row>
   <div>
-    node sizes
+    node size
     <v-btn fab dark small color="primary" @click="updateSize(-0.1)">
       <v-icon dark>remove</v-icon>
     </v-btn>
@@ -112,6 +239,10 @@
       <v-icon dark>add</v-icon>
     </v-btn>
   </div>
+  <v-checkbox v-model="scentroid" label="show centroid"> </v-checkbox>
+  <v-checkbox v-model="ssphere" label="show sphere centre"> </v-checkbox>
+  <v-checkbox v-model="sspheres" label="show sphere surface"> </v-checkbox>
+  </v-layout>
   <v-slider
     v-model="lopacity"
     thumb-label="always"
@@ -140,12 +271,10 @@
   color="green lighten-2"
   dark
   @click="renderNetwork()"
+  v-show="!loaded"
 >
   Render network
 </v-btn>
-  <v-checkbox v-model="scentroid" label="show centroid"> </v-checkbox>
-  <v-checkbox v-model="ssphere" label="show sphere centre"> </v-checkbox>
-  <v-checkbox v-model="sspheres" label="show sphere surface"> </v-checkbox>
 </v-layout>
 <canvas id="renderCanvas" touch-action="none"></canvas>
 <v-layout row ml-4>
@@ -205,7 +334,8 @@ export default {
       sspheres: false,
       nclu: 6,
       ncluin: 2,
-      lopacity: 1,
+      nc: [2, 6],
+      lopacity: 0.4,
       loaded: false,
       nclusters: 1
     }
@@ -213,7 +343,7 @@ export default {
   watch: {
     dimredtype: function (val) {
       if (val === 't-SNE') {
-        this.minIters = 250
+        this.minIters = 50
       } else {
         this.minIters = 1
       }
@@ -352,6 +482,7 @@ export default {
         let pos2_ = new BABYLON.Vector3(pos2[0], pos2[1], pos2[2])
         var line = BABYLON.MeshBuilder.CreateLines('line' + i, {points: [pos1_, pos2_], updatable: 1}, this.scene)
         line.color = BABYLON.Color3.Black()
+        line.alpha = this.lopacity
         lines.push(line)
       }
       this.spheres = spheres
@@ -495,9 +626,10 @@ export default {
 #renderCanvas {
   /* width: 100%; */
   /* height: 100%; */
-  width:  100%;
+  width:  800px;
   height: 100%;
   touch-action: none;
+  border: 1px solid;
 }
 html, body {
   overflow: scroll;
@@ -505,5 +637,8 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
+}
+.v-messages {
+  min-height: 0px;
 }
 </style>
