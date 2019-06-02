@@ -110,7 +110,7 @@ Communicability
 </v-card>
 </v-layout>
 <v-layout row>
-<v-card flat dark style="padding:20px;width:800px;margin-top:10px;">
+<v-card flat dark style="padding:20px;width:800px;margin-top:10px;margin-bottom:10px;">
 Dimensionality Reduction
 <v-layout row>
   <v-radio-group v-model="dimensions" :label="'dimensions of layout'"
@@ -228,42 +228,6 @@ Dimensionality Reduction
 </v-layout>
 </v-card>
 </v-layout>
-<div style="border:1px;border-style:solid;padding:5px;margin-top:10px;width:800px;" v-show="loaded">Visualization controls
-  <v-layout row>
-  <div>
-    node size
-    <v-btn fab dark small color="primary" @click="updateSize(-0.1)">
-      <v-icon dark>remove</v-icon>
-    </v-btn>
-    <v-btn fab dark small color="primary" @click="updateSize(0.1)">
-      <v-icon dark>add</v-icon>
-    </v-btn>
-  </div>
-  <v-checkbox v-model="scentroid" label="show centroid"> </v-checkbox>
-  <v-checkbox v-model="ssphere" label="show sphere centre"> </v-checkbox>
-  <v-checkbox v-model="sspheres" label="show sphere surface"> </v-checkbox>
-  </v-layout>
-  <v-slider
-    v-model="lopacity"
-    thumb-label="always"
-    :max="1"
-    :min="0"
-    :label="'line opacity'"
-    :step="0.01"
-    v-if="loaded"
-    @change="cgLineTrans"
-  ></v-slider>
-  <v-slider
-    v-model="nclusters"
-    thumb-label="always"
-    :max="nclu"
-    :min="ncluin"
-    :label="'number of clusters'"
-    :step="1"
-    v-if="loaded"
-    always-dirty
-  ></v-slider>
-</div>
 <v-layout row ml-4>
 <v-btn
   slot="activator"
@@ -281,25 +245,21 @@ Dimensionality Reduction
 <v-system-bar id="toolbar" window dark v-show="loaded">
   <v-spacer></v-spacer>
   <v-icon class="tbtn" id='rzbtn' @contextmenu="mhandler($event)" @click="mhandler" title="increase/decrease node size with left/right click">control_camera</v-icon>
-  <v-icon class="tbtn" id="ppbtn" @contextmenu="mhandler($event)" @click="mhandler($event)" title="emphasize node size/opacity proportionality to degree with left/right click">insert_chart</v-icon>
-  <v-icon class="tbtn" @click="restoreNodeSizes()" title="reset node size/opacity proportionality with left/right click">undo</v-icon>
-  <v-icon class="tbtn" id='vzbtn' @contextmenu="mhandler($event)" @click="mhandler($event)" title="increase/decrease node transparency with left/right click">hdr_strong</v-icon>
+  <v-icon class="tbtn" id="ppbtn" @contextmenu="mhandler($event)" @click="mhandler($event)" title="emphasize node size proportionality to degree">insert_chart</v-icon>
+  <v-icon class="tbtn" id="rbtn" @contextmenu="mhandler($event)" @click="mhandler($event)" title="reset node size proportionality">undo</v-icon>
+  <v-icon class="tbtn" id='trbtn' @contextmenu="mhandler($event)" @click="mhandler($event)" title="increase/decrease node transparency with left/right click">hdr_strong</v-icon>
   <v-icon class="tbtn" id="lvzbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="increase/decrease link transparency with left/right click">power_input</v-icon>
   <v-spacer></v-spacer>
-  <v-icon class="tbtn ptbtn" id="infobtn" @click="setTool('info')" title="show centroid">info</v-icon>
-  <v-icon class="tbtn ptbtn" id="dragbtn" @click="setTool('drag')" title="show sphere center">gesture</v-icon>
-  <v-icon class="tbtn ptbtn" id="regionexplorebtn" @click="setTool('regionexplore')" title="show sphere surface">explore</v-icon>
-  <v-icon class="tbtn" @click="home()" @contextmenu="mhandler($event)" title="toogle initial and current zoom and pan with click">home</v-icon>
+  <v-icon class="tbtn ptbtn" id="cbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="show centroid">explore</v-icon>
+  <v-icon class="tbtn ptbtn" id="sbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="show sphere center">radio_button_checked</v-icon>
+  <v-icon class="tbtn ptbtn" id="ssbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="show sphere surface">panorama_fish_eye</v-icon>
+  <v-icon class="tbtn" id="hobtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="toogle initial and current zoom and pan with click">home</v-icon>
   <v-spacer></v-spacer>
 </v-system-bar>
 <canvas id="renderCanvas" touch-action="none"></canvas>
 <v-layout row ml-4>
-<textarea id="statsbox">
-</textarea>
-<textarea id="statsbox2">
-</textarea>
-<textarea id="statsbox3">
-</textarea>
+<textarea id="statsbox" v-show="loaded"></textarea>
+<textarea id="statsbox2" v-show="loaded"></textarea>
 </v-layout>
 </v-flex>
 </v-flex>
@@ -308,7 +268,6 @@ Dimensionality Reduction
   <tr>
     <th class="lthead">Cluster</th>
     <th class="lthead">Show</th>
-    <th class="lthead">Edit</th>
     <th class="lthead">Hue</th>
     <th class="lthead">Size</th>
     <th class="lthead">Silhouette</th>
@@ -316,7 +275,6 @@ Dimensionality Reduction
   <tr v-for="(clu, index) in nclu" :id="'trc' + index">
     <td class="cltd" style="text-align:center">{{ index + 1}}</td>
     <td v-bind:class="showClass(index)" v-bind:id="'std' + index" @click="cgNClu(index)"></td>
-    <td v-bind:id="'etd' + index" v-bind:class="curclust === index ? 'highd2' : 0" @click="cgCurClust(index)"></td>
     <td v-bind:id="'htd' + index" @click="cgColor(index)"></td>
     <td v-bind:id="'ntd' + index"></td>
     <td v-bind:id="'ftd' + index"></td>
@@ -459,7 +417,63 @@ export default {
           this.updateSize(0.1)
         else
           this.updateSize(-0.1)
+      } else if (e.srcElement.id === 'cbtn') {
+        this.scentroid = !this.scentroid
+      } else if (e.srcElement.id === 'sbtn') {
+        this.ssphere = !this.ssphere
+      } else if (e.srcElement.id === 'ssbtn') {
+        this.sspheres = !this.sspheres
+      } else if (e.srcElement.id === 'ppbtn') {
+        this.ppNodes()
+      } else if (e.srcElement.id === 'rbtn') {
+        this.rNodes()
+      } else if (e.srcElement.id === 'trbtn') {
+        if (e.button === 0)
+          this.transNodes(-0.1)
+        else
+          this.transNodes(0.1)
+      } else if (e.srcElement.id === 'lvzbtn') {
+        if (e.button === 0)
+          this.transLinks(-0.1)
+        else
+          this.transLinks(0.1)
+      } else if (e.srcElement.id === 'hobtn') {
+        this.getHome()
       }
+    },
+    rNodes () {
+      this.spheres.forEach( s => {
+        s.scaling.x = 1
+        s.scaling.y = 1
+        s.scaling.z = 1
+      })
+    },
+    transLinks (inc) {
+      let t = this.lines[0].alpha
+      if ( Math.abs(t) < 0.01 && inc < 0)
+        return
+      if (Math.abs(t - 1) < 0.01 && inc > 0)
+        return
+      this.lines.forEach( l => {
+        l.alpha += inc
+      })
+    },
+    transNodes (inc) {
+      let t = this.materials[0].alpha
+      if ( Math.abs(t) < 0.01 && inc < 0)
+        return
+      if (Math.abs(t - 1) < 0.01 && inc > 0)
+        return
+      this.materials.forEach( m => {
+        m.alpha += inc
+      })
+    },
+    ppNodes () {
+      this.spheres.forEach( s => {
+        s.scaling.x *= 0.2 + 1.3 * (s.degree + 3) / (this.maxdegree + 3)
+        s.scaling.y *= 0.2 + 1.3 * (s.degree + 3) / (this.maxdegree + 3)
+        s.scaling.z *= 0.2 + 1.3 * (s.degree + 3) / (this.maxdegree + 3)
+      })
     },
     cgLineTrans () {
        this.lines.forEach( l => l.alpha = this.lopacity )
@@ -571,9 +585,12 @@ export default {
         let sphere = BABYLON.MeshBuilder.CreateSphere('sphere' + i, {diameter: 0.03 + this.diameter, updatable: 1}, this.scene)
         sphere.position = new BABYLON.Vector3(node[0], node[1], node[2])
         sphere.material = this.materials[this.network_data.clusts[this.nclusters - this.ncluin][i]]
+        sphere.degree = 0
         spheres.push(sphere)
       }
       for (let i = 0; i < links.length; i++) {
+        spheres[links[i][0]].degree++
+        spheres[links[i][1]].degree++
         let pos1 = nodes[links[i][0]]
         let pos2 = nodes[links[i][1]]
         let pos1_ = new BABYLON.Vector3(pos1[0], pos1[1], pos1[2])
@@ -589,6 +606,7 @@ export default {
       this.mkBestSphere()
       this.loaded = true
       this.cgNClu(this.nclusters - 1)
+      this.maxdegree = Math.max(...spheres.map(s => s.degree))
     },
     mkCentroid () {
       let c = this.network_data.nodes.reduce( (c, i) => c = [c[0]+i[0], c[1]+i[1], c[2]+i[2]], [0,0,0])
@@ -630,7 +648,7 @@ export default {
     },
     placeStats () {
       let a = document.getElementById('statsbox')
-      a.style.width = '30%'
+      a.style.width = '40%'
       a.style.height = '100px'
       // a.innerHTML = JSON.stringify(this.network_data.sdata)
       let s = this.network_data.sdata
@@ -640,7 +658,7 @@ export default {
       a.innerHTML += '\ndistance mean: ' + s.mean.toFixed(3)
       a.innerHTML += '\ndistance std: ' + s.std.toFixed(3)
       a = document.getElementById('statsbox2')
-      a.style.width = '30%'
+      a.style.width = '40%'
       a.style.height = '100px'
       a.innerHTML += '~~ centroid stats ~~'
       let c = this.centroid
@@ -653,13 +671,6 @@ export default {
         + (c[0][1] - s.c[1])**2
       ) ** 0.5
       a.innerHTML += '\ndistance to best sphere centre: ' + d.toFixed(3)
-      a = document.getElementById('statsbox3')
-      a.style.width = '30%'
-      a.style.height = '100px'
-      a.innerHTML += '~~ community stats ~~'
-      this.network_data.ev.forEach( (e, i) => {
-        a.innerHTML += '\nclust ' + (i + this.ncluin) + ': ' + e.toFixed(3)
-      })
     },
     cgColor (index) {
       this.cindex = index
@@ -683,6 +694,8 @@ export default {
       var camera = new BABYLON.ArcRotateCamera('Camera', Math.PI / 2, Math.PI / 2, 2, BABYLON.Vector3.Zero(), this.scene)
       camera.attachControl(this.canvas, true)
       camera.wheelPrecision = 100
+      this.ipos = [camera.beta, camera.alpha, camera.radius]
+      this.camera = camera
       new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(0, 1, 0), this.scene)
       let selff = this
       this.engine.runRenderLoop(function () {
@@ -691,6 +704,13 @@ export default {
       window.addEventListener('resize', function () {
         selff.engine.resize()
       })
+    },
+    getHome () {
+      let position0 = new BABYLON.Vector3(0,0,0)
+      this.camera.setTarget(position0)
+      this.camera.beta = this.ipos[0]
+      this.camera.alpha = this.ipos[1]
+      this.camera.radius = this.ipos[2]
     },
     mkMaterials () {
       let materials = []
@@ -709,9 +729,6 @@ export default {
         }
       }
       this.materials = materials
-    },
-    cgCurClust (index) {
-      this.curclust = index
     },
     parseColor(c) {
       let r = parseInt(c.slice(0, 2), 16) / 255
@@ -793,5 +810,12 @@ html, body {
 }
 .blockd {
   background-color: black;
+}
+#statsbox2 {
+  margin-left: 20px;
+  border: 1px solid;
+}
+#statsbox {
+  border: 1px solid;
 }
 </style>
