@@ -261,7 +261,6 @@ Dimensionality Reduction
     :label="'number of clusters'"
     :step="1"
     v-if="loaded"
-    @change="cgNClu"
     always-dirty
   ></v-slider>
 </div>
@@ -276,6 +275,23 @@ Dimensionality Reduction
   Render network
 </v-btn>
 </v-layout>
+<div>
+<v-layout row>
+<v-flex>
+<v-system-bar id="toolbar" window dark v-show="loaded">
+  <v-spacer></v-spacer>
+  <v-icon class="tbtn" id='rzbtn' @contextmenu="mhandler($event)" @click="mhandler" title="increase/decrease node size with left/right click">control_camera</v-icon>
+  <v-icon class="tbtn" id="ppbtn" @contextmenu="mhandler($event)" @click="mhandler($event)" title="emphasize node size/opacity proportionality to degree with left/right click">insert_chart</v-icon>
+  <v-icon class="tbtn" @click="restoreNodeSizes()" title="reset node size/opacity proportionality with left/right click">undo</v-icon>
+  <v-icon class="tbtn" id='vzbtn' @contextmenu="mhandler($event)" @click="mhandler($event)" title="increase/decrease node transparency with left/right click">hdr_strong</v-icon>
+  <v-icon class="tbtn" id="lvzbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="increase/decrease link transparency with left/right click">power_input</v-icon>
+  <v-spacer></v-spacer>
+  <v-icon class="tbtn ptbtn" id="infobtn" @click="setTool('info')" title="show centroid">info</v-icon>
+  <v-icon class="tbtn ptbtn" id="dragbtn" @click="setTool('drag')" title="show sphere center">gesture</v-icon>
+  <v-icon class="tbtn ptbtn" id="regionexplorebtn" @click="setTool('regionexplore')" title="show sphere surface">explore</v-icon>
+  <v-icon class="tbtn" @click="home()" @contextmenu="mhandler($event)" title="toogle initial and current zoom and pan with click">home</v-icon>
+  <v-spacer></v-spacer>
+</v-system-bar>
 <canvas id="renderCanvas" touch-action="none"></canvas>
 <v-layout row ml-4>
 <textarea id="statsbox">
@@ -285,6 +301,40 @@ Dimensionality Reduction
 <textarea id="statsbox3">
 </textarea>
 </v-layout>
+</v-flex>
+</v-flex>
+<v-flex>
+<table id='ltable' v-show="loaded">
+  <tr>
+    <th class="lthead">Cluster</th>
+    <th class="lthead">Show</th>
+    <th class="lthead">Edit</th>
+    <th class="lthead">Hue</th>
+    <th class="lthead">Size</th>
+    <th class="lthead">Silhouette</th>
+  </tr>
+  <tr v-for="(clu, index) in nclu" :id="'trc' + index">
+    <td class="cltd" style="text-align:center">{{ index + 1}}</td>
+    <td v-bind:class="showClass(index)" v-bind:id="'std' + index" @click="cgNClu(index)"></td>
+    <td v-bind:id="'etd' + index" v-bind:class="curclust === index ? 'highd2' : 0" @click="cgCurClust(index)"></td>
+    <td v-bind:id="'htd' + index" @click="cgColor(index)"></td>
+    <td v-bind:id="'ntd' + index"></td>
+    <td v-bind:id="'ftd' + index"></td>
+  </tr>
+  <span :banana="tloaded = true"></span>
+</table>
+</v-flex>
+</v-layout>
+</div>
+<v-dialog v-model="cdialog" style="text-align:center" dark max-width="225px">
+  <v-card>
+  <div style="display:inline-block">
+      <no-ssr>
+      <Chrome v-model="colortonode" style="display:inline-block"/>
+      </no-ssr>
+  </div>
+  </v-card>
+</v-dialog>
 </span>
 </template>
 
@@ -292,6 +342,7 @@ Dimensionality Reduction
 import * as BABYLON from 'babylonjs'
 import $ from 'jquery'
 import * as d3 from 'd3'
+import { Chrome } from 'vue-color'
 
 const ColourValues = [
   "0000FF", "FFFF00", "FF00FF", "00FFFF",
@@ -337,10 +388,31 @@ export default {
       nc: [2, 6],
       lopacity: 0.4,
       loaded: false,
-      nclusters: 1
+      nclusters: 1,
+      curclust: 0,
+      cdialog: false,
+      colortonode: '',
     }
   },
   watch: {
+    cdialog (val) {
+      if (!val) {
+        if (!this.colortonode.hex)
+          return
+        let c = this.colortonode.hex.slice(1)
+        if (!c)
+          return
+        let r = parseInt(c.slice(0, 2), 16) / 255
+        let g = parseInt(c.slice(2, 4), 16) / 255
+        let b = parseInt(c.slice(4), 16) / 255
+        this.materials[this.cindex].diffuseColor.r = r
+        this.materials[this.cindex].diffuseColor.g = g
+        this.materials[this.cindex].diffuseColor.b = b
+        let tid = 'htd' + this.cindex
+        document.getElementById(tid).style.backgroundColor = this.colortonode.hex
+        this.colors[this.cindex] = [r, g, b]
+      }
+    },
     dimredtype: function (val) {
       if (val === 't-SNE') {
         this.minIters = 50
@@ -374,6 +446,21 @@ export default {
     },
   },
   methods: {
+    showClass (i) {
+      let c = i === this.nclusters - 1 ? 'highd': ''
+      if (i <= this.ncluin - 2)
+        c = 'blockd'
+      return c
+    },
+    mhandler (e) {
+      e.preventDefault()
+      if (e.srcElement.id === 'rzbtn') {
+        if (e.button === 0)
+          this.updateSize(0.1)
+        else
+          this.updateSize(-0.1)
+      }
+    },
     cgLineTrans () {
        this.lines.forEach( l => l.alpha = this.lopacity )
     },
@@ -387,16 +474,13 @@ export default {
       })
     },
     upload (e) {
-      console.log('yey man', e)
       this.loading = true
       let reader = new FileReader()
       let file = e.target.files[0]
       reader.readAsText(file)
-      console.log('yey manooo', file)
       let path = e.path || (e.composedPath && e.composedPath())
       let self = this
       reader.addEventListener('load', () => {
-        console.log('yeyow man')
         this.$store.dispatch('networks/create', {
           data: reader.result,
           layer: 0,
@@ -408,20 +492,36 @@ export default {
           // user: this.user._id
           user: '5c51162561e2414b1f85ac0b'
         }).then((res) => {
-          console.log('yeyowha man')
           this.loading = false
           this.text = 'file ' + path[0].files[0].name + 'loaded. Reload page to load more files'
           this.findNetworks()
         })
       })
     },
-    cgNClu () {
-      console.log(this.nclusters)
+    cgNClu (index) {
+      if (index <= this.ncluin - 2)
+        return
+      this.nclusters = index + 1; 
       for (let i = 0; i < this.network_data.nodes.length; i++) {
         let s = this.spheres[i]
         s.material = this.materials[
           this.network_data.clusts[this.nclusters - this.ncluin][i]
         ]
+      }
+      let c = this.network_data.clusts[index - 1]
+      for (let i = 0; i < this.nclu; i++) {
+        let content
+        if (i > index) {
+          content = '---'
+        } else {
+          let count = c.reduce( (total, ii) => {
+            total += ii === i ? 1 : 0
+            return total
+          }, 0)
+          content = count
+        }
+        let el = document.getElementById('ntd' + i)
+        el.textContent = content
       }
     },
     renderNetwork () {
@@ -445,7 +545,6 @@ export default {
           ncluin: this.ncluin,
         }
       ).done( network => { 
-        console.log(network)
         if (this.draw_net) {
           console.log('destroy stuff here')
         }
@@ -472,7 +571,6 @@ export default {
         let sphere = BABYLON.MeshBuilder.CreateSphere('sphere' + i, {diameter: 0.03 + this.diameter, updatable: 1}, this.scene)
         sphere.position = new BABYLON.Vector3(node[0], node[1], node[2])
         sphere.material = this.materials[this.network_data.clusts[this.nclusters - this.ncluin][i]]
-        // console.log(this.materials[this.network_data.clusts[0][i]], this.network_data.clusts[0][i])
         spheres.push(sphere)
       }
       for (let i = 0; i < links.length; i++) {
@@ -490,6 +588,7 @@ export default {
       this.mkCentroid()
       this.mkBestSphere()
       this.loaded = true
+      this.cgNClu(this.nclusters - 1)
     },
     mkCentroid () {
       let c = this.network_data.nodes.reduce( (c, i) => c = [c[0]+i[0], c[1]+i[1], c[2]+i[2]], [0,0,0])
@@ -562,6 +661,19 @@ export default {
         a.innerHTML += '\nclust ' + (i + this.ncluin) + ': ' + e.toFixed(3)
       })
     },
+    cgColor (index) {
+      this.cindex = index
+      this.cdialog = true
+      let r = (this.colors[index][0]*255).toString(16)
+      r = (r.length == 1 ? '0' : '') + r
+      let g = (this.colors[index][1]*255).toString(16)
+      g = (g.length == 1 ? '0' : '') + g
+      let b = (this.colors[index][2]*255).toString(16)
+      b = (b.length == 1 ? '0' : '') + b
+      let h = '#' + r + g + b
+      console.log(h, 'tcolor')
+      this.colortonode = h
+    },
     initBabylon () {
       this.canvas = document.getElementById('renderCanvas') // Get the canvas element
       this.engine = new BABYLON.Engine(this.canvas, true) // Generate the BABYLON 3D engine
@@ -584,15 +696,24 @@ export default {
       let materials = []
       for (let i = 0; i < this.nclu; i++) {
         let material = new BABYLON.StandardMaterial("cMaterial"+i, this.scene)
-        material.diffuseColor = new BABYLON.Color3(...this.parseColor(i))
+        material.diffuseColor = new BABYLON.Color3(...this.colors[i])
         // ok
-        console.log(this.parseColor(i), 'tcolor man')
         materials.push(material)
+        let cel = document.getElementById('htd' + i)
+        cel.style.backgroundColor = '#' + ColourValues[i]
+        let cel2 = document.getElementById('ftd' + i)
+        if (i >= (this.ncluin - 1)) {
+          cel2.textContent = this.network_data.ev[i - this.ncluin + 1].toFixed(3)
+        } else {
+          cel2.textContent = '---'
+        }
       }
       this.materials = materials
     },
-    parseColor(i) {
-      let c = ColourValues[i]
+    cgCurClust (index) {
+      this.curclust = index
+    },
+    parseColor(c) {
       let r = parseInt(c.slice(0, 2), 16) / 255
       let g = parseInt(c.slice(2, 4), 16) / 255
       let b = parseInt(c.slice(4), 16) / 255
@@ -606,9 +727,12 @@ export default {
       })
     }
   },
+  components: {
+    Chrome,
+  },
   mounted () {
     window.__this = this
-    this.colors = ColourValues
+    this.colors = ColourValues.map(c => this.parseColor(c))
     this.prev_size = 1
     d3.select('canvas')
       .on('mouseenter', function () {
@@ -617,7 +741,6 @@ export default {
       .on('mouseout', function () {
         d3.select('body').style('overflow', 'scroll')
       })
-    console.log(process.env.flaskURL)
     this.findNetworks()
   }
 }
@@ -627,7 +750,7 @@ export default {
   /* width: 100%; */
   /* height: 100%; */
   width:  800px;
-  height: 100%;
+  height: 401px;
   touch-action: none;
   border: 1px solid;
 }
@@ -640,5 +763,35 @@ html, body {
 }
 .v-messages {
   min-height: 0px;
+}
+#toolbar {
+  width: 800px;
+}
+.cltd {
+  text-align: center;
+}
+#ltable {
+  margin:10px;
+  border-collapse: separate;
+}
+#ltable td {
+  padding-left: 8px;
+  padding-right: 4px;
+  text-align: left;
+}
+#ltable th {
+  background-color: gray;
+  padding-left: 8px;
+  padding-right: 4px;
+  text-align: left;
+}
+.highd {
+  background-color: orange;
+}
+.highd2 {
+  background-color: red;
+}
+.blockd {
+  background-color: black;
 }
 </style>

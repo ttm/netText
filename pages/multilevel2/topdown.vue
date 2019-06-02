@@ -197,7 +197,7 @@
 <v-layout row>
 </v-flex>
 <div>
-<v-system-bar id="toolbar" window dark v-show="loaded">
+<v-system-bar id="toolbar" window dark>
   <v-icon class="tbtn" id='rzbtn' @contextmenu="mhandler($event)" @click="mhandler" title="increase/decrease node size with left/right click">control_camera</v-icon>
   <v-icon class="tbtn" id="ppbtn" @contextmenu="mhandler($event)" @click="mhandler($event)" title="emphasize node size proportionality to degree/number of predecessors with left/right click">insert_chart</v-icon>
   <v-icon class="tbtn" @click="restoreNodeSizes()" title="reset node proportionality">undo</v-icon>
@@ -1968,7 +1968,6 @@ export default {
   padding-right: 4px;
   text-align: left;
 }
-
 #ltable th {
   background-color: gray;
   padding-left: 8px;
