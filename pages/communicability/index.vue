@@ -25,6 +25,7 @@
     </v-list-tile>
   </v-list>
 </v-menu>
+( nodes: {{ network ? network.nnodes : '---' }}, links: {{ network ? network.nlinks : '---' }} )
 <v-layout row>
 <v-card flat dark style="padding:20px;width:800px;">
 Communicability
@@ -491,6 +492,16 @@ export default {
         this.network = this.networks_[0]
       })
     },
+    findNetworks_ () {
+      $.post(
+        process.env.flaskURL + '/communicabilityNets/',
+        {}
+      ).done( nets => {
+        // nets[0].{filename, _id, nnodes, nlinks}
+        this.networks_ = nets
+        this.network = this.networks_[0]
+      })
+    },
     upload (e) {
       this.loading = true
       let reader = new FileReader()
@@ -512,7 +523,7 @@ export default {
         }).then((res) => {
           this.loading = false
           this.text = 'file ' + path[0].files[0].name + 'loaded. Reload page to load more files'
-          this.findNetworks()
+          this.findNetworks_()
         })
       })
     },
@@ -762,7 +773,7 @@ export default {
       .on('mouseout', function () {
         d3.select('body').style('overflow', 'scroll')
       })
-    this.findNetworks()
+    this.findNetworks_()
   }
 }
 </script>
