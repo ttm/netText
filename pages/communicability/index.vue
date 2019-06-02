@@ -11,7 +11,9 @@
   >
     {{ network ? network.filename : 'Select network' }}
   </v-btn>
-  <v-list>
+  <v-list
+    class="scroll-y"
+  >
     <v-list-tile
       v-for="(net, index) in networks_"
       :key="index"
