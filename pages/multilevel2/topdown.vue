@@ -465,8 +465,25 @@ export default {
   },
   mounted () {
     window.__this = this
-    this.initPixi()
-    this.findNetworks()
+    if (typeof PIXI === 'undefined') {
+      console.log('ok, pixi not found')
+      let ele = document.createElement("script");
+      let scriptPath = "http://" + window.location.host + "/libs/pixi5.0.2.js"
+      ele.setAttribute("src",scriptPath)
+      document.head.appendChild(ele)
+      console.log(scriptPath)
+      $.ajax({
+        url: scriptPath,
+        dataType: 'script',
+        async: true,
+        success: () => {
+          this.initPixi()
+          this.findNetworks()
+      }})
+    } else {
+      this.initPixi()
+      this.findNetworks()
+    }
   },
   methods: {
     upload (e) {
