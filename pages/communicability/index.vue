@@ -98,6 +98,7 @@ Communicability
     :step="1"
     class="setstuff"
     :disabled="loaded"
+    @change="cgNclus"
   ></v-range-slider>
   </v-flex>
   <v-flex shrink style="width: 50px">
@@ -411,6 +412,10 @@ export default {
     },
   },
   methods: {
+    cgNclus () {
+      this.ncluin = this.nc[0]
+      this.nclu = this.nc[1]
+    },
     showClass (i) {
       let c = i === this.nclusters - 1 ? 'highd': ''
       if (i <= this.ncluin - 2)
@@ -539,7 +544,7 @@ export default {
           this.network_data.clusts[this.nclusters - this.ncluin][i]
         ]
       }
-      let c = this.network_data.clusts[index - 1]
+      let c = this.network_data.clusts[this.nclusters - this.ncluin]
       for (let i = 0; i < this.nclu; i++) {
         let content
         if (i > index) {
@@ -740,7 +745,10 @@ export default {
         cel.style.backgroundColor = '#' + ColourValues[i]
         let cel2 = document.getElementById('ftd' + i)
         if (i >= (this.ncluin - 1)) {
-          cel2.textContent = this.network_data.ev[i - this.ncluin + 1].toFixed(3)
+          if (this.ncluin === 1 && i === 0)
+            cel2.textContent = '---'
+          else
+            cel2.textContent = this.network_data.ev[i - this.ncluin + 1].toFixed(3)
         } else {
           cel2.textContent = '---'
         }
