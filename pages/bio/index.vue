@@ -9,7 +9,9 @@
     >
       {{ gene ? gene : 'Select gene' }}
     </v-btn>
-    <v-list>
+    <v-list
+      class="scroll-y"
+    >
       <v-list-tile
         v-for="(gene_, index) in genes"
         :key="index"
@@ -460,8 +462,25 @@ export default {
     window.__this = this
     this.nodecolors = ColourValues.map( c => parseInt(c, 16) )
     this.mkAuxData()
-    this.initPixi()
-    this.getGenes()
+    if (typeof PIXI === 'undefined') {
+      console.log('ok, pixi not found')
+      let ele = document.createElement("script");
+      let scriptPath = "http://" + window.location.host + "/libs/pixi5.0.2.js"
+      ele.setAttribute("src",scriptPath)
+      document.head.appendChild(ele)
+      console.log(scriptPath)
+      $.ajax({
+        url: scriptPath,
+        dataType: 'script',
+        async: true,
+        success: () => {
+          this.initPixi()
+          this.getGenes()
+      }})
+    } else {
+      this.initPixi()
+      this.getGenes()
+    }
   },
 }
 </script>
@@ -476,5 +495,9 @@ export default {
   }
   #geninfo {
     border: 1px solid;
+  }
+  .scroll-y {
+    max-height: 400px;
+    overflow: auto;
   }
 </style>
