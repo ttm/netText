@@ -216,9 +216,9 @@ export default {
       const node = new PIXI.Graphics()
       node.gene = this.gene
       node.generation = 0
-      node.lineStyle(1, 0x0000FF)
+      node.lineStyle(4, 0x888888)
       node.beginFill(0xFFFFFF)
-      node.drawCircle( 0, 0, 10 )
+      node.drawEllipse( 0, 0, 12, 7 )
       node.endFill()
       node.tint = this.nodecolors[0]
       node.interactive = true
@@ -229,9 +229,6 @@ export default {
         .on('pointerover', hoverNode )
         .on('pointerout', outNode )
         .on('pointerdown', clickNode )
-      //   .on('pointerup', releaseNode)
-      //   .on('pointerupoutside', releaseNode)
-      //   .on('pointermove', moveNode)
       this.nodes.push(node)
       this.getGeneData(this.gene)
       this.generations[0] = [this.gene]
@@ -252,9 +249,9 @@ export default {
           const node = new PIXI.Graphics()
           node.gene = g
           node.generation = generation
-          node.lineStyle(1, 0x0000FF)
+          node.lineStyle(4, 0x888888)
           node.beginFill(0xFFFFFF)
-          node.drawCircle( 0, 0, 10 )
+          node.drawEllipse( 0, 0, 12, 7 )
           node.x = r*Math.cos(a)
           node.y = r*Math.sin(a)
           node.endFill()
@@ -396,6 +393,7 @@ export default {
         },
       ).done( genes => {
         this.genes = genes
+        this.gene = genes[0]
       })
     },
     initPixi () {
