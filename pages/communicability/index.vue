@@ -237,9 +237,9 @@ Dimensionality Reduction
   color="green lighten-2"
   dark
   @click="renderNetwork()"
-  v-show="!loaded"
+  v-show="!loaded && network"
 >
-  Render network
+  render network
 </v-btn>
 </v-layout>
 <div>
@@ -256,7 +256,7 @@ Dimensionality Reduction
   <v-icon class="tbtn ptbtn" id="cbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="show centroid">explore</v-icon>
   <v-icon class="tbtn ptbtn" id="sbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="show sphere center">radio_button_checked</v-icon>
   <v-icon class="tbtn ptbtn" id="ssbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="show sphere surface">panorama_fish_eye</v-icon>
-  <v-icon class="tbtn" id="hobtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="toogle initial and current zoom and pan with click">home</v-icon>
+  <v-icon class="tbtn" id="hobtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="recover initial position">home</v-icon>
   <v-spacer></v-spacer>
 </v-system-bar>
 <canvas id="renderCanvas" touch-action="none"></canvas>
@@ -709,7 +709,7 @@ export default {
       this.scene = new BABYLON.Scene(this.engine)
       this.scene.clearColor = BABYLON.Color3.White();
       var camera = new BABYLON.ArcRotateCamera('Camera', Math.PI / 2, Math.PI / 2, 2, BABYLON.Vector3.Zero(), this.scene)
-      camera.attachControl(this.canvas, true)
+      camera.attachControl(this.canvas, false)
       camera.wheelPrecision = 100
       this.ipos = [camera.beta, camera.alpha, camera.radius]
       this.camera = camera
@@ -768,13 +768,13 @@ export default {
     window.__this = this
     this.colors = ColourValues.map(c => this.parseColor(c))
     this.prev_size = 1
-    d3.select('canvas')
-      .on('mouseenter', function () {
-        d3.select('body').style('overflow', 'hidden')
-      })
-      .on('mouseout', function () {
-        d3.select('body').style('overflow', 'scroll')
-      })
+    // d3.select('canvas')
+    //   .on('mouseenter', function () {
+    //     d3.select('body').style('overflow', 'hidden')
+    //   })
+    //   .on('mouseout', function () {
+    //     d3.select('body').style('overflow', 'scroll')
+    //   })
     this.findNetworks_()
   }
 }
