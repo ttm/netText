@@ -2,12 +2,11 @@
 <span>
   network: 
 <v-menu offset-y class="setstuff"
-  :disabled="loaded"
+  :disabled="loaded && !dirty"
 >
   <v-btn
     slot="activator"
     color="primary"
-    :disabled="loaded"
   >
     {{ network ? network.filename : 'Loading...' }}
   </v-btn>
@@ -18,7 +17,7 @@
       v-for="(net, index) in networks_"
       :key="index"
       @click="network = net"
-      :disabled="loaded"
+      :disabled="loaded && !dirty"
     >
       <v-list-tile-title color="primary">{{ net.filename }}</v-list-tile-title>
     </v-list-tile>
@@ -37,10 +36,10 @@ Communicability
     v-model="temp"
     :max="10"
     :min="0"
-    :label="'temperature'"
+    :label="'inverse temperature'"
     :step="0.01"
     class="setstuff"
-    :disabled="loaded"
+    :disabled="loaded && !dirty"
   ></v-slider>
   </v-flex>
   <v-flex shrink style="width: 50px">
@@ -50,7 +49,7 @@ Communicability
     hide-details
     single-line
     type="number"
-    :disabled="loaded"
+    :disabled="loaded && !dirty"
   ></v-text-field>
   </v-flex>
 </v-layout>
@@ -63,7 +62,7 @@ Communicability
     :label="'minimum angle x 10e-6'"
     :step="1"
     class="setstuff"
-    :disabled="loaded"
+    :disabled="loaded && !dirty"
   ></v-slider>
   </v-flex>
   <v-flex shrink style="width: 50px">
@@ -73,7 +72,7 @@ Communicability
     hide-details
     single-line
     type="number"
-    :disabled="loaded"
+    :disabled="loaded && !dirty"
   ></v-text-field>
   </v-flex>
 </v-layout>
@@ -87,7 +86,7 @@ Communicability
     type="number"
     :label="'min'"
     class="setstuff"
-    :disabled="loaded"
+    :disabled="loaded && !dirty"
   ></v-text-field>
   </v-flex>
   <v-flex class="px-3">
@@ -97,7 +96,7 @@ Communicability
     :min="1"
     :step="1"
     class="setstuff"
-    :disabled="loaded"
+    :disabled="loaded && !dirty"
     @change="cgNclus"
   ></v-range-slider>
   </v-flex>
@@ -107,7 +106,7 @@ Communicability
     type="number"
     :label="'max'"
     class="setstuff"
-    :disabled="loaded"
+    :disabled="loaded && !dirty"
   ></v-text-field>
   </v-flex>
 </v-layout>
@@ -119,14 +118,14 @@ Dimensionality Reduction
 <v-layout row>
   <v-radio-group v-model="dimensions" :label="'dimensions of layout'"
     class="setstuff"
-    :disabled="loaded"
+    :disabled="loaded && !dirty"
   >
     <v-radio :label="'2'" :value="2"></v-radio>
     <v-radio :label="'3'" :value="3"></v-radio>
   </v-radio-group>
   <v-radio-group v-model="dimredtype" :label="'type of dim reduction'" style="margin-left:20px;"
     class="setstuff"
-    :disabled="loaded"
+    :disabled="loaded && !dirty"
   >
     <v-radio :label="'MDS'" :value="'MDS'"></v-radio>
     <v-radio :label="'t-SNE'" :value="'t-SNE'"></v-radio>
@@ -141,7 +140,7 @@ Dimensionality Reduction
     :label="'iterations'"
     :step="1"
     class="setstuff"
-    :disabled="loaded"
+    :disabled="loaded && !dirty"
   ></v-slider>
   </v-flex>
   <v-flex shrink style="width: 50px">
@@ -151,7 +150,7 @@ Dimensionality Reduction
     hide-details
     single-line
     type="number"
-    :disabled="loaded"
+    :disabled="loaded && !dirty"
   ></v-text-field>
   </v-flex>
 </v-layout>
@@ -166,7 +165,7 @@ Dimensionality Reduction
     :label="'initializations'"
     :step="1"
     class="setstuff"
-    :disabled="loaded"
+    :disabled="loaded && !dirty"
   ></v-slider>
   </v-flex>
   <v-flex shrink style="width: 50px">
@@ -176,7 +175,7 @@ Dimensionality Reduction
     hide-details
     single-line
     type="number"
-    :disabled="loaded"
+    :disabled="loaded && !dirty"
   ></v-text-field>
   </v-flex>
 </v-layout>
@@ -191,7 +190,7 @@ Dimensionality Reduction
     :label="'perplexity'"
     :step="1"
     class="setstuff"
-    :disabled="loaded"
+    :disabled="loaded && !dirty"
   ></v-slider>
   </v-flex>
   <v-flex shrink style="width: 50px">
@@ -201,7 +200,7 @@ Dimensionality Reduction
     hide-details
     single-line
     type="number"
-    :disabled="loaded"
+    :disabled="loaded && !dirty"
   ></v-text-field>
   </v-flex>
 </v-layout>
@@ -216,7 +215,7 @@ Dimensionality Reduction
     :label="'learning rate'"
     :step="1"
     class="setstuff"
-    :disabled="loaded"
+    :disabled="loaded && !dirty"
   ></v-slider>
   </v-flex>
   <v-flex shrink style="width: 50px">
@@ -226,7 +225,7 @@ Dimensionality Reduction
     hide-details
     single-line
     type="number"
-    :disabled="loaded"
+    :disabled="loaded && !dirty"
   ></v-text-field>
   </v-flex>
 </v-layout>
@@ -238,7 +237,7 @@ Dimensionality Reduction
   color="green lighten-2"
   dark
   @click="renderNetwork()"
-  v-show="!loaded && network"
+  v-show="(!loaded || dirty) && network"
 >
   render network
 </v-btn>
@@ -358,6 +357,7 @@ export default {
       curclust: 0,
       cdialog: false,
       colortonode: '',
+      dirty: true,
     }
   },
   watch: {
