@@ -9,7 +9,7 @@
     color="primary"
     :disabled="loaded"
   >
-    {{ network ? network.filename : 'Select network' }}
+    {{ network ? network.filename : 'Loading...' }}
   </v-btn>
   <v-list
     class="scroll-y"
@@ -27,7 +27,7 @@
     </v-list-tile>
   </v-list>
 </v-menu>
-( nodes: {{ network ? network.nnodes : '---' }}, links: {{ network ? network.nlinks : '---' }} ) {{ network ? '' : 'loading...' }}
+( nodes: {{ network ? network.nnodes : '---' }}, links: {{ network ? network.nlinks : '---' }} )
 <v-layout row>
 <v-card flat dark style="padding:20px;width:800px;">
 Communicability
