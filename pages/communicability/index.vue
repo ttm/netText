@@ -27,7 +27,7 @@
     </v-list-tile>
   </v-list>
 </v-menu>
-( nodes: {{ network ? network.nnodes : '---' }}, links: {{ network ? network.nlinks : '---' }} )
+( nodes: {{ network ? network.nnodes : '---' }}, links: {{ network ? network.nlinks : '---' }} ) {{ network ? '' : 'loading...' }}
 <v-layout row>
 <v-card flat dark style="padding:20px;width:800px;">
 Communicability
