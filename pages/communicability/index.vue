@@ -255,8 +255,8 @@ Dimensionality Reduction
   <v-icon class="tbtn" id="lvzbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="increase/decrease link transparency with left/right click">power_input</v-icon>
   <v-spacer></v-spacer>
   <v-icon class="tbtn ptbtn" id="cbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="show centroid">explore</v-icon>
-  <v-icon class="tbtn ptbtn" id="sbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="show sphere center">radio_button_checked</v-icon>
-  <v-icon class="tbtn ptbtn" id="ssbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="show sphere surface">panorama_fish_eye</v-icon>
+  <v-icon class="tbtn ptbtn" id="sbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" :title="dimensions === 3 ? 'show sphere center' : 'show circle center'">radio_button_checked</v-icon>
+  <v-icon class="tbtn ptbtn" id="ssbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" :title="dimensions === 3 ? 'show sphere surface' : 'show circle perimeter'">panorama_fish_eye</v-icon>
   <v-icon class="tbtn" id="hobtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="recover initial position">home</v-icon>
   <v-spacer></v-spacer>
 </v-system-bar>
