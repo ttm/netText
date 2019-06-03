@@ -26,7 +26,7 @@
     color="green lighten-2"
     @click="renderNetwork()"
     title="click to plot seed to canvas"
-    v-show="!loaded"
+    v-show="!loaded && gene"
   >
     plot genes
   </v-btn>
@@ -55,6 +55,10 @@
       <span id='geninfo'>{{ this.generalinfo }}</span>
     </v-layout>
   </v-layout>
+<v-footer class="pa-3">
+  <v-spacer></v-spacer>
+  <div>&copy;{{ new Date().getFullYear() }} - VICG-ICMC/USP, FAPESP 2017/05838-3</div>
+</v-footer>
 </div>
 </template>
 
