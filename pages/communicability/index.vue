@@ -381,7 +381,7 @@ export default {
     },
     dimredtype: function (val) {
       if (val === 't-SNE') {
-        this.minIters = 50
+        this.minIters = 250
       } else {
         this.minIters = 1
       }
