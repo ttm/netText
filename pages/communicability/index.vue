@@ -835,4 +835,8 @@ html, body {
 #statsbox {
   border: 1px solid;
 }
+.scroll-y {
+  max-height: 300px;
+  overflow: auto;
+}
 </style>
