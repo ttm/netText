@@ -1191,7 +1191,7 @@ export default {
           const node = new PIXI.Graphics()
           let layer = fltwo <= nid ? 1 : 0
           node.layer = layer
-          node.lineStyle(1, 0x0000FF)
+          node.lineStyle(1, 0x000000)
           node.beginFill(0xFFFFFF)
           node.drawPolygon(this.layers_alternative[level][layer] ? l2path : this.path )
           node.endFill()
