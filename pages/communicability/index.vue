@@ -658,7 +658,16 @@ export default {
       this.mkBestSphereSurface()
     },
     mkBestSphereSurface () {
-      let sphere = BABYLON.MeshBuilder.CreateSphere('bsurface', {diameter: this.network_data.sdata.r*2, updatable: 1}, this.scene)
+      let sphere
+      if (this.dimensions === 3)
+        sphere = BABYLON.MeshBuilder.CreateSphere('bsurface', {diameter: this.network_data.sdata.r*2, updatable: 1}, this.scene)
+      else {
+        sphere = BABYLON.MeshBuilder.CreateTorus('bsurface', {diameter: this.network_data.sdata.r*2, updatable: 1, thickness: 0.05}, this.scene)
+        let axis = new BABYLON.Vector3(1, 1, 1);
+        let angle = 1.35 * Math.PI / 2;
+        let quaternion = new BABYLON.Quaternion.RotationAxis(axis, angle);
+        sphere.rotationQuaternion = quaternion;
+      }
       sphere.position = new BABYLON.Vector3(...this.network_data.sdata.c)
       sphere.isVisible = false
       let material = new BABYLON.StandardMaterial("mMaterial3", this.scene)
@@ -674,11 +683,16 @@ export default {
       a.style.height = '100px'
       // a.innerHTML = JSON.stringify(this.network_data.sdata)
       let s = this.network_data.sdata
-      a.innerHTML = '~~ best sphere stats ~~'
+      if (this.dimentions === 3) {
+        a.innerHTML = '~~ best sphere stats ~~'
+      } else {
+        a.innerHTML = '~~ best circle stats ~~'
+      }
       a.innerHTML += '\ncenter: ' + s.c.reduce( (st, i) => st += i.toFixed(3) + ', ', '' )
       a.innerHTML += '\nradius: ' + s.r.toFixed(3)
       a.innerHTML += '\ndistance mean: ' + s.mean.toFixed(3)
       a.innerHTML += '\ndistance std: ' + s.std.toFixed(3)
+
       a = document.getElementById('statsbox2')
       a.style.width = '40%'
       a.style.height = '100px'
