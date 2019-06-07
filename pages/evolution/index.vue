@@ -279,6 +279,10 @@
       label="information about the network (editable)"
     >statistics:</textarea>
     <svg></svg>
+<v-footer class="pa-3">
+  <v-spacer></v-spacer>
+  <div>&copy;{{ new Date().getFullYear() }} - VICG-ICMC/USP, FAPESP 2017/05838-3</div>
+</v-footer>
   </v-container>
 </template>
 
