@@ -587,7 +587,7 @@ export default {
           message_range: this.message_range,
           window_size: this.window_size,
           window_sep: this.window_sep,
-          scf: true,
+          scf: false,
           hip_perc: [
             this.hip_perc.h,
             this.hip_perc.i,
