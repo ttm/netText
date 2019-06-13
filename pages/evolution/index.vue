@@ -1,6 +1,10 @@
 <template>
-  <v-container justify-center>
-    <h1>Evolving networks</h1>
+  <v-container justify-center style="width:800px">
+    <h1>ESFNetVis
+    <nuxt-link to="/evolution/about">
+      <i class="fa fa-question-circle mhelp" style="font-size:28px;color:blue"></i>
+    </nuxt-link>
+    </h1>
 <v-layout align-center justify-start row ma-1 pa-1>
     Load settings:
     <v-menu offset-y>
@@ -36,6 +40,12 @@
     pa-1 ma-1
     >Clone settings</v-btn>
     </v-flex>
+      <v-btn
+        color="primary"
+        dark
+      >
+        save to settings
+      </v-btn>
 </v-layout>
 <v-expansion-panel>
   <v-expansion-panel-content>
@@ -174,7 +184,7 @@
 </div>
   </v-expansion-panel-content>
 </v-expansion-panel>
-<v-expansion-panel>
+<v-expansion-panel style="margin-top:10px;">
   <v-expansion-panel-content>
     <div slot="header">Controls (window size: {{ window_size }}, separation {{window_sep}}, messages/s: {{ messages_second }})</div>
     <div style="border:2px solid black; padding: 4px">
@@ -244,12 +254,6 @@
               ></v-text-field>
             </v-flex>
           </v-layout>
-      <v-btn
-        color="primary"
-        dark
-      >
-        save to settings
-      </v-btn>
     </div>
   </v-expansion-panel-content>
 </v-expansion-panel>
@@ -263,13 +267,7 @@
       </v-btn>
     </v-layout>
   <canvas id="renderCanvas"></canvas>
-  <v-btn outline icon @click="status.playing ? pause() : play_()" :disabled="!status.loaded">
-    <v-icon v-if="!status.playing">play_arrow</v-icon>
-    <v-icon v-else>pause</v-icon>
-  </v-btn>
-  <v-btn outline icon @click="rewind()">
-    <v-icon>fast_rewind</v-icon>
-  </v-btn>
+<v-layout row ml-4>
     <textarea
       name="infoareaname"
       width="100%"
@@ -278,6 +276,14 @@
       box
       label="information about the network (editable)"
     >statistics:</textarea>
+  <v-btn outline icon @click="status.playing ? pause() : play_()" :disabled="!status.loaded">
+    <v-icon v-if="!status.playing">play_arrow</v-icon>
+    <v-icon v-else>pause</v-icon>
+  </v-btn>
+  <v-btn outline icon @click="rewind()">
+    <v-icon>fast_rewind</v-icon>
+  </v-btn>
+</v-layout>
     <svg></svg>
 <v-footer class="pa-3">
   <v-spacer></v-spacer>
@@ -333,13 +339,20 @@ const mcolors2 = [
 ]
 
 export default {
+  head () {
+    return {
+      link: [
+        { rel: 'stylesheet', href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css' }
+      ],
+    }
+  },
   data () {
     return {
-      networks: [{name: 'dummy', data: enet}, {name: 'other', data: []}],
+      networks: [{name: 'scale-free 1', data: enet}, {name: 'other', data: []}],
       // network: ''
-      network: {name: 'dummy', data: enet},
+      network: {name: 'scale-free 1', data: enet},
       settings: [{name: 'new'}, {name: 'other'}],
-      sname: 'other',
+      sname: 'example settings',
       newname: '',
       message_range: [0, 0],
       sec_methods: ['Erdös', 'Percentages'],
@@ -374,7 +387,8 @@ export default {
   methods: {
     mkLineChart () {
       var margin = {top: 50, right: 350, bottom: 50, left: 50}
-        , width = window.innerWidth - margin.left - margin.right // Use the window's width 
+        //, width = window.innerWidth - margin.left - margin.right // Use the window's width 
+        , width = 700
         // , height = window.innerHeight - margin.top - margin.bottom; // Use the window's height
         , height = 200 - margin.top - margin.bottom; // Use the window's height
 
@@ -493,22 +507,22 @@ export default {
         .attr('x2', xScale(20))
         .attr('y1', yScale(0))
         .attr('y2', yScale(1))
-        .style("stroke-width", 2)
-        .style("stroke", "red")
+        .style("stroke-width", 5)
+        .style("stroke", "#911eb4")
         .style("fill", "none")
 
       svg.append("text")
         .attr("class", "x label")
         .attr("text-anchor", "end")
-        .attr("x", width * 0.5)
-        .attr("y", height * 1.08)
-        .text("frame")
+        .attr("x", width * 0.543)
+        .attr("y", height * 1.28)
+        .text("snapshot")
 
       svg.append("text")
         .attr("class", "y label")
         .attr("text-anchor", "end")
         .attr("x", - height * 0.4)
-        .attr("y", - width * 0.03)
+        .attr("y", - width * 0.045)
         .attr("transform", "rotate(-90)")
         // .attr("dy", "- 3.75em")
         .text("fraction")
@@ -582,19 +596,19 @@ export default {
       ).done( data => { 
         this.net_snapshots = data 
         this.textinfo.value += '\n~ total stats ~\n'
-        this.textinfo.value += 'frames: ' + (data.networks.length - 1)
+        this.textinfo.value += 'snapshots: ' + (data.networks.length - 1)
         this.textinfo.value += ', nodes: ' + data.networks[0].nodes.length
         this.textinfo.value += ', edges: ' + data.networks[0].edges.length
 
         let st = data.stats[0]
-        this.textinfo.value += '\ndegree mean, std: ' + st.degree_mean + ', ' + st.degree_std
-        this.textinfo.value += '\nclustering mean, std: ' + st.clust_mean + ', ' + st.clust_std
+        this.textinfo.value += '\ndegree mean, std: ' + st.degree_mean.toFixed(3) + ', ' + st.degree_std.toFixed(3)
+        this.textinfo.value += '\nclustering mean, std: ' + st.clust_mean.toFixed(3) + ', ' + st.clust_std.toFixed(3)
 
-        this.textinfo.value += '\ndegree mean (mean, std): ' + st.degree_mean_mean + ', ' + st.degree_mean_std
-        this.textinfo.value += '\ndegree std (mean, std): ' + st.degree_std_mean + ', ' + st.degree_std_std
+        this.textinfo.value += '\ndegree mean (mean, std): ' + st.degree_mean_mean.toFixed(3) + ', ' + st.degree_mean_std.toFixed(3)
+        this.textinfo.value += '\ndegree std (mean, std): ' + st.degree_std_mean.toFixed(3) + ', ' + st.degree_std_std.toFixed(3)
 
-        this.textinfo.value += '\nclust mean (mean std): ' + st.clust_mean_mean + ', ' + st.clust_mean_std
-        this.textinfo.value += '\nclust std (mean, std): ' + st.clust_std_mean + ', ' + st.clust_std_std
+        this.textinfo.value += '\nclust mean (mean std): ' + st.clust_mean_mean.toFixed(3) + ', ' + st.clust_mean_std.toFixed(3)
+        this.textinfo.value += '\nclust std (mean, std): ' + st.clust_std_mean.toFixed(3) + ', ' + st.clust_std_std.toFixed(3)
 
         this.textinfo.value += '\n~ picked stats ~'
         console.log('post returned', data) 
@@ -1085,17 +1099,17 @@ export default {
         if (mmesh && mmesh.mdata) {
           let mdata = mmesh.mdata
           self.textinfo.value += '\n'
-          self.textinfo.value += 'frame: ' + self.cur_net
+          self.textinfo.value += 'snapshot: ' + self.cur_net
           self.textinfo.value += ', node: ' + mmesh.name
-          self.textinfo.value += ', degree: ' + mdata.degree + ', clust: ' + mdata.clust
+          self.textinfo.value += ', degree: ' + mdata.degree + ', clust: ' + mdata.clust.toFixed(3)
           self.textinfo.scrollTop = self.textinfo.scrollHeight
         }
       } else if (e.code == 'KeyS') {
           let st = self.net_snapshots.stats[self.cur_net]
           self.textinfo.value += '\n'
-          self.textinfo.value += 'frame: ' + self.cur_net
-          self.textinfo.value += ', degree mean, std: ' + st.degree_mean + ', ' + st.degree_std
-          self.textinfo.value += ', clust mean, std: ' + st.clust_mean + ', ' + st.clust_std
+          self.textinfo.value += 'snapshot: ' + self.cur_net
+          self.textinfo.value += ', degree mean, std: ' + st.degree_mean.toFixed(3) + ', ' + st.degree_std.toFixed(3)
+          self.textinfo.value += ', clust mean, std: ' + st.clust_mean.toFixed(3) + ', ' + st.clust_std.toFixed(3)
           self.textinfo.value += ', hip: ' + st.hip.map( s => s.length )
           self.textinfo.scrollTop = self.textinfo.scrollHeight
       }
@@ -1106,8 +1120,8 @@ export default {
 
 <style>
 #renderCanvas {
-    width   : 50%;
-    height  : 50%;
+    width   : 750px;
+    height  : 85%;
     touch-action: none;
 }
 
@@ -1136,17 +1150,17 @@ export default {
 
 /* Style the dots by assigning a fill and stroke */
 .dot {
-    fill: #ffab00;
+    fill: #ff0000;
     stroke: #fff;
 }
 
 .dot2 {
-    fill: #00abff;
+    fill: #00ff00;
     stroke: #fff;
 }
   
 .dot3 {
-    fill: #00ffab;
+    fill: #0000ff;
     stroke: #fff;
 }
 .focus circle {

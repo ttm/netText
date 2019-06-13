@@ -169,7 +169,7 @@
     :disabled="mapping || loaded"
     title="click to map network to canvas"
   >
-    Render network
+    render network
   </v-btn>
   <v-menu offset-y title="select the layout">
     <v-btn
@@ -614,7 +614,7 @@ export default {
       this.mcont.pivot.x = this.cwidth_ / 2;
       this.mcont.pivot.y = this.cheight_ / 2;
       this.app_.stage.addChild(this.mcont)
-      document.getElementById('toolbar').style.width = this.cwidth_ + 'px'
+      document.getElementById('toolbar').style.width = (this.cwidth_ + 2) + 'px'
       let c1 = this.getCenter()
       this.dist = ( c1.x ** 2 + c1.y ** 2 ) ** 0.5
       this.beta = Math.acos(c1.x/this.dist)
@@ -833,6 +833,7 @@ export default {
           return (i.layer === 0) && (i.filename.split('.').pop() === 'ncol')
         })
         this.network = this.networks_[0]
+        // this.renderNetwork()
       })
     },
     renderNetwork () {
@@ -2013,6 +2014,9 @@ export default {
 }
 [id^="tdl"] {
   cursor: pointer;
+}
+#renderCanvas {
+  border: 1px solid;
 }
 /* vim: set ft=vue: */
 </style>

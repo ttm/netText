@@ -23,6 +23,7 @@ two repositories:
 to deliver real-time data to the frontend:
  https://gitlab.com/renato.fabbri/nettext-server
 - A Python Flask server which handles requests that
-need advanced data processing.
+need advanced data processing:
+ https://gitlab.com/renato.fabbri/nettext-pyserver
 
 :::

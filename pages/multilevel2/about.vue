@@ -13,7 +13,7 @@
     One may also see following video and the <a target="_blank" href="https://github.com/ttm/netText">repository where the code is made available</a>.
   </p>
   <div class="videoWrapper">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/uFkCeg_QFQI" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    <iframe width="560" height="315" src="https://www.youtube.com/watch?v=-d9be7aTkUM" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
   </div>
   <p>
     The interface elements show tooltips when hovered (when your mouse is over it), and it is intended to be fairly intuitive, at least after absorbing the usage guidelines in this page.
