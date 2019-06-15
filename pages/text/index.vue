@@ -1,6 +1,11 @@
 <template>
 <div>
-   <h1 title="This is a conceptual implementation of the textual analysis of networks. One may select nodes in one set, then in the other set. Then ask to analyze. The result consists of analyses of the text in each set, and a comparison of their texts. Directions for enhancements: node selection methods (communities, sectors, etc); measurements for each set; comparison methods; data source (email lists, Wikipedia, etc); nice visualization elements for the analyses; auxiliary transformations of the visualization (node size, position, link width, etc). In this gadget, the network and texts are synthesized at random.">NetText -- minimal</h1>
+  <h1 title="This is a conceptual implementation of the textual analysis of networks. One may select nodes in one set, then in the other set. Then ask to analyze. The result consists of analyses of the text in each set, and a comparison of their texts. Directions for enhancements: node selection methods (communities, sectors, etc); measurements for each set; comparison methods; data source (email lists, Wikipedia, etc); nice visualization elements for the analyses; auxiliary transformations of the visualization (node size, position, link width, etc). In this gadget, the network and texts are synthesized at random.">NetText -- minimal
+    <nuxt-link to="/text/minAbout">
+      <i class="fa fa-question-circle mhelp" style="font-size:28px;color:blue"></i>
+    </nuxt-link>
+
+  </h1>
 <v-system-bar id="toolbar" window dark>
   <v-icon class="tbtn" id='tgbtn' @contextmenu="mhandler($event)" @click="mhandler" title="click to toogle set 1 or 2 of nodes">change_history</v-icon>
   <v-spacer></v-spacer>
@@ -63,7 +68,10 @@ export default {
       script: [
         // { src: '/libs/pixi4.8.7.js' },
         { src: '/libs/pixi5.0.2.js' },
-      ]
+      ],
+      link: [
+        { rel: 'stylesheet', href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css' }
+      ],
     }
   },
   data () {
