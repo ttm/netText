@@ -47,7 +47,7 @@ import $ from 'jquery'
 
 export default {
   mounted () {
-    let $allVideos = $("iframe[src^='http://www.youtube.com']")
+    let $allVideos = $("iframe[src^='https://www.youtube.com']")
       // The element that is fluid width
     let  $fluidEl = $("body")
     // Figure out and save aspect ratio for each video
