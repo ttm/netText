@@ -4,26 +4,26 @@
 <v-system-bar id="toolbar" window dark>
   <v-icon class="tbtn" id='tgbtn' @contextmenu="mhandler($event)" @click="mhandler" title="click to toogle set 1 or 2 of nodes">change_history</v-icon>
   <v-spacer></v-spacer>
-  <v-icon class="tbtn" id='inbtn' @contextmenu="mhandler($event)" @click="mhandler" title="click to toogle set 1 or 2 of nodes">input</v-icon>
+  <v-icon class="tbtn" id='inbtn' @contextmenu="mhandler($event)" @click="mhandler" title="analyze texts in the node sets">input</v-icon>
 </v-system-bar>
   <div @contextmenu="mhandler($event)" id="renderCanvas"></div>
   <v-layout row id="adiv">
     <div>
-      <h4>token with in set 1</h4>
-      mean: {{an.l ? an.l[0] : 'not requested'}}<br/>
-      std: {{an.l ? an.l[2] : 'not requested'}}
+      <h4>token lengths in set 1</h4>
+      mean: {{an.l ? an.l[0].toFixed(3) : 'not requested'}}<br/>
+      std: {{an.l ? an.l[2].toFixed(3) : 'not requested'}}
     </div>
   <v-spacer></v-spacer>
     <div>
-      <h4>token with in set 2</h4>
-      mean: {{an.l ? an.l[1] : 'not requested'}}<br/>
-      std: {{an.l ? an.l[3] : 'not requested'}}
+      <h4>token lengths in set 2</h4>
+      mean: {{an.l ? an.l[1].toFixed(3) : 'not requested'}}<br/>
+      std: {{an.l ? an.l[3].toFixed(3) : 'not requested'}}
     </div>
   <v-spacer></v-spacer>
     <div>
-      <h4>comparison between texts</h4>
-      c': {{an.c ? an.c[1] : 'not requested'}}<br/>
-      KS: {{an.c ? an.c[2] : 'not requested'}}
+      <h4>comparison btween texts</h4>
+      c': {{an.c ? an.c[1].toFixed(3) : 'not requested'}}<br/>
+      KS: {{an.c ? an.c[2].toFixed(3) : 'not requested'}}
     </div>
   </v-layout>
 <v-footer class="pa-3">
