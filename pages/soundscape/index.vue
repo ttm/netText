@@ -1,6 +1,10 @@
 <template>
 <span>
-  <h1>Soundscape analysis -- minimal</h1>
+  <h1>Soundscape analysis -- minimal
+    <nuxt-link to="/soundscape/minAbout">
+      <i class="fa fa-question-circle mhelp" style="font-size:28px;color:blue"></i>
+    </nuxt-link>
+  </h1>
   <div class="comp">
     sound to be analysed
   <div @click="spec0 = !spec0" class="sbtn">{{spec0 ? '-' : '+'}} spectrogram</div>
