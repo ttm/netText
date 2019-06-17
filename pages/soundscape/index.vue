@@ -251,7 +251,7 @@ export default {
           })
         ]
       })
-      wavesurfer.load('audio/' + fname)
+      wavesurfer.load('/audio/' + fname)
       this.wss.push(wavesurfer)
     },
   },
