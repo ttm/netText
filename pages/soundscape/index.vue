@@ -1,8 +1,11 @@
 <template>
 <span>
   <h1>Soundscape analysis -- minimal</h1>
+  <div class="comp">
+    sound to be analysed
+  <div @click="spec0 = !spec0" class="sbtn">{{spec0 ? '-' : '+'}} spectrogram</div>
+  </div>
   <div id="waveform" style="border: 1px solid;"></div>
-  <div v-show="!spec0" @click="spec0 = true">{{spec0 ? '-' : '+'}} spectrogram</div>
   <div v-show="spec0"  @click="spec0 = false" id="waveform-spec" style="border: 1px solid;"></div>
   <div>
     <v-btn color="success" @click="wss[0].skipBackward()">
@@ -186,7 +189,17 @@ export default {
       if (Object.keys(this.wss[0].regions.list).length === 0) {
         alert('click and drag on the waveform to make a region befor analyzing')
         return
+      } else if (this.wss.length > 1) {
+        for (let i = 1; i < this.wss.length; i++) {
+          // this.wss[i].spectrogram.destroy()
+          this.wss[i].destroy()
+        }
+        for (let i = 1; i < this.wss.length; i++) {
+          delete this.wss[i]
+        }
+        this.wss = this.wss.filter(Boolean)
       }
+      this.analyzed = false
       this.loading = true
       let regs = Object.keys(this.wss[0].regions.list)
       let i = (this.rcounter - 1) % regs.length
@@ -215,7 +228,7 @@ export default {
       })
     },
     createWaveform (fname, did) {
-      var wavesurfer = WaveSurfer.create({
+      let wavesurfer = WaveSurfer.create({
         container: '#' + did,
         waveColor: 'violet',
         progressColor: 'purple',
