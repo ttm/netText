@@ -2,7 +2,7 @@
 <span>
   <h1>About Soundscape Analysis -- minimal</h1>
   <div class="videoWrapper">
-    <iframe width="560" height="315" src="https://www.youtube.com/watch?v=bPZAGT1PzjM" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/bPZAGT1PzjM" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
   </div>
   <v-footer class="pa-3">
     <v-spacer></v-spacer>
