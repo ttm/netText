@@ -1,5 +1,10 @@
 <template>
 <span>
+  <h1>ComNetVis
+  <nuxt-link to="/communicability/about">
+    <i class="fa fa-question-circle mhelp" style="font-size:28px;color:darkblue"></i>
+  </nuxt-link>
+  </h1>
   network: 
 <v-menu offset-y class="setstuff"
   :disabled="loaded && !dirty"
@@ -258,6 +263,9 @@ Dimensionality Reduction
   <v-icon class="tbtn ptbtn" id="ssbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" :title="dimensions === 3 ? 'show sphere surface' : 'show circle perimeter'">panorama_fish_eye</v-icon>
   <v-icon class="tbtn" id="hobtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="recover initial position">home</v-icon>
   <v-spacer></v-spacer>
+  <v-icon class="tbtn" id="imbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="save image">camera_alt</v-icon>
+  <v-icon class="tbtn" id="exbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="download current communities">cloud_download</v-icon>
+  <v-spacer></v-spacer>
 </v-system-bar>
 <canvas id="renderCanvas" touch-action="none"></canvas>
 <v-layout row ml-4>
@@ -298,7 +306,7 @@ Dimensionality Reduction
 </v-dialog>
 <v-footer class="pa-3">
   <v-spacer></v-spacer>
-  <div>&copy;{{ new Date().getFullYear() }} - VICG-ICMC/USP, FAPESP 2017/05838-3</div>
+  <div>&copy;{{ new Date().getFullYear() }} - <a href="https://iuma.unizar.es/" target="_blank">IUMA/UNIZAR</a>, <a href="http://vicg.icmc.usp.br" target="_blank">VICG-ICMC/USP</a>, FAPESP 2017/05838-3</div>
 </v-footer>
 </span>
 </template>
@@ -320,12 +328,87 @@ const ColourValues = [
   "E00000", "00E000", "0000FF", "E000E0", "00E0E0"
 ]
 
+var stockData = [
+    {
+        Symbol: "AAPL",
+        Company: "Apple Inc.",
+        Price: "132.54"
+    },
+    {
+        Symbol: "INTC",
+        Company: "Intel Corporation",
+        Price: "33.45"
+    },
+    {
+        Symbol: "GOOG",
+        Company: "Google Inc",
+        Price: "554.52"
+    },
+];
+
+function convertArrayOfObjectsToCSV(args) {
+    var result, ctr, keys, columnDelimiter, lineDelimiter, data;
+
+    data = args.data || null;
+    if (data == null || !data.length) {
+        return null;
+    }
+
+    columnDelimiter = args.columnDelimiter || ',';
+    lineDelimiter = args.lineDelimiter || '\n';
+
+    keys = Object.keys(data[0]);
+
+    result = '';
+    result += keys.join(columnDelimiter);
+    result += lineDelimiter;
+
+    data.forEach(function(item) {
+        ctr = 0;
+        keys.forEach(function(key) {
+            if (ctr > 0) result += columnDelimiter;
+
+            result += item[key];
+            ctr++;
+        });
+        result += lineDelimiter;
+    });
+
+    return result;
+}
+
+function downloadCSV(args) {
+    var data, filename, link;
+
+    var csv = convertArrayOfObjectsToCSV({
+        // data: stockData
+        data: args.data
+    });
+    if (csv == null) return;
+
+    filename = args.filename || 'communities.csv';
+
+    if (!csv.match(/^data:text\/csv/i)) {
+        csv = 'data:text;charset=utf-8,' + csv;
+    }
+    data = encodeURI(csv);
+
+    link = document.createElement('a');
+    link.setAttribute('href', data);
+    link.id = 'bananaid'
+    link.setAttribute('download', filename);
+    link.click();
+}
+
 export default {
   head () {
     return {
       script: [
         { src: '/libs/math5.10.3.js' },
-      ]
+      ],
+      link: [
+        { rel: 'stylesheet', href: '/libs/font-awesome.min.css' }
+      ],
     }
   },
   data () {
@@ -451,6 +534,27 @@ export default {
           this.transLinks(0.1)
       } else if (e.srcElement.id === 'hobtn') {
         this.getHome()
+      } else if (e.srcElement.id === 'imbtn') {
+        BABYLON.Tools.CreateScreenshotUsingRenderTarget(this.engine, this.camera,{precision:1})
+      } else if (e.srcElement.id === 'exbtn') {
+        // export tab or excel
+        let clust = this.network_data.clusts[this.nclusters - this.ncluin]
+        let data = []
+        let ncom = Math.max(...clust) + 1
+        for (let com = 0; com < ncom; com++) {
+          let c = clust.reduce((a, e, i) => {
+            if (e === com)
+              a += ' ' + i
+            return a;
+          }, '')
+          data.push({
+            Community: com + 1,
+            Nodes: c
+          })
+        }
+        this.adata = data
+        this.bdata = stockData
+        downloadCSV({data: data})
       }
     },
     rNodes () {
@@ -860,5 +964,8 @@ html, body {
 .scroll-y {
   max-height: 300px;
   overflow: auto;
+}
+h1 {
+  margin-bottom: 10px;
 }
 </style>
