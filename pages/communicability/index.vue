@@ -389,7 +389,8 @@ function downloadCSV(args) {
     filename = args.filename || 'communities.csv';
 
     if (!csv.match(/^data:text\/csv/i)) {
-        csv = 'data:text;charset=utf-8,' + csv;
+        // csv = 'data:text;charset=utf-8,' + csv;
+        csv = 'data:text/csv;charset=utf-8,' + csv;
     }
     data = encodeURI(csv);
 
@@ -398,7 +399,10 @@ function downloadCSV(args) {
     link.id = 'bananaid'
     link.setAttribute('download', filename);
     link.setAttribute('target', '_blank');
+    link.style.display = 'none'
+    document.body.appendChild(link)
     link.click();
+    document.body.removeChild(link)
 }
 
 export default {
