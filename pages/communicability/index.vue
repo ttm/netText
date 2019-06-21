@@ -258,9 +258,9 @@ Dimensionality Reduction
   <v-icon class="tbtn" id='trbtn' @contextmenu="mhandler($event)" @click="mhandler($event)" title="increase/decrease node transparency with left/right click">hdr_strong</v-icon>
   <v-icon class="tbtn" id="lvzbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="increase/decrease link transparency with left/right click">power_input</v-icon>
   <v-spacer></v-spacer>
-  <v-icon class="tbtn ptbtn" id="cbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="show centroid">explore</v-icon>
-  <v-icon class="tbtn ptbtn" id="sbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" :title="dimensions === 3 ? 'show sphere center' : 'show circle center'">radio_button_checked</v-icon>
-  <v-icon class="tbtn ptbtn" id="ssbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" :title="dimensions === 3 ? 'show sphere surface' : 'show circle perimeter'">panorama_fish_eye</v-icon>
+  <v-icon class="tbtn ptbtn" id="cbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="show/hide centroid">explore</v-icon>
+  <v-icon class="tbtn ptbtn" id="sbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" :title="dimensions === 3 ? 'show/hide sphere center' : 'show circle center'">radio_button_checked</v-icon>
+  <v-icon class="tbtn ptbtn" id="ssbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" :title="dimensions === 3 ? 'show/hide sphere surface' : 'show circle perimeter'">panorama_fish_eye</v-icon>
   <v-icon class="tbtn" id="hobtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="recover initial position">home</v-icon>
   <v-spacer></v-spacer>
   <v-icon class="tbtn" id="imbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="save image">camera_alt</v-icon>
@@ -397,6 +397,7 @@ function downloadCSV(args) {
     link.setAttribute('href', data);
     link.id = 'bananaid'
     link.setAttribute('download', filename);
+    link.setAttribute('target', '_blank');
     link.click();
 }
 
@@ -407,7 +408,7 @@ export default {
         { src: '/libs/math5.10.3.js' },
       ],
       link: [
-        { rel: 'stylesheet', href: '/libs/font-awesome.min.css' }
+        { rel: 'stylesheet', href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.8.2/css/all.min.css' }
       ],
     }
   },
