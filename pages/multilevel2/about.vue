@@ -1,6 +1,6 @@
 <template>
 <span>
-  <h1>About MlBiNetViz</h1>
+  <h1>About BiNetViz</h1>
   <p>
     MlBiNetViz is designed to allow the navigation of large bipartite graphs using node-link diagrams by the assistance of multilevel strategies.
     It is the result of research and development acoomplished within

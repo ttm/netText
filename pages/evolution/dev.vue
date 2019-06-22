@@ -1089,7 +1089,6 @@ export default {
     this.loadNetwork(this.network)
     //this.loadBabylon()
     window.__this = this
-    window.__self = this
     this.canvas = document.getElementById('renderCanvas') // Get the canvas element
     this.textinfo = document.getElementById('netinfoarea')
     var self = this

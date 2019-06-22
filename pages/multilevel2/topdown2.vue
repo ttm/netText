@@ -979,7 +979,7 @@ export default {
           let aux = {
             children: children[i],
             links: nodelinks[i],
-          links_: nodelinks[i].map( l => links[l]),
+            links_: nodelinks[i].map( l => links[l]),
             neighbors: neighbors,
             source: sources[i],
           }
@@ -1021,7 +1021,65 @@ export default {
       let nodes = this.networks[this.curlevel].sources.map( (e,i) => i )
       let links = this.networks[this.curlevel].links
       let center = [0, 0]
-      this.placeOnCanvas(nodes, links, this.curlevel, this.cwidth_, this.cheight_, center)
+      this.placeOnCanvas_(nodes, links, this.curlevel, this.cwidth_, this.cheight_, center)
+    },
+    placeOnCanvas_ (nodes, links, level, width, height, center) {
+      // mk random positions
+      // place elements on the screen
+      let layout = nodes.map( n => [2*Math.random() -1, 2*Math.random() -1] )
+      this.mkLines(links, level, width, height, center, layout)
+      this.mkNodes(nodes, level, width, height, center, layout)
+      if (!this.loaded)
+        this.zoom('-')
+      this.loaded = true
+      this.L = 50
+      this.app_.ticker.add( (delta) => {
+        if (!__this.mklayout)
+          return
+        // console.log(delta)
+        // this.nodes[level][nodes[i]] = node
+        let nodes_ = __this.nodes[__this.curlevel]
+        let links_ = __this.networks[__this.curlevel].links
+        let ndata = this.networks[__this.curlevel].ndata
+        for (let i = 0; i < nodes_.length; i++) {
+          let n1 = nodes_[i]
+          for (let j = i + 1; j < nodes_.length; j++) {
+            let n2 = nodes_[j]
+            let dx = n1.x - n2.x
+            let dy = n1.y - n2.y
+            let neighbors = ndata[n1.id].aux.neighbors
+            if (neighbors.includes(n2.id)) {
+              n1.x -= Math.sign(dx) * 20
+              n1.y -= Math.sign(dy) * 20
+              n2.x += Math.sign(dx) * 20
+              n2.y += Math.sign(dy) * 20
+            }
+            if ( Math.abs(dx) < __this.L && Math.abs(dy) < __this.L ) {
+              // let d = (dx**2 + dy**2) ** 0.5
+              // let f = 10 / d
+              let fx = 10 / dx
+              let fy = 10 / dy
+              fx = (Math.abs(fx) > 10) ? 10 * Math.sign(fx) : fx
+              fy = (Math.abs(fy) > 10) ? 10 * Math.sign(fy) : fy
+              if (fx > 10 || fy > 10) {
+                console.log('FOUND', fx, fy)
+              }
+              n1.x += fx
+              n1.y += fy
+              n2.x -= fx
+              n2.y -= fy
+            }
+          }
+          __this.redrawLinks(n1)
+        }
+        // __this.nodes[__this.curlevel].forEach( n => {
+        //   __this.nodes[__this.curlevel].forEach( n2 => {
+        //   })
+        //   n.x += 10 * (Math.random() - 0.5)
+        //   n.y += 10 * (Math.random() - 0.5)
+        //   __this.redrawLinks(n)
+        // })
+      })
     },
     placeOnCanvas (nodes, links, level, width, height, center) {
       let turl = process.env.flaskURL + '/layoutOnDemand/'
@@ -1629,7 +1687,7 @@ export default {
         this.childparent[level][c1] = node.id
       })
 
-      this.placeOnCanvas(children, links, level, dx*2, dy*2, c)
+      this.placeOnCanvas_(children, links, level, dx*2, dy*2, c)
 
       this.iinfo.textContent += '\nshown predecessor(s) ' + children + ' at level ' + level
       this.iinfo.scrollTop = this.iinfo.scrollHeight
