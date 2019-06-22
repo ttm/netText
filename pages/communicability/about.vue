@@ -31,7 +31,7 @@
   </div>
   <h3> Contact</h3>
   <p>
-    Questions and ideas should be sent to <a href="mailto:renato.fabbri@gmail.com?Subject=ComNetVis%20Interface">Renato Fabbri</a> (specially about using the interface), to <a href="mailto:estrada66@unizar.es?Subject=ComNetVis%20Interface">Ernesto Estrada</a> (specially about the communicability framework), and/or to <a href="mailto:cristina@icmc.usp.br?Subject=ComNetVis%20Interface">Cristina Oliveira</a> (specially about visualization-specific issues).
+    Questions and ideas should be sent to <a href="mailto:renato.fabbri@gmail.com?Subject=ComNetVis%20Interface">Renato Fabbri</a>, <a href="mailto:cristina@icmc.usp.br?Subject=ComNetVis%20Interface">Cristina Oliveira</a>, and <a href="mailto:estrada66@unizar.es?Subject=ComNetVis%20Interface">Ernesto Estrada</a>.
   </p>
   <v-footer class="pa-3">
     <v-spacer></v-spacer>

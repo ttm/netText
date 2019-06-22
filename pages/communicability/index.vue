@@ -115,6 +115,14 @@ Communicability
   ></v-text-field>
   </v-flex>
 </v-layout>
+  <v-radio-group v-model="cdmethod" :label="'find communities using:'"
+    class="setstuff"
+    :disabled="loaded && !dirty"
+    row
+  >
+    <v-radio class="hopt" :label="'angles'" :value="'an'"></v-radio>
+    <v-radio :label="'positions'" :value="'pos'"></v-radio>
+  </v-radio-group>
 </v-card>
 </v-layout>
 <v-layout row>
@@ -446,6 +454,7 @@ export default {
       cdialog: false,
       colortonode: '',
       dirty: true,
+      cdmethod: 'an',
     }
   },
   watch: {
@@ -679,6 +688,7 @@ export default {
           netid: this.network._id,
           temp: this.temp,
           mangle: this.mangle,
+          cdmethod: this.cdmethod,
 
           dim: this.dimensions,
           inits: this.inits,
@@ -717,6 +727,7 @@ export default {
         sphere.position = new BABYLON.Vector3(node[0], node[1], node[2])
         sphere.material = this.materials[this.network_data.clusts[this.nclusters - this.ncluin][i]]
         sphere.degree = 0
+        sphere.mid = i
         spheres.push(sphere)
       }
       for (let i = 0; i < links.length; i++) {
@@ -897,6 +908,7 @@ export default {
   },
   mounted () {
     window.__this = this
+    window.__self = this
     this.colors = ColourValues.map(c => this.parseColor(c))
     this.prev_size = 1
     // d3.select('canvas')
@@ -972,5 +984,8 @@ html, body {
 }
 h1 {
   margin-bottom: 10px;
+}
+.hopt {
+  margin-left: 30px;
 }
 </style>
