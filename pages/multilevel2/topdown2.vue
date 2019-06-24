@@ -168,27 +168,10 @@
     @click="renderNetwork()"
     :disabled="mapping || loaded"
     title="click to map network to canvas"
+    v-show="!loaded"
   >
     render network
   </v-btn>
-  <v-menu offset-y title="select the layout">
-    <v-btn
-      slot="activator"
-      color="primary"
-      dark
-    >
-      {{ layout ? layout : 'Select' }}
-    </v-btn>
-    <v-list>
-      <v-list-tile
-        v-for="(lay, index) in layouts"
-        :key="index"
-        @click="layout = lay"
-      >
-        <v-list-tile-title color="primary">{{ lay }}</v-list-tile-title>
-      </v-list-tile>
-    </v-list>
-  </v-menu>
   <v-checkbox v-model="links" label="show links" v-show="loaded"> </v-checkbox>
   <textarea id="iinfo" v-show="loaded"></textarea>
   <v-spacer></v-spacer>
@@ -212,8 +195,8 @@
   <v-icon class="tbtn ptbtn" id="infobtn" @click="setTool('info')" title="get info by clicking on specific nodes">info</v-icon>
   <v-icon class="tbtn ptbtn" id="dragbtn" @click="setTool('drag')" title="drag nodes to reposition them, drag on canvas to attain a draggable selection of nodes (click outside region to reset tool)">gesture</v-icon>
   <v-icon class="tbtn ptbtn" id="regionexplorebtn" @click="setTool('regionexplore')" title="drag on canvas to open selection of nodes into child nodes (click and drag)">explore</v-icon>
-  <v-icon class="tbtn ptbtn" id="joinbtn" @click="setTool('join')" title="click on two open nodes to join them">border_outer</v-icon>
-  <v-icon class="tbtn ptbtn" id="resizebtn" @click="setTool('resize')" title="resize open nodes (click on node and drag). Also optimizes predecessor positions to better fit open node's rectangular region. If open node is clicked, but no drag is executed, changes the corner to which the links are attached">tab_unselected</v-icon>
+  <v-icon class="tbtn ptbtn" id="collapsebtn" @click="setTool('collapse')" title="drag on canvas to collapse nodes into parent nodes (click and drag)">settings_backup_restore</v-icon>
+  <v-icon class="tbtn ptbtn" id="layoutbtn" @click="setTool('layout')" title="click on canvas and drag to make layout only on the nodes inside region">aspect_ratio</v-icon>
   <v-spacer></v-spacer>
   <v-icon class="tbtn" id="bcbtn" @contextmenu="randomColorize($event,'bg')" @click="mhandler($event)" title="choose/randomize background color with left/right click">format_color_fill</v-icon>
   <v-icon class="tbtn" id="zmbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="zoom in/out with left/right click">zoom_in</v-icon>
@@ -304,6 +287,197 @@
   </div>
   </v-card>
 </v-dialog>
+<dialog-drag id="dialog-1" title="layout options" :options="{left:860, top: 550}">
+  <v-layout column>
+  <v-layout row>
+  <v-menu offset-y title="select the layout">
+    <v-btn
+      slot="activator"
+      color="primary"
+      dark
+    >
+      {{ layout ? layout.name : 'Select' }}
+    </v-btn>
+    <v-list>
+      <v-list-tile
+        v-for="(lay, index) in layouts"
+        :key="index"
+        @click="layout = lay"
+        title="select the layout"
+      >
+        <v-list-tile-title color="primary">{{ lay.name }}</v-list-tile-title>
+      </v-list-tile>
+    </v-list>
+  </v-menu>
+  <v-btn
+    @click="randPos()"
+    title="iterate once"
+  >
+    randomize
+  </v-btn>
+  <v-text-field
+    :label="'step x 10e-3'"
+    :left="true"
+    v-model="fru_step"
+    type="number"
+    step="0.1"
+    min="0.1"
+    max="20"
+    class="laybtn"
+    style="margin-left:5px"
+  ></v-text-field>
+  </v-layout>
+  <v-layout row v-show="layout.tkey === 'vicgX'">
+    <v-text-field
+      :label="'repulsion'"
+      :left="true"
+      v-model="repulsion"
+      type="number"
+      step="0.5"
+      min="0.1"
+      class="laybtn"
+    ></v-text-field>
+    <v-text-field
+      :label="'attraction'"
+      :left="true"
+      v-model="attraction"
+      type="number"
+      step="0.5"
+      min="0.1"
+      class="laybtn"
+      style="margin-left:5px"
+    ></v-text-field>
+  </v-layout>
+  <v-layout row v-show="layout.tkey === 'fru'">
+    <v-text-field
+      :label="'C'"
+      :left="true"
+      v-model="fru_C"
+      type="number"
+      step="0.1"
+      min="0.1"
+      max="10"
+      class="laybtn"
+      style="margin-left:5px"
+    ></v-text-field>
+  </v-layout>
+  <v-layout row v-show="layout.tkey === 'vicg1'">
+    <v-text-field
+      :label="'D'"
+      :left="true"
+      v-model="dI"
+      type="number"
+      step="0.1"
+      min="0.1"
+      max="500"
+      class="laybtn"
+      style="margin-left:5px"
+    ></v-text-field>
+    <v-text-field
+      :label="'alpha a'"
+      :left="true"
+      v-model="alphaa"
+      type="number"
+      step="0.1"
+      min="0.1"
+      max="10"
+      class="laybtn"
+      style="margin-left:5px"
+    ></v-text-field>
+    <v-text-field
+      :label="'Ca'"
+      :left="true"
+      v-model="Ca"
+      type="number"
+      step="0.1"
+      min="0.1"
+      max="10"
+      class="laybtn"
+      style="margin-left:5px"
+    ></v-text-field>
+    <v-text-field
+      :label="'Ca\''"
+      :left="true"
+      v-model="Ca2"
+      type="number"
+      step="0.1"
+      min="0.1"
+      max="20"
+      class="laybtn"
+      style="margin-left:5px"
+    ></v-text-field>
+    <v-text-field
+      :label="'alpha r'"
+      :left="true"
+      v-model="alphar"
+      type="number"
+      step="0.1"
+      min="0.1"
+      max="10"
+      class="laybtn"
+      style="margin-left:5px"
+    ></v-text-field>
+    <v-text-field
+      :label="'Cr'"
+      :left="true"
+      v-model="Cr"
+      type="number"
+      step="0.1"
+      min="0.1"
+      max="10"
+      class="laybtn"
+      style="margin-left:5px"
+    ></v-text-field>
+    <v-text-field
+      :label="'Cr\''"
+      :left="true"
+      v-model="Cr2"
+      type="number"
+      step="0.1"
+      min="0.1"
+      max="20"
+      class="laybtn"
+      style="margin-left:5px"
+    ></v-text-field>
+  </v-layout>
+  <v-layout row>
+    <v-checkbox v-model="lprocess" label="iterate"
+    class="laybtn"
+    > </v-checkbox>
+    <v-checkbox v-model="lweight" label="weight"
+    class="laybtn"
+    > </v-checkbox>
+    <v-text-field
+      :label="'weight emphasis'"
+      :left="true"
+      v-model="w_emph"
+      type="number"
+      step="0.1"
+      min="0.1"
+      max="20"
+      class="laybtn"
+      style="margin-left:5px"
+    ></v-text-field>
+  </v-layout>
+  <v-layout row>
+    <v-btn
+      @click="iterate_once = true"
+      title="iterate once"
+    >
+      iterate
+    </v-btn>
+    <v-text-field
+      :label="'iterations'"
+      v-model="niterations"
+      type="number"
+      class="laybtn2"
+      style="margin-left:5px"
+      outline
+      readonly
+    ></v-text-field>
+  </v-layout>
+  </v-layout>
+</dialog-drag>
 </span>
 </template>
 
@@ -311,6 +485,8 @@
 import $ from 'jquery'
 import * as d3 from 'd3'
 import { Chrome } from 'vue-color'
+import DialogDrag from 'vue-dialog-drag'
+
 
 function moveNode () {
   if (this.dragging) {
@@ -431,17 +607,17 @@ export default {
         'hub_depressed', 'leicht_holme_newman']
       },
       layouts: [
-        'circular',
-        'fruch',
-        'kamada',
-        'random',
-        'shell',
-        'spectral',
-        'spring',
-        'h-bipartite',
-        'v-bipartite',
+        {name: 'Fruchterman-Reingold', tkey: 'fru'},
+        {name: 'Force Atlas 2', tkey: 'fa2'},
+        {name: 'VICG - theoretic', tkey: 'vicg1'},
+        {name: 'VICG - optimal', tkey: 'vicg2'},
+        {name: 'VICG - optimalX', tkey: 'vicgX'},
+        {name: 'VICG - optimalXX', tkey: 'vicgXX'},
       ],
-      layout: 'spring',
+      // layout: {name: 'VICG - optimal', tkey: 'vicg2'},
+      // layout: {name: 'VICG - theoretic', tkey: 'vicg1'},
+      // layout: {name: 'VICG - optimalX', tkey: 'vicgX'},
+      layout: {name: 'Fruchterman-Reingold', tkey: 'fru'},
       curlevel: 0,
       loaded: false,
       mapping: false,
@@ -458,13 +634,34 @@ export default {
       cAllDialog: false,
       colorAny: '',
       tool: '',
+      attraction: 20,
+      repulsion: 10,
+      lprocess: 0,
+      fru_C: 0.5,
+      fru_step: 2,
+      lweight: false,
+      Ca: 1,
+      Ca2: 1,
+      Cr: 1,
+      Cr2: 1,
+      dI: 2,
+      alphaa: 1,
+      alphar: 1,
+      w_emph: 1,
+      niterations: 0,
+      thresholdXX: 0.1,
+      L: 50,
     }
   },
   components: {
     Chrome,
+    DialogDrag,
   },
   mounted () {
     window.__this = this
+    this.runLayout = this.vicg1
+    this.runLayout = this.vicgX
+    this.runLayout = this.fruchter
     if (typeof PIXI === 'undefined') {
       console.log('ok, pixi not found')
       let ele = document.createElement("script");
@@ -486,6 +683,215 @@ export default {
     }
   },
   methods: {
+    getLNodes () {
+      if (this.lnodes)
+        return this.lnodes
+      else
+        return __this.nodes[__this.curlevel]
+    },
+    fruchter () {
+      let nodes_ = this.getLNodes()
+      let ndata = this.networks[__this.curlevel].ndata
+      let mov = nodes_.map( n => [0, 0] )
+      let area = this.larea ? this.larea : this.carea
+      let k = this.fru_C * (area / nodes_.length ) ** 0.5
+      let k2 = k ** 2
+      let step = this.fru_step / 1000
+      for (let i = 0; i < nodes_.length; i++) {
+        let n1 = nodes_[i]
+        for (let j = i + 1; j < nodes_.length; j++) {
+          let n2 = nodes_[j]
+          let dx = n1.x - n2.x
+          let dy = n1.y - n2.y
+          let d = (dx**2 + dy**2) ** 0.5
+          let fr = k2 / d
+          let neighbors = ndata[n1.id].aux.neighbors
+          let fa = 0
+          if (neighbors.includes(n2.id)) {
+            let w = 1
+            if (this.lweight) {
+              w = ndata[n1.id].aux.w[n2.id]
+              w = 1 + (w - 1) * this.w_emph
+            }
+            fa = w * d ** 2 / k
+          }
+          let f = fa - fr
+          f = Math.abs(f) > 1000 ? 1000 * Math.sign(f) : f
+          let fx = f * dx / d
+          let fy = f * dy / d
+          mov[i][0] -= fx * step
+          mov[i][1] -= fy * step
+          mov[j][0] += fx * step
+          mov[j][1] += fy * step
+        }
+      }
+      for (let i = 0; i < nodes_.length; i++) {
+        let n = nodes_[i]
+        n.x += mov[i][0]
+        n.y += mov[i][1]
+        __this.redrawLinks(n)
+      }
+      this.mov = mov
+    },
+    fa2 () {
+      console.log('fa')
+    },
+    vicg1 () {
+      let nodes_ = __this.nodes[__this.curlevel]
+      let ndata = this.networks[__this.curlevel].ndata
+      let mov = this.nodes[this.curlevel].map( n => [0, 0] )
+      let step = this.fru_step / 1000
+      let alphaa = this.alphaa
+      let Ca = this.Ca
+      let Ca2 = this.Ca2
+      let alphar = this.alphar
+      let Cr = this.Cr
+      let Cr2 = this.Cr2
+      let dI = this.dI
+      for (let i = 0; i < nodes_.length; i++) {
+        let n1 = nodes_[i]
+        for (let j = i + 1; j < nodes_.length; j++) {
+          let n2 = nodes_[j]
+          let dx = n1.x - n2.x
+          let dy = n1.y - n2.y
+          let d = (dx**2 + dy**2) ** 0.5
+          let fr = Cr * ((dI/d) ** alphar) + Cr2
+          let neighbors = ndata[n1.id].aux.neighbors
+          let fa = 0
+          if (neighbors.includes(n2.id)) {
+            let w = 1
+            if (this.lweight) {
+              w = ndata[n1.id].aux.w[n2.id]
+              w = 1 + (w - 1) * this.w_emph
+            }
+            fa = Ca * w * ((d/dI) ** alphaa) + Ca2
+          }
+          let f = fa - fr
+          f = Math.abs(f) > 1000 ? 1000 * Math.sign(f) : f
+          let fx = f * dx / d
+          let fy = f * dy / d
+          mov[n1.id][0] -= fx * step
+          mov[n1.id][1] -= fy * step
+          mov[n2.id][0] += fx * step
+          mov[n2.id][1] += fy * step
+        }
+      }
+      for (let i = 0; i < nodes_.length; i++) {
+        let n = nodes_[i]
+        n.x += mov[i][0]
+        n.y += mov[i][1]
+        __this.redrawLinks(n)
+      }
+      this.mov = mov
+      console.log('v1')
+    },
+    vicg2 () {
+      console.log('v2')
+    },
+    vicgX () {
+      let nodes_ = __this.nodes[__this.curlevel]
+      let ndata = this.networks[__this.curlevel].ndata
+      let mov = this.nodes[this.curlevel].map( n => [0, 0] )
+      let step = this.fru_step
+      for (let i = 0; i < nodes_.length; i++) {
+        let n1 = nodes_[i]
+        for (let j = i + 1; j < nodes_.length; j++) {
+          let n2 = nodes_[j]
+          let dx = n1.x - n2.x
+          let dy = n1.y - n2.y
+          let neighbors = ndata[n1.id].aux.neighbors
+          if (neighbors.includes(n2.id)) {
+            mov[n1.id][0] -= Math.sign(dx) * __this.attraction
+            mov[n1.id][1] -= Math.sign(dy) * __this.attraction
+            mov[n2.id][0] += Math.sign(dx) * __this.attraction
+            mov[n2.id][1] += Math.sign(dy) * __this.attraction
+          }
+          if ( Math.abs(dx) < __this.L && Math.abs(dy) < __this.L ) {
+            // let d = (dx**2 + dy**2) ** 0.5
+            // let f = 10 / d
+            let r = __this.repulsion
+            let fx = r / dx
+            let fy = r / dy
+            fx = (Math.abs(fx) > r ) ? r * Math.sign(fx) : fx
+            fy = (Math.abs(fy) > r ) ? r * Math.sign(fy) : fy
+            mov[n1.id][0] += fx * step
+            mov[n1.id][1] += fy * step
+            mov[n2.id][0] -= fx * step
+            mov[n2.id][1] -= fy * step
+          }
+        }
+      }
+      for (let i = 0; i < nodes_.length; i++) {
+        let n = nodes_[i]
+        n.x += mov[i][0]
+        n.y += mov[i][1]
+      }
+      for (let i = 0; i < nodes_.length; i++) {
+        let n = nodes_[i]
+        __this.redrawLinks(n)
+      }
+      this.mov = mov
+    },
+    vicgXX () {
+      let nodes_ = __this.nodes[__this.curlevel]
+      let ndata = this.networks[__this.curlevel].ndata
+      let mov = this.nodes[this.curlevel].map( n => [0, 0] )
+      let step = this.fru_step / 1000
+      let thresholdXX = this.thresholdXX
+      for (let i = 0; i < nodes_.length; i++) {
+        if (Math.random() < thresholdXX)
+          continue
+        let n1 = nodes_[i]
+        for (let j = i + 1; j < nodes_.length; j++) {
+          if (Math.random() < thresholdXX)
+            continue
+          let n2 = nodes_[j]
+          let dx = n1.x - n2.x
+          let dy = n1.y - n2.y
+          let neighbors = ndata[n1.id].aux.neighbors
+          if (neighbors.includes(n2.id)) {
+            n1.x -= Math.sign(dx) * __this.attraction
+            n1.y -= Math.sign(dy) * __this.attraction
+            n2.x += Math.sign(dx) * __this.attraction
+            n2.y += Math.sign(dy) * __this.attraction
+          }
+          if ( Math.abs(dx) < __this.L && Math.abs(dy) < __this.L ) {
+            // let d = (dx**2 + dy**2) ** 0.5
+            // let f = 10 / d
+            let r = __this.repulsion
+            let fx = r / dx
+            let fy = r / dy
+            fx = (Math.abs(fx) > r ) ? r * Math.sign(fx) : fx
+            fy = (Math.abs(fy) > r ) ? r * Math.sign(fy) : fy
+            mov[n1.id][0] += fx
+            mov[n1.id][1] += fy
+            mov[n2.id][0] -= fx
+            mov[n2.id][1] -= fy
+          }
+        }
+      }
+      for (let i = 0; i < nodes_.length; i++) {
+        let n = nodes_[i]
+        n.x += mov[i][0]
+        n.y += mov[i][1]
+      }
+      for (let i = 0; i < nodes_.length; i++) {
+        let n = nodes_[i]
+        __this.redrawLinks(n)
+      }
+      this.mov = mov
+    },
+    randPos () {
+      let nodes = __this.nodes[__this.curlevel]
+      let layout = nodes.map( n => [2*Math.random() -1, 2*Math.random() -1] )
+      for (let i = 0; i < nodes.length ; i++) {
+        let n = nodes[i]
+        let l = layout[i]
+        n.x = (1 + l[0]) * this.cwidth / 2
+        n.y = (1 + l[1]) * this.cheight / 2
+        this.redrawLinks(n)
+      }
+    },
     upload (e) {
       this.loading = true
       let reader = new FileReader()
@@ -605,10 +1011,12 @@ export default {
       document.getElementById('renderCanvas').appendChild(this.app_.view)
       this.cwidth_ = document.getElementsByTagName('canvas')[0].width
       this.cheight_ = document.getElementsByTagName('canvas')[0].height
+      this.carea = this.cwidth_ * this.cheight_
       this.cwidth =  0.9 * document.getElementsByTagName('canvas')[0].width
       this.cheight = 0.9 * document.getElementsByTagName('canvas')[0].height
       this.app_.renderer.backgroundColor = 0xFFFFFF
       this.mcont = new PIXI.Container();
+      this.mcont.sortableChildren = true
       this.mcont.x = this.cwidth_ / 2;
       this.mcont.y = this.cheight_ / 2;
       this.mcont.pivot.x = this.cwidth_ / 2;
@@ -633,6 +1041,24 @@ export default {
         }
       })
       d3.select('canvas').on('mousedown', function () {
+        if (__this.tool === 'layout') {
+          let p = d3.mouse(this)
+          let panx = __this.app_.stage.x
+          let pany = __this.app_.stage.y
+          let scale = __this.app_.stage.scale.x
+          __this.lregs = [
+            (p[0] - panx) / scale,
+            (p[1] - pany) / scale,
+          ]
+          if (__this.lregion)
+            __this.lregion.destroy()
+          __this.lregion = new PIXI.Graphics()
+          __this.lregion.name = 'lrect'
+          __this.lregion.buttonMode = true
+          __this.app_.stage.addChild(__this.lregion)
+          __this.lisdrawing = true
+          return
+        }
         if (__this.selectednode) {
           let p = d3.mouse(this)
           let b = __this.selectednode.getBounds()
@@ -666,7 +1092,7 @@ export default {
             (p[1] - pany) / scale,
           ]
         }
-        if ( __this.tool === 'regionexplore' || (__this.tool === 'drag' && !__this.dragginnode) ) {
+        if ( __this.tool === 'collapse' || __this.tool === 'regionexplore' || (__this.tool === 'drag' && !__this.dragginnode) ) {
           let p = d3.mouse(this)
           let scale = __this.app_.stage.scale.x
           let panx = __this.app_.stage.x
@@ -682,7 +1108,22 @@ export default {
         }
       })
       d3.select('canvas').on('mousemove', function () {
-        if ((__this.tool === 'regionexplore' || __this.tool === 'drag') && __this.eregion) {
+        if (__this.tool === 'layout') {
+          if (!__this.lisdrawing)
+            return
+          let e = __this.lregs
+          let p_ = d3.mouse(this)
+          let scale = __this.app_.stage.scale.x
+          let panx = __this.app_.stage.x
+          let pany = __this.app_.stage.y
+          let p = [(p_[0] - panx)/scale, (p_[1] - pany)/scale]
+          __this.lregion.clear()
+          __this.lregion.beginFill(0xFF0000, 0.3)
+          __this.lregion.drawPolygon([e[0], e[1], e[0], p[1], p[0], p[1], p[0], e[1]])
+          __this.lregion.endFill()
+          return
+        }
+        if ((__this.tool === 'collapse' ||__this.tool === 'regionexplore' || __this.tool === 'drag') && __this.eregion) {
           if (__this.draggingnode && __this.selectednode.name !== 'rect') {
             __this.eregion.clear()
             delete __this.eregion
@@ -701,6 +1142,45 @@ export default {
         }
       })
       d3.select('canvas').on('mouseup', function () {
+        if (__this.tool === 'layout') {
+          __this.lisdrawing = false
+          let p = d3.mouse(this)
+          let scale = __this.app_.stage.scale.x
+          let panx = __this.app_.stage.x
+          let pany = __this.app_.stage.y
+          __this.lrege = [
+            (p[0] - panx) / scale,
+            (p[1] - pany) / scale,
+          ]
+          let r1 = __this.lregs
+          let r2 = __this.lrege
+          if ((r1[0] === r2[0]) && (r1[1] === r2[1])) {
+            delete __this.lnodes
+            delete __this.larea
+            return
+          }
+          let maxx = Math.max(r1[0], r2[0])
+          let maxy = Math.max(r1[1], r2[1])
+          let minx = Math.min(r1[0], r2[0])
+          let miny = Math.min(r1[1], r2[1])
+          __this.larea = (maxx - minx) * (maxy - miny)
+          let nodes = __this.nodes[__this.curlevel]
+          let nodes_ = []
+          nodes.forEach( n => {
+            let b_ = n.getBounds()
+            let b = {
+              x: (b_.x - panx) / scale,
+              y: (b_.y - pany) / scale,
+              width: b_.width / scale,
+              height: b_.height / scale,
+            }
+            if ( b.x >= minx && b.x + b.width <= maxx && b.y >= miny && b.y + b.height <= maxy ) {
+              nodes_.push(n)
+            }
+          })
+          __this.lnodes = nodes_
+          return
+        }
         if (__this.draggingnode) {
           __this.draggingnode = false
           return
@@ -763,7 +1243,7 @@ export default {
           __this.selectednode = __this.eregion
           __this.tool = 'dragregion'
         }
-        if (__this.tool === 'regionexplore') {
+        if (__this.tool === 'collapse' || __this.tool === 'regionexplore') {
           let scale = __this.app_.stage.scale.x
           let panx = __this.app_.stage.x
           let pany = __this.app_.stage.y
@@ -796,7 +1276,7 @@ export default {
               nodes_.push(n)
             }
           })
-          // test if nodes have more then one successor
+          // test if nodes have more than one successor
           if (nodes_.length > 0) {
             let tparent = __this.childparent[__this.curlevel][nodes_[0].id]
             let texit = false
@@ -811,11 +1291,19 @@ export default {
               __this.iinfo.scrollTop = __this.iinfo.scrollHeight
               return
             }
-            __this.joinManyNodes(nodes_)
+            if (__this.tool === 'collapse') {
+              __this.collapseNodes(nodes_)
+            } else if (__this.tool === 'regionexplore') {
+              __this.joinManyNodes(nodes_)
+            }
           }
         }
       })
       this.app_.stage.interactive = true
+    },
+    collapseNodes (nodes) {
+      console.log('collapse them!')
+      this.mnodes = nodes
     },
     moveManyNodes (nodes) {
       this.eregion
@@ -832,7 +1320,7 @@ export default {
         this.networks_ = networks_.filter(i => {
           return (i.layer === 0) && (i.filename.split('.').pop() === 'ncol')
         })
-        this.network = this.networks_[0]
+        this.network = this.networks_[1]
         // this.renderNetwork()
       })
     },
@@ -923,6 +1411,11 @@ export default {
       })
     },
     mkAuxiliaryData () {
+      this.networks[1].children.forEach( (cs, pid) => {
+        cs.forEach( cid => {
+          this.networks[0].parents[cid] = pid
+        })
+      })
       this.l2hex = true
       this.mkPaths()
       if (!this.nodecolors) {
@@ -937,6 +1430,12 @@ export default {
       this.opennodes = []
       this.childparent = [] // [level][childid] = parentid of node which 
       this.links_ = [] // for dict nid1-nid2 = link
+      this.links__ = {}
+      for (let level = 0; level <= this.curlevel; level++) {
+        for (let level_ = level + 1; level_ <= this.curlevel; level_++) {
+          this.links__[level + '-' + level_] = {}
+        }
+      }
       for (let level = 0; level <= this.curlevel; level++) {
         this.links_.push({})
         this.nodes.push([])
@@ -983,6 +1482,13 @@ export default {
             neighbors: neighbors,
             source: sources[i],
           }
+          let w = {}
+          for (let ii = 0; ii < aux.links_.length; ii++) {
+            let l = aux.links_[ii]
+            let ind = l[0] === i ? l[1] : l[0]
+            w[ind] = l[2]
+          }
+          aux.w = w
           ndata.push({
             mdata: mdata,
             MLdata: MLdata,
@@ -1021,65 +1527,56 @@ export default {
       let nodes = this.networks[this.curlevel].sources.map( (e,i) => i )
       let links = this.networks[this.curlevel].links
       let center = [0, 0]
-      this.placeOnCanvas_(nodes, links, this.curlevel, this.cwidth_, this.cheight_, center)
+      this.placeOnCanvas0(nodes, links, this.curlevel, this.cwidth_, this.cheight_, center)
     },
-    placeOnCanvas_ (nodes, links, level, width, height, center) {
-      // mk random positions
-      // place elements on the screen
-      let layout = nodes.map( n => [2*Math.random() -1, 2*Math.random() -1] )
+    attachLinks () {
+      this.nodes[this.curlevel].forEach( n1 => {
+        n1.linkedTo[this.curlevel].forEach( (w, nid) => {
+          let n2 = this.nodes[this.curlevel][nid]
+          let lid
+          if (n1.id < n2.id) {
+            lid = n1.id + '-' + n2.id
+          } else {
+            lid = n2.id + '-' + n1.id
+          }
+          let link = this.links_[this.curlevel][lid]
+          n2.links.push(link)
+          n1.links.push(link)
+        })
+      })
+    },
+    placeOnCanvas0 (nodes, links, level, width, height, center) {
+      // for the initial rendering of the network
+      let layout = nodes.reduce( (l, n) => {
+        l[n] = [2*Math.random() -1, 2*Math.random() -1]
+        return l
+      }, {})
       this.mkLines(links, level, width, height, center, layout)
-      this.mkNodes(nodes, level, width, height, center, layout)
+      this.mkNodes0(nodes, level, width, height, center, layout)
+      this.attachLinks()
       if (!this.loaded)
         this.zoom('-')
       this.loaded = true
-      this.L = 50
-      this.app_.ticker.add( (delta) => {
-        if (!__this.mklayout)
-          return
-        // console.log(delta)
-        // this.nodes[level][nodes[i]] = node
-        let nodes_ = __this.nodes[__this.curlevel]
-        let links_ = __this.networks[__this.curlevel].links
-        let ndata = this.networks[__this.curlevel].ndata
-        for (let i = 0; i < nodes_.length; i++) {
-          let n1 = nodes_[i]
-          for (let j = i + 1; j < nodes_.length; j++) {
-            let n2 = nodes_[j]
-            let dx = n1.x - n2.x
-            let dy = n1.y - n2.y
-            let neighbors = ndata[n1.id].aux.neighbors
-            if (neighbors.includes(n2.id)) {
-              n1.x -= Math.sign(dx) * 20
-              n1.y -= Math.sign(dy) * 20
-              n2.x += Math.sign(dx) * 20
-              n2.y += Math.sign(dy) * 20
-            }
-            if ( Math.abs(dx) < __this.L && Math.abs(dy) < __this.L ) {
-              // let d = (dx**2 + dy**2) ** 0.5
-              // let f = 10 / d
-              let fx = 10 / dx
-              let fy = 10 / dy
-              fx = (Math.abs(fx) > 10) ? 10 * Math.sign(fx) : fx
-              fy = (Math.abs(fy) > 10) ? 10 * Math.sign(fy) : fy
-              if (fx > 10 || fy > 10) {
-                console.log('FOUND', fx, fy)
-              }
-              n1.x += fx
-              n1.y += fy
-              n2.x -= fx
-              n2.y -= fy
-            }
-          }
-          __this.redrawLinks(n1)
-        }
-        // __this.nodes[__this.curlevel].forEach( n => {
-        //   __this.nodes[__this.curlevel].forEach( n2 => {
-        //   })
-        //   n.x += 10 * (Math.random() - 0.5)
-        //   n.y += 10 * (Math.random() - 0.5)
-        //   __this.redrawLinks(n)
-        // })
-      })
+      this.updateElementsCount()
+      // this.app_.ticker.add( (delta) => {
+      //   if (!__this.lprocess && !__this.iterate_once)
+      //     return
+      //   // console.log(delta)
+      //   // this.nodes[level][nodes[i]] = node
+      //   if (__this.runLayout) {
+      //     __this.runLayout()
+      //     __this.niterations++
+      //   }
+
+      //   __this.iterate_once = false
+      //   // __this.nodes[__this.curlevel].forEach( n => {
+      //   //   __this.nodes[__this.curlevel].forEach( n2 => {
+      //   //   })
+      //   //   n.x += 10 * (Math.random() - 0.5)
+      //   //   n.y += 10 * (Math.random() - 0.5)
+      //   //   __this.redrawLinks(n)
+      //   // })
+      // })
     },
     placeOnCanvas (nodes, links, level, width, height, center) {
       let turl = process.env.flaskURL + '/layoutOnDemand/'
@@ -1202,15 +1699,39 @@ export default {
           let line = this.mkLine([p1x, p1y], [p2x, p2y], l[2], level)
           line.tweight = l[2]
           line.level = level
-          line.ll = l
+          line.ll = l.concat([level])
           this.links_[level][l[0]+'-'+l[1]] = line
         }
       }
     },
+    mkHLines (links) {
+      links.forEach( l => {
+        let n1 = l.cnode
+        let n2 = l.pnode
+        let level = n1.level + '-' + n2.level
+        let line = this.mkLine([n1.x, n1.y], [n2.x, n2.y], l.weight, level)
+        this.links__[level][n1.id + '-' + n2.id] = line
+      })
+    },
+    mkLines_ (links, level) {
+      links.forEach( l => {
+        let n1 = this.nodes[level][l[0]]
+        let n2 = this.nodes[level][l[1]]
+        let line = this.mkLine([n1.x, n1.y], [n2.x, n2.y], l[2], level)
+      })
+    },
     mkLine (p1, p2, weight, level) {
       let line = new PIXI.Graphics()
-      line.lineStyle(1 + (9 * weight / this.max_weights[level]) / (this.networks.length - level) , 0xFFFFFF)
-      line.tint = this.linkcolors[level]
+      let level_
+      if ((typeof level === 'string') && level.includes('-'))
+        level_ = level.split('-')[0]
+      else
+        level_ = level
+      line.lineStyle(1 + (9 * weight / this.max_weights[level_]) / (this.networks.length - level_) , 0xFFFFFF)
+      line.tint = this.linkcolors[level_]
+      if (!line.tint)
+        line.tint = 0x000000
+      line.level = level
       line.moveTo(...p1)
       line.lineTo(...p2)
       line.alpha = 0.4
@@ -1218,6 +1739,15 @@ export default {
       line.p2 = p2
       this.mcont.addChild(line)
       return line
+    },
+    eraseLinks(node) {
+      node.links.forEach( l => {
+        if (!l.isdestroyed) {
+          l.destroy()
+          l.isdestroyed = true
+        }
+      })
+      delete node.linkedTo
     },
     repositionChildren (node) {
       if (!node.visible)
@@ -1237,7 +1767,7 @@ export default {
         })
       }
     },
-    mkNodes (nodes, level, width, height, center, layout) {
+    mkNodesC (nodes, level, width, height, center, layout) {
       let l2path = this.l2hex ? this.pathhex : this.path
       let fltwo = this.networks[level].fltwo
       for (let i = 0; i < nodes.length; i++) {
@@ -1245,7 +1775,8 @@ export default {
         let p = layout[nid]
         let px = (1 + p[0]) * width/2 + center[0]
         let py = (1 + p[1]) * height/2 + center[1]
-        let node_ = this.nodes[level][nodes[i]]
+        let node_ = this.nodes[level][nid]
+        let ndata = this.networks[level].ndata
         if (!node_) {
           const node = new PIXI.Graphics()
           let layer = fltwo <= nid ? 1 : 0
@@ -1260,6 +1791,7 @@ export default {
           node.interactive = level === this.curlevel
           node.buttonMode = true
           node.alpha = 0.8
+          node.zIndex = 10
           node
             .on('pointerdown', clickNode)
             .on('pointerup', releaseNode)
@@ -1267,6 +1799,92 @@ export default {
             .on('pointermove', moveNode)
           node.id = nid
           node.level = level
+          node.links = []
+          node.linkedTo = this.networks.map( n => [] )
+          let ll = ndata[nid].aux.links_
+          ll.forEach( l  => {
+            let ne = l[0] === nid ? l[1] : l[0]
+            let w = l[2]
+            let target, tlevel
+            if (this.nodes[level][ne] || nodes.includes(ne)) {
+              target = ne
+              tlevel = level
+            } else {
+              [target, tlevel] = this.findParent(ne, level)
+            }
+            if (node.linkedTo[tlevel][target]) {
+              node.linkedTo[tlevel][target] += w
+            } else {
+              node.linkedTo[tlevel][target] = w
+            }
+          })
+          node.scale.x *= this.nodescales[level]
+          node.scale.y *= this.nodescales[level]
+          this.mcont.addChild(node)
+          this.nodes[level][nodes[i]] = node
+        } else {
+          node_.x = px
+          node_.y = py
+        }
+      }
+    },
+    findParent (nid, level) {
+      let parent_
+      let level_ = level
+      let found = false
+      while (!found) {
+        let sid = this.networks[level].ndata[nid].mdata.successor
+        if (this.nodes[level + 1][sid]) {
+          parent_ = sid
+          level_ = level + 1
+          found = true
+        } else {
+          nid = sid
+          level++
+        }
+      }
+      return [parent_, level_]
+    },
+    mkNodes0 (nodes, level, width, height, center, layout) {
+      let l2path = this.l2hex ? this.pathhex : this.path
+      let fltwo = this.networks[level].fltwo
+      for (let i = 0; i < nodes.length; i++) {
+        let nid = nodes[i]
+        let p = layout[nid]
+        let px = (1 + p[0]) * width/2 + center[0]
+        let py = (1 + p[1]) * height/2 + center[1]
+        let node_ = this.nodes[level][nodes[i]]
+        let ndata = this.networks[level].ndata
+        if (!node_) {
+          const node = new PIXI.Graphics()
+          let layer = fltwo <= nid ? 1 : 0
+          node.layer = layer
+          node.lineStyle(1, 0x000000)
+          node.beginFill(0xFFFFFF)
+          node.drawPolygon(this.layers_alternative[level][layer] ? l2path : this.path )
+          node.endFill()
+          node.tint = this.nodecolors[level * 2 + (fltwo <= nid ? 1 : 0)]
+          node.x = px
+          node.y = py
+          node.interactive = level === this.curlevel
+          node.buttonMode = true
+          node.alpha = 0.8
+          node.zIndex = 10
+          node
+            .on('pointerdown', clickNode)
+            .on('pointerup', releaseNode)
+            .on('pointerupoutside', releaseNode)
+            .on('pointermove', moveNode)
+          node.id = nid
+          node.level = level
+          node.links = []
+          node.linkedTo = this.networks.map( n => [] )
+          let nlinks = ndata[nid].aux.links_
+          for (let li = 0; li < nlinks.length; li++) {
+            let l = nlinks[li]
+            let ne = l[0] === nid ? l[1] : l[0]
+            node.linkedTo[level][ne] = l[2]
+          }
           node.scale.x *= this.nodescales[level]
           node.scale.y *= this.nodescales[level]
           this.mcont.addChild(node)
@@ -1618,76 +2236,35 @@ export default {
     },
     redrawLinks (node) {
       this.rdnode = node
-      let links_ = this.networks[node.level].ndata[node.id].aux.links_
-      let nodes = this.nodes[node.level]
-      links_.forEach( (l, i) => {
-        let n1 = nodes[l[0]]
-        let n2 = nodes[l[1]]
-        if (!n1 || !n2) {
+      node.links.forEach( l => {
+        if (l.isdestroyed)
           return
+        let level = l.ll[3]
+        let n1, n2
+        if ((typeof level === 'string') && level.includes('-')) {
+          let [l1, l2] = level.split('-')
+          n1 = this.nodes[l1][l.ll[0]]
+          n2 = this.nodes[l2][l.ll[1]]
+        } else {
+          n1 = this.nodes[level][l.ll[0]]
+          n2 = this.nodes[level][l.ll[1]]
         }
-        let p1x = n1.xx ? n1.xx : n1.x
-        let p1y = n1.yy ? n1.yy : n1.y
-        let p2x = n2.xx ? n2.xx : n2.x
-        let p2y = n2.yy ? n2.yy : n2.y
-        let linkid = l[0]+'-'+l[1]
-        let line = this.links_[node.level][linkid]
-        if (!line)
-          return
-        line.clear()
-        line.moveTo(p1x, p1y)
-        line.lineTo(p2x, p2y)
+        l.clear()
+        l.moveTo(n1.x, n1.y)
+        l.lineTo(n2.x, n2.y)
       })
-      if (node.ids) {
-        node.ids.forEach( id => {
-          if (id !== node.id) {
-            let node_ = this.nodes[node.level][id]
-            node_.xx = node_.x = node.xx ? node.xx : node.x
-            node_.yy = node_.y = node.yy ? node.yy : node.y
-            this.redrawLinks(node_)
-          }
-        })
-      }
     },
-    showChildren (node) {
-      node.clear()
-      node.tint = 0xFFFFFF
-      node.lineStyle(2, 0xFFFFFF, 0.7)
-      node.beginFill(0xFFFFFF, .1)
-      node.drawPolygon(this.pathrect)
-      node.endFill()
-      let MLdata = this.networks[node.level].ndata[node.id].MLdata
-      MLdata.paths.push(this.pathrect)
-      if (!MLdata.isopen)
-        MLdata.children.push(
-          this.networks[node.level].ndata[node.id].aux.children
-      )
-      node.rotation = 0
-      this.positionChildren(node)
-      MLdata.isopen = true
-    },
-    positionChildren(node) {
-      let level = node.level - 1
-      let MLdata = this.networks[node.level].ndata[node.id].MLdata
-      let children = MLdata.children[MLdata.children.length - 1]
-      let dx = - 0.85 * MLdata.paths[MLdata.paths.length - 1][0]
-      let dy = - 0.85 * MLdata.paths[MLdata.paths.length - 1][1]
-      let c = [node.x - dx, node.y - dy]
+    placeOnCanvasChildren(children, dx_, dy_, c_, level) {
+      let dx = - dx_
+      let dy = - dy_
+      let c = [c_[0] - dx, c_[1] - dy]
+      let layout = children.reduce( (l, n) => {
+        l[n] = [2*Math.random() -1, 2*Math.random() -1]
+        return l
+      }, {})
+      this.mkNodesC(children, level, dx * 2, dy * 2, c, layout)
 
-      let ndata = this.networks[level].ndata
-      let links = []
-      children.forEach( c1 => {
-        let neighbors = ndata[c1].aux.neighbors
-        children.forEach( c2 => {
-          if (neighbors.includes(c2)) {
-            let tlink = ndata[c1].aux.links_[neighbors.indexOf(c2)]
-            links.push(tlink)
-          }
-        })
-        this.childparent[level][c1] = node.id
-      })
-
-      this.placeOnCanvas_(children, links, level, dx*2, dy*2, c)
+      // this.placeOnCanvas_(children, links, level, dx*2, dy*2, c)
 
       this.iinfo.textContent += '\nshown predecessor(s) ' + children + ' at level ' + level
       this.iinfo.scrollTop = this.iinfo.scrollHeight
@@ -1719,86 +2296,102 @@ export default {
       this.mmc = c
       this.mmpath_ = path_
       this.mmbounds = bounds
-      let tdegree = 0
-      let tstrength = 0
-      let tchildren = 0
-      let tparents = []
       // let ids = nodes.map( n => n.id )
       let ids = []
       nodes.forEach( n => {
-        if (!n.isopen) {
-          let mdata = this.networks[this.curlevel].ndata[n.id].mdata
-          tdegree += mdata.degree
-          tstrength += mdata.strength
-          tchildren += mdata.predecessors
-          tparents.push(mdata.successor)
-          ids.push(n.id)
-        } else {
-          let J = n.joinData
-          tdegree += J.degree
-          tstrength += J.strength
-          tchildren += J.predecessors
-          tparents.push(J.successors)
-          ids = ids.concat(J.ids)
-          delete n.joinData
-        }
-        n.clear()
         n.visible = false
         n.isopen = false
         n.interactive = false
-        n.isjoined = true
+        this.eraseLinks(n)
       })
-      if (this.curlevel === this.networks.length -1)
-        tparents = null
-      let rect = nodes[0]
-      ids.sort( (a, b) => a - b )
-      rect.ids = ids
-      rect.joinData = {
-        ids: ids,
-        level: this.curlevel,
-        predecessors: tchildren,
-        successors: tparents,
-        degree: tdegree,
-        strength: tstrength,
-      }
-      rect.visible = true
-      rect.isopen = true
-      rect.interactive = true
-      rect.lineStyle(2, 0xFFFFFF, 0.7)
-      rect.beginFill(0xFFFFFF, .1)
-      rect.drawPolygon(path_)
-      rect.endFill()
-      rect.scale.set(1)
-      rect.x = c[0]
-      rect.y = c[1]
-      rect.linkpos = 0
-      this.updateLinkPos(rect)
-      this.redrawLinks(rect)
-      this.cnode = rect
-      let tid = ids.join ('-')
-
-      this.opennodes[rect.level][tid] = rect
-
       // plot children:
       // get the children of all the nodes
       // check if they have links
-      let children = []
-      nodes.forEach( n => {
-        let MLdata = this.networks[n.level].ndata[n.id].MLdata
-        if (!MLdata.isopen) {
-          children = children.concat( this.networks[this.curlevel].children[n.id] )
-        } else
-          children = children.concat( MLdata.children[MLdata.children.length - 1] )
-      })
-      let MLdata = this.networks[rect.level].ndata[rect.id].MLdata
+      let children = nodes.reduce( (cs, n) => {
+        return cs.concat( this.networks[this.curlevel].children[n.id] )
+      }, [])
       let children_ = [...new Set(children)]
       children_.sort( (a, b) => a - b )
-      MLdata.children.push( children_ )
-      MLdata.paths.push( path_ )
       
-      rect.rotation = 0
-      this.positionChildren(rect)
-      MLdata.isopen = true
+      this.placeOnCanvasChildren(children_, path_[0], path_[1], c, nodes[0].level - 1)
+
+      this.linkChildren(children_, nodes[0].level - 1)
+      // this.mkHibridLinks(rect, children_)
+      // mk hibrid links
+      // draw them
+    },
+    linkChildren (nodes, level) {
+      nodes.forEach( nid => {
+        let n1 = this.nodes[level][nid]
+        n1.linkedTo.forEach( (nids, level2) => {
+          nids.forEach( (w, nid2) => {
+            let n2 = this.nodes[level2][nid2]
+            let level_, lid, ll
+            if (n1.level === n2.level) {
+              level_ = level
+              if (n1.id < n2.id) {
+                lid = n1.id + '-' + n2.id
+                ll = [n1.id, n2.id, w, n1.level]
+              } else {
+                lid = n2.id + '-' + n1.id
+                ll = [n2.id, n1.id, w, n1.level]
+              }
+            } else {
+              if (n1.level < n2.level) {
+                level_ = n1.level + '-' + n2.level
+                lid = n1.id + '-' + n2.id
+              } else {
+                level_ = n2.level + '-' + n1.level
+                lid = n2.id + '-' + n1.id
+              }
+              ll = [n1.id, n2.id, w, level_]
+            }
+            let line = this.mkLine([n1.x, n1.y], [n2.x, n2.y], w, level_)
+            line.ll = ll
+            if (n1.level === n2.level) {
+              this.links_[level][lid] = line
+            } else {
+              this.links__[level_][lid] = line
+            }
+            n1.links.push(line)
+            n2.links.push(line)
+          })
+        })
+      })
+    },
+    mkHibridLinks (snode, cnodes) {
+      this.c = cnodes
+      this.s = snode
+      // for each children, find the nodes to which it is linked
+      let cndata = this.networks[snode.level - 1].ndata
+      let links = []
+      let hlinks = []
+      cnodes.forEach( c => {
+        let cn = this.nodes[snode.level - 1][c]
+        let links = cndata[c].aux.links_
+        links.forEach( l => {
+          let neigh = l[0] === c ? l[1] : l[0]
+          let weight = l[2]
+          // check if node is made, if it is, make the link
+          let target
+          if (this.nodes[snode.level - 1][neigh]) {
+            console.log('neigh found')
+            target = this.nodes[snode.level - 1][neigh]
+            links.push(l)
+          } else { // if not, find parent of neighbor, make link
+            console.log('parent found')
+            let pid = cndata[neigh].mdata.successor
+            target = this.nodes[snode.level][pid]
+            hlinks.push({
+              weight: weight,
+              cnode: cn,
+              pnode: target
+            })
+          }
+        })
+      })
+      this.mkLines_(links)
+      this.mkHLines(hlinks, snode.level - 1)
     },
     joinMetanodes (node) {
       let MLdata = this.networks[node.level].ndata[node.id].MLdata
@@ -1832,70 +2425,6 @@ export default {
         this.specified_metanode = undefined
       }
     },
-    joinMetanodes_ (node) {
-      let MLdata = this.networks[node.level].ndata[node.id].MLdata
-      if (!MLdata.isopen) {
-        this.iinfo.textContent += '\nplease choose an opened metanode'
-        this.iinfo.scrollTop = this.iinfo.scrollHeight
-        return
-      }
-      if (!this.specified_metanode) {
-        this.specified_metanode = node
-        node.tint = 0x00FFFF
-      } else {
-        let n1 = this.specified_metanode
-        let n2 = node
-        this.n1 = n1
-        this.n2 = n2
-        let MLdata_ = this.networks[n1.level].ndata[n1.id].MLdata
-        let path1 = MLdata_.paths[MLdata_.paths.length - 1]
-        let path2 = MLdata.paths[MLdata.paths.length - 1]
-        let maxx = Math.max(
-          - path1[0] + n1.x,
-          - path2[0] + n2.x,
-        )
-        let maxy = Math.max(
-          - path1[1] + n1.y,
-          - path2[1] + n2.y,
-        )
-        let minx = Math.min(
-          path1[0] + n1.x,
-          path2[0] + n2.x,
-        )
-        let miny = Math.min(
-          path1[1] + n1.y,
-          path2[1] + n2.y,
-        )
-        let ex = (maxx - minx) / 2
-        let ey = (maxy - miny) / 2
-        let path = [ -ex, -ey, -ex, ey, ex, ey, ex, -ey] // meta rectangle
-        let cx = (maxx + minx) / 2
-        let cy = (maxy + miny) / 2
-
-        n1.clear()
-        n2.clear()
-        n1.beginFill(0xFFFFFF, .1)
-        n1.drawPolygon(path)
-        n1.endFill()
-        n1.x = cx
-        n1.y = cy
-        MLdata_.paths.push(path)
-        let children1, children2
-        if (!MLdata_.isopen) {
-          children1 = this.networks[n1.level].ndata[n1.id].aux.children
-        } else {
-          children1 = MLdata_.children[MLdata_.children.length - 1]
-        }
-        if (!MLdata.isopen) {
-          children2 = this.networks[n2.level].ndata[n2.id].aux.children
-        } else {
-          children2 = MLdata.children[MLdata.children.length - 1]
-        }
-        MLdata_.children.push(children1.concat(children2))
-        this.positionChildren(n1)
-        this.specified_metanode = 0
-      }
-    },
     chLevel (val) {
       this.curlevel = val
       this.nodes.forEach( (nodes_, level_) => {
@@ -1920,6 +2449,22 @@ export default {
     },
   },
   watch: {
+    layout (val) {
+      let k = val.tkey
+      if (k === 'fru') {
+        this.runLayout = this.fruchter
+      } else if (k === 'fa2') {
+        this.runLayout = this.fa2
+      } else if (k === 'vicg1') {
+        this.runLayout = this.vicg1
+      } else if (k === 'vicg2') {
+        this.runLayout = this.vicg2
+      } else if (k === 'vicgX') {
+        this.runLayout = this.vicgX
+      } else if (k === 'vicgXX') {
+        this.runLayout = this.vicgXX
+      }
+    },
     network (val) {
       let a = document.getElementById('ninfo')
       a.textContent='loading info...'
@@ -2018,6 +2563,7 @@ export default {
 }
 </script>
 
+<style src="vue-dialog-drag/dist/vue-dialog-drag.css"></style>
 <style>
 .tcolumn {
   padding-left: 5px;
@@ -2076,5 +2622,19 @@ export default {
 #renderCanvas {
   border: 1px solid;
 }
+#ldiv {
+  border: 2px solid;
+  padding: 2px;
+  margin: 2px;
+  width: 100%;
+}
+.laybtn {
+  width: 80px;
+  float: left;
+}
+.laybtn2 {
+  width: 30px;
+}
 /* vim: set ft=vue: */
+
 </style>
