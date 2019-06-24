@@ -684,10 +684,15 @@ export default {
   },
   methods: {
     getLNodes () {
-      if (this.lnodes)
+      if (this.lnodes) {
         return this.lnodes
-      else
-        return __this.nodes[__this.curlevel]
+      } else {
+        return __this.nodes[__this.curlevel].reduce( (t, n) => {
+          if (n)
+            t.push(n)
+          return t 
+        }, [])
+      }
     },
     fruchter () {
       let nodes_ = this.getLNodes()
@@ -697,10 +702,10 @@ export default {
       let k = this.fru_C * (area / nodes_.length ) ** 0.5
       let k2 = k ** 2
       let step = this.fru_step / 1000
-      for (let i = 0; i < nodes_.length; i++) {
-        let n1 = nodes_[i]
-        for (let j = i + 1; j < nodes_.length; j++) {
-          let n2 = nodes_[j]
+      let counti = 0
+      nodes_.forEach( (n1, i) => {
+        let countj = 0
+        nodes_.splice(i).forEach( (n2, j) => {
           let dx = n1.x - n2.x
           let dy = n1.y - n2.y
           let d = (dx**2 + dy**2) ** 0.5
@@ -719,18 +724,21 @@ export default {
           f = Math.abs(f) > 1000 ? 1000 * Math.sign(f) : f
           let fx = f * dx / d
           let fy = f * dy / d
-          mov[i][0] -= fx * step
-          mov[i][1] -= fy * step
-          mov[j][0] += fx * step
-          mov[j][1] += fy * step
-        }
-      }
-      for (let i = 0; i < nodes_.length; i++) {
-        let n = nodes_[i]
+          mov[counti][0] -= fx * step
+          mov[counti][1] -= fy * step
+          mov[countj][0] += fx * step
+          mov[countj][1] += fy * step
+          countj++
+        })
+        counti++
+      })
+      counti = 0
+      nodes_.forEach( n => {
         n.x += mov[i][0]
         n.y += mov[i][1]
         __this.redrawLinks(n)
-      }
+        counti++
+      })
       this.mov = mov
     },
     fa2 () {
@@ -1167,6 +1175,8 @@ export default {
           let nodes = __this.nodes[__this.curlevel]
           let nodes_ = []
           nodes.forEach( n => {
+            if (n.isdestroyed)
+              return
             let b_ = n.getBounds()
             let b = {
               x: (b_.x - panx) / scale,
@@ -1216,6 +1226,8 @@ export default {
           let nodes = __this.nodes[__this.curlevel]
           let nodes_ = []
           nodes.forEach( n => {
+            if (n.isdestroyed)
+              return
             let b_ = n.getBounds()
             let b = {
               x: (b_.x - panx) / scale,
@@ -1304,6 +1316,116 @@ export default {
     collapseNodes (nodes) {
       console.log('collapse them!')
       this.mnodes = nodes
+      // group them by successor
+      let parents_ = this.networks[nodes[0].level].parents
+      let parents = nodes.map( n => parents_[n.id] )
+      parents = [...new Set(parents)]
+      let pgroups = parents.reduce( (g, p) => {
+        g[p] = this.networks[nodes[0].level + 1].children[p].map( cid => {
+          return this.nodes[nodes[0].level][cid]
+        })
+        return g
+      }, {})
+      // get average position in each group
+      let gpositions = parents.reduce( (gpos, p) => {
+        let nodes_ = pgroups[p]
+        let pos = nodes_.reduce( (pos_, n) => {
+          pos_[0] += n.x
+          pos_[1] += n.y
+          // destroy nodes and their links
+          n.destroy()
+          n.isdestroyed = true
+          n.links.forEach( l => {
+            if (!l.isdestroyed) {
+              l.destroy()
+              l.isdestroyed = true
+            }
+          })
+          return pos_
+        }, [0, 0])
+        gpos[p] = [pos[0] / nodes_.length, pos[1] / nodes_.length]
+        return gpos
+      }, {})
+      // create the successor nodes for each group, and their links
+      this.mkParentNodes(parents, gpositions, nodes[0].level + 1)
+      this.restoreParentLinks(parents, nodes[0].level + 1)
+    },
+    mkParentNodes (pids, pos, level) {
+      let l2path = this.l2hex ? this.pathhex : this.path
+      let fltwo = this.networks[level].fltwo
+      let nodes = pids
+      for (let i = 0; i < nodes.length; i++) {
+        let nid = nodes[i]
+        let p = pos[nid]
+
+        let px = p[0]
+        let py = p[1]
+        let node_ = this.nodes[level][nid]
+        let ndata = this.networks[level].ndata
+
+        const node = new PIXI.Graphics()
+        let layer = fltwo <= nid ? 1 : 0
+        node.layer = layer
+        node.lineStyle(1, 0x000000)
+        node.beginFill(0xFFFFFF)
+        node.drawPolygon(this.layers_alternative[level][layer] ? l2path : this.path )
+        node.endFill()
+        node.tint = this.nodecolors[level * 2 + (fltwo <= nid ? 1 : 0)]
+        node.x = px
+        node.y = py
+        node.interactive = false
+        node.buttonMode = true
+        node.alpha = 0.8
+        node.zIndex = 10
+        node
+          .on('pointerdown', clickNode)
+          .on('pointerup', releaseNode)
+          .on('pointerupoutside', releaseNode)
+          .on('pointermove', moveNode)
+        node.id = nid
+        node.level = level
+        node.links = []
+        node.linkedTo = this.networks.map( n => [] )
+        let ll = ndata[nid].aux.links_
+        ll.forEach( l  => {
+          let ne = l[0] === nid ? l[1] : l[0]
+          let w = l[2]
+          let target, tlevel
+          if (this.nodes[level][ne] || nodes.includes(ne)) {
+            target = ne
+            tlevel = level
+          } else {
+            [target, tlevel] = this.findParent(ne, level)
+          }
+          if (typeof target === 'undefined') {
+            let [targets, tlevels, ws] = this.findChildren(ne, level, nid, level)
+            for (let each = 0; each < targets.length; each++) {
+              target = targets[each]
+              tlevel = tlevels[each]
+              w = ws[each]
+              if (node.linkedTo[tlevel][target]) {
+                node.linkedTo[tlevel][target] += w
+              } else {
+                node.linkedTo[tlevel][target] = w
+              }
+            }
+          }
+          else {
+            if (node.linkedTo[tlevel][target]) {
+              node.linkedTo[tlevel][target] += w
+            } else {
+              node.linkedTo[tlevel][target] = w
+            }
+          }
+        })
+        node.scale.x *= this.nodescales[level]
+        node.scale.y *= this.nodescales[level]
+        this.mcont.addChild(node)
+        this.nodes[level][nid] = node
+      }
+    },
+    restoreParentLinks (pids, level) {
+      this.linkChildren(pids, level)
     },
     moveManyNodes (nodes) {
       this.eregion
@@ -1545,6 +1667,30 @@ export default {
         })
       })
     },
+    updateLinkPos (node) {
+      let sx = __this.app_.stage.x
+      let sy = __this.app_.stage.y
+      let scale = __this.app_.stage.scale.x
+      let b = node.getBounds()
+      let b_ = {
+        x: (b.x - sx) / scale, y: (b.y - sy) / scale,
+        width: b.width / scale, height: b.height / scale
+      }
+      let lp = node.linkpos % 4
+      if (lp === 0) {
+        node.xx = b_.x + b_.width
+        node.yy = b_.y + b_.height
+      } else if (lp === 1) {
+        node.xx = b_.x + b_.width
+        node.yy = b_.y
+      } else if (lp === 2) {
+        node.xx = b_.x
+        node.yy = b_.y
+      } else if (lp === 3) {
+        node.xx = b_.x
+        node.yy = b_.y + b_.height
+      }
+    },
     placeOnCanvas0 (nodes, links, level, width, height, center) {
       // for the initial rendering of the network
       let layout = nodes.reduce( (l, n) => {
@@ -1558,25 +1704,25 @@ export default {
         this.zoom('-')
       this.loaded = true
       this.updateElementsCount()
-      // this.app_.ticker.add( (delta) => {
-      //   if (!__this.lprocess && !__this.iterate_once)
-      //     return
-      //   // console.log(delta)
-      //   // this.nodes[level][nodes[i]] = node
-      //   if (__this.runLayout) {
-      //     __this.runLayout()
-      //     __this.niterations++
-      //   }
+      this.app_.ticker.add( (delta) => {
+        if (!__this.lprocess && !__this.iterate_once)
+          return
+        // console.log(delta)
+        // this.nodes[level][nodes[i]] = node
+        if (__this.runLayout) {
+          __this.runLayout()
+          __this.niterations++
+        }
 
-      //   __this.iterate_once = false
-      //   // __this.nodes[__this.curlevel].forEach( n => {
-      //   //   __this.nodes[__this.curlevel].forEach( n2 => {
-      //   //   })
-      //   //   n.x += 10 * (Math.random() - 0.5)
-      //   //   n.y += 10 * (Math.random() - 0.5)
-      //   //   __this.redrawLinks(n)
-      //   // })
-      // })
+        __this.iterate_once = false
+        // __this.nodes[__this.curlevel].forEach( n => {
+        //   __this.nodes[__this.curlevel].forEach( n2 => {
+        //   })
+        //   n.x += 10 * (Math.random() - 0.5)
+        //   n.y += 10 * (Math.random() - 0.5)
+        //   __this.redrawLinks(n)
+        // })
+      })
     },
     placeOnCanvas (nodes, links, level, width, height, center) {
       let turl = process.env.flaskURL + '/layoutOnDemand/'
@@ -1806,16 +1952,30 @@ export default {
             let ne = l[0] === nid ? l[1] : l[0]
             let w = l[2]
             let target, tlevel
-            if (this.nodes[level][ne] || nodes.includes(ne)) {
+            if ((this.nodes[level][ne] && !this.nodes[level][ne].isdestroyed) || nodes.includes(ne)) {
               target = ne
               tlevel = level
             } else {
               [target, tlevel] = this.findParent(ne, level)
             }
-            if (node.linkedTo[tlevel][target]) {
-              node.linkedTo[tlevel][target] += w
+            if (typeof target === 'undefined') {
+              let [targets, tlevels, ws] = this.findChildren(ne, level, nid, level)
+              for (let each = 0; each < targets.length; each++) {
+                target = targets[each]
+                tlevel = tlevels[each]
+                w = ws[each]
+                if (node.linkedTo[tlevel][target]) {
+                  node.linkedTo[tlevel][target] += w
+                } else {
+                  node.linkedTo[tlevel][target] = w
+                }
+              }
             } else {
-              node.linkedTo[tlevel][target] = w
+              if (node.linkedTo[tlevel][target]) {
+                node.linkedTo[tlevel][target] += w
+              } else {
+                node.linkedTo[tlevel][target] = w
+              }
             }
           })
           node.scale.x *= this.nodescales[level]
@@ -1828,13 +1988,63 @@ export default {
         }
       }
     },
+    findChildren (cid_, level, nid, levelnid) {
+      // find the all children of nid and their levels
+      let cids = this.networks[level].children[cid_]
+      let cids_ = []
+      let levels_ = []
+      let ws_ = []
+      cids.forEach( cid => {
+        if (this.nodes[level - 1][cid] && !this.nodes[level - 1][cid].isdestroyed) {
+          let cid_ = cid
+          let level_ = level - 1
+          // find the weight:
+          // find the child cid2 of nid which is linked to cid
+          // then find the link cid-cid2 and get the weight
+          let w_ = this.findW(cid, level, nid, levelnid)
+          cids_.push(cid_)
+          levels_.push(level_)
+          ws_.push(w_)
+        } else {
+          let [cids__, levels__, ws__] = this.findChildren(cid, level - 1, nid, levelnid)
+          cids_ = cids_.concat(cids__)
+          levels_ = levels_.concat(levels__)
+          ws_ = ws_concat(ws__)
+        }
+      })
+      return [cids_, levels_, ws_]
+    },
+    findW (cid, level, nid, levelnid) {
+      let level_ = levelnid
+      let children = []
+      let nids = [nid]
+      while (level_ > level) {
+        children = nids.map( nid_ => {
+          return this.networks[level_].children[nid_]
+        })
+        children = children.flat(1)
+        level_--
+      }
+      let w = 0
+      children.forEach( cid_ => {
+        let w_ = this.networks[level][cid_].ndata.aux.w[cid]
+        if (w_) {
+          w += w_
+        }
+      })
+      return w
+      // return 1
+    },
     findParent (nid, level) {
       let parent_
-      let level_ = level
+      let level_
       let found = false
       while (!found) {
+        if (level == (this.networks.length - 1)) {
+          return [undefined, undefined]
+        }
         let sid = this.networks[level].ndata[nid].mdata.successor
-        if (this.nodes[level + 1][sid]) {
+        if (this.nodes[level + 1][sid] && !this.nodes[level + 1][sid].isdestroyed) {
           parent_ = sid
           level_ = level + 1
           found = true
@@ -1899,7 +2109,7 @@ export default {
       if (toolname !== 'info') {
         this.nodes.forEach( l => {
           l.forEach( n => {
-            if (!n.isopen)
+            if (!n.isopen && !n.isdestroyed)
               n.rotation += this.mcont.rotation
           })
         })
@@ -1963,109 +2173,6 @@ export default {
         things.forEach( t => {
           t.tint = rcolor
         })
-      }
-    },
-    resizeMetanode (node) {
-      let MLdata = this.networks[node.level].ndata[node.id].MLdata
-      let sx = __this.app_.stage.x
-      let sy = __this.app_.stage.y
-      let scale = __this.app_.stage.scale.x
-      if (!MLdata.isopen)
-        return
-      if (this.resizing === 'start') {
-        let m = __this.app_.renderer.plugins.interaction.mouse.global
-        this.rpos0 = [(m.x - sx) / scale, (m.y - sy) / scale]
-        this.rnode = node
-        return
-      }
-      let m = __this.app_.renderer.plugins.interaction.mouse.global
-      this.rpos1 = [(m.x - sx) / scale, (m.y - sy) / scale]
-      if (this.rpos0[0] === this.rpos1[0] && this.rpos0[1] === this.rpos1[1]) {
-        this.rznode = node
-        node.linkpos++
-        this.updateLinkPos(node)
-        this.redrawLinks(node)
-        return
-      }
-      let dx = this.rpos1[0] - this.rpos0[0] 
-      let dy = this.rpos1[1] - this.rpos0[1] 
-      let n = this.rnode
-      let b0 = [(n.getBounds().x - sx) / scale , (n.getBounds().y - sy) / scale]
-      if (this.rpos0[0] < n.x)
-        dx *= -1
-      if (this.rpos0[1] < n.y)
-        dy *= -1
-      let MLdata_ = this.networks[n.level].ndata[n.id].MLdata
-      let path = MLdata_.paths[MLdata.paths.length - 1]
-      let sx_ = (2*dx + path[4] - path[0]) / (path[4] - path[0])
-      let sy_ = (2*dy + path[5] - path[1])/ (path[5] - path[1])
-      path[4] += dx
-      path[6] += dx
-      path[0] -= dx
-      path[2] -= dx
-      path[3] += dy
-      path[5] += dy
-      path[1] -= dy
-      path[7] -= dy
-      n.clear()
-      n.beginFill(0xFFFFFF, .1)
-      n.drawPolygon(path)
-      n.endFill()
-      let b = n.getBounds()
-      let b_ = {
-        x: (b.x - sx) / scale, y: (b.y - sy) / scale,
-        width: b.width / scale, height: b.height / scale
-      }
-      MLdata_.children[MLdata_.children.length - 1].forEach( c => {
-        let c_ = this.nodes[n.level - 1][c]
-        let ddx = (c_.x - b0[0]) * sx_
-        let ddy = (c_.y - b0[1]) * sy_
-        c_.x = b_.x + ddx
-        c_.y = b_.y + ddy
-      })
-      let xx = MLdata_.children[MLdata_.children.length - 1].map( c => {
-        let c_ = this.nodes[n.level - 1][c]
-        return c_.x
-      })
-      let yy = MLdata_.children[MLdata_.children.length - 1].map( c => {
-        let c_ = this.nodes[n.level - 1][c]
-        return c_.y
-      })
-      let maxxx = Math.max(...xx)
-      let minxx = Math.min(...xx)
-      let maxyy = Math.max(...yy)
-      let minyy = Math.min(...yy)
-      MLdata_.children[MLdata_.children.length - 1].forEach( c => {
-        let c_ = this.nodes[n.level - 1][c]
-        c_.x = b_.x + ( (c_.x - minxx) * (b_.width*0.9) / (maxxx - minxx) ) + b_.width * 0.05
-        c_.y = b_.y + ( (c_.y - minyy) * (b_.height*0.9) / (maxyy - minyy) ) + b_.height * 0.05
-        this.redrawLinks(c_)
-      })
-      this.updateLinkPos(node)
-      this.redrawLinks(node)
-    },
-    updateLinkPos (node) {
-      let sx = __this.app_.stage.x
-      let sy = __this.app_.stage.y
-      let scale = __this.app_.stage.scale.x
-      let b = node.getBounds()
-      let b_ = {
-        x: (b.x - sx) / scale, y: (b.y - sy) / scale,
-        width: b.width / scale, height: b.height / scale
-      }
-      let lp = node.linkpos % 4
-      if (lp === 0) {
-        node.xx = b_.x + b_.width
-        node.yy = b_.y + b_.height
-      } else if (lp === 1) {
-        node.xx = b_.x + b_.width
-        node.yy = b_.y
-      } else if (lp === 2) {
-        node.xx = b_.x
-        node.yy = b_.y
-      } else if (lp === 3) {
-        node.xx = b_.x
-        node.yy = b_.y + b_.height
       }
     },
     mhandler (e) {
@@ -2274,6 +2381,8 @@ export default {
       let sy = __this.app_.stage.y
       let scale = __this.app_.stage.scale.x
       let bounds = nodes.map( n => { 
+        if (n.isdestroyed)
+          return
         let b = n.getBounds() 
         return {
           x: (b.x - sx) / scale,
@@ -2303,6 +2412,7 @@ export default {
         n.isopen = false
         n.interactive = false
         this.eraseLinks(n)
+        n.isdestroyed = true
       })
       // plot children:
       // get the children of all the nodes
@@ -2340,11 +2450,12 @@ export default {
               if (n1.level < n2.level) {
                 level_ = n1.level + '-' + n2.level
                 lid = n1.id + '-' + n2.id
+                ll = [n1.id, n2.id, w, level_]
               } else {
                 level_ = n2.level + '-' + n1.level
                 lid = n2.id + '-' + n1.id
+                ll = [n2.id, n1.id, w, level_]
               }
-              ll = [n1.id, n2.id, w, level_]
             }
             let line = this.mkLine([n1.x, n1.y], [n2.x, n2.y], w, level_)
             line.ll = ll
