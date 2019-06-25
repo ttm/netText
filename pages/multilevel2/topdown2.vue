@@ -1,7 +1,7 @@
 <template>
 <span>
-  <h1><span title="Visualization of (large) Bipartite Networks assisted by Multilevel Strategies"> BiNetVis</span>
-    <nuxt-link to="/multilevel2/about">
+  <h1><span title="Visualization of (large) Bipartite Networks assisted by Multilevel Strategies"> BiNetVis 2</span>
+    <nuxt-link to="/multilevel2/about2">
       <i class="fa fa-question-circle mhelp" style="font-size:28px;color:blue"></i>
     </nuxt-link>
   </h1>
@@ -289,7 +289,7 @@
   </div>
   </v-card>
 </v-dialog>
-<dialog-drag id="dialog-1" title="layout options" :options="{buttonPin: false, buttonClose: false}" v-show="!ldialog">
+<dialog-drag id="dialog-1" title="layout options" :options="{buttonPin: false, buttonClose: false}" v-show="ldialog && loaded">
   <v-layout column>
   <v-layout row>
   <v-menu offset-y title="select the layout">
@@ -323,14 +323,16 @@
 </span>
   <v-btn
     @click="randPos()"
-    title="iterate once"
+    title="randomize position"
     color="green"
   >
     randomize
   </v-btn>
-  <v-checkbox v-model="manhattan" label="Manhattan"> </v-checkbox>
+  <v-checkbox v-model="manhattan" label="Manhattan" title="use Manhattan distance"
+  v-show="!(layout.tkey === 'vicgX' || layout.tkey === 'vicgXX')"
+  > </v-checkbox>
   </v-layout>
-  <v-layout row v-show="layout.tkey === 'vicgX'">
+  <v-layout row v-show="layout.tkey === 'vicgX' || layout.tkey === 'vicgXX'">
     <v-text-field
       :label="'repulsion'"
       :left="true"
@@ -359,6 +361,17 @@
       min="0.1"
       class="laybtn"
       style="margin-left:5px"
+    ></v-text-field>
+    <v-text-field
+      :label="'p'"
+      :left="true"
+      v-model="thresholdXX"
+      type="number"
+      step="0.1"
+      min="0.01"
+      class="laybtn"
+      style="margin-left:5px"
+      v-show="layout.tkey === 'vicgXX'"
     ></v-text-field>
   </v-layout>
   <v-layout row v-show="layout.tkey === 'fru'">
@@ -466,8 +479,11 @@
     class="laybtn"
     style="margin-left:5px"
   ></v-text-field>
-  <v-checkbox v-model="llevel" label="level"> </v-checkbox>
+  <v-checkbox v-model="llevel" label="level"
+    title="perform layout only on the active level"
+  > </v-checkbox>
     <v-checkbox v-model="lweight" label="weight"
+    title="consider link weights"
     class="laybtn"
     > </v-checkbox>
     <v-text-field
@@ -485,6 +501,7 @@
   <v-layout row>
     <v-checkbox v-model="lprocess" label="iterate"
     class="laybtn"
+    title="iterate until unchecked"
     > </v-checkbox>
     <v-btn
       @click="iterate_once = true"
@@ -638,9 +655,9 @@ export default {
       },
       layouts: [
         {name: 'Fruchterman-Reingold', tkey: 'fru'},
-        {name: 'Force Atlas 2', tkey: 'fa2'},
+        // {name: 'Force Atlas 2', tkey: 'fa2'},
         {name: 'VICG - theoretic', tkey: 'vicg1'},
-        {name: 'VICG - optimal', tkey: 'vicg2'},
+        // {name: 'VICG - optimal', tkey: 'vicg2'},
         {name: 'VICG - optimalX', tkey: 'vicgX'},
         {name: 'VICG - optimalXX', tkey: 'vicgXX'},
       ],
@@ -682,8 +699,8 @@ export default {
       thresholdXX: 0.1,
       L: 50,
       llevel: false,
-      formula: '$$d = C\\sqrt{area/nodes},\\; f_a = d^2 / k, \\; f_r = -k^2 / d$$',
-      ldialog: false,
+      formula: '$$k = C\\sqrt{area/nodes},\\; f_a = d^2 / k, \\; f_r = -k^2 / d$$',
+      ldialog: true,
       slayout: false,
       manhattan: false,
     }
@@ -699,13 +716,14 @@ export default {
     this.runLayout = this.vicg1
     this.runLayout = this.fruchter
     this.runLayout = this.vicgX
-    this.layout = {name: 'VICG - optimalX', tkey: 'vicgX'}
+    // this.layout = {name: 'VICG - optimalX', tkey: 'vicgX'}
+    this.layout = {name: 'VICG', tkey: 'vicg1'}
     this.getNodes = this.getAllNodes
     let mdialog =document.getElementById('dialog-1')
-    // mdialog.__vue__.left = 840
-    // mdialog.__vue__.top = 600
     mdialog.__vue__.left = 440
     mdialog.__vue__.top = 400
+    mdialog.__vue__.left = 840
+    mdialog.__vue__.top = 600
     if (typeof PIXI === 'undefined') {
       console.log('ok, pixi not found')
       let ele = document.createElement("script");
@@ -814,12 +832,11 @@ export default {
           let dy = n1.y - n2.y
           let d = this.calcDist(dx, dy)
           let fr = Cr * ((dI/d) ** alphar) + Cr2
-          let neighbors = ndata[n1.id].aux.neighbors
           let fa = 0
-          if (neighbors.includes(n2.id)) {
+          if (n1.linkedTo[n2.level][n2.id]) {
             let w = 1
             if (this.lweight) {
-              w = ndata[n1.id].aux.w[n2.id]
+              w = n1.linkedTo[n2.level][n2.id]
               w = 1 + (w - 1) * this.w_emph
             }
             fa = Ca * w * ((d/dI) ** alphaa) + Ca2
@@ -849,11 +866,13 @@ export default {
       let mov = this.nodes[this.curlevel].map( n => [n.x, n.y] )
       let step = this.fru_step / 1000
       for (let i = 0; i < nodes_.length; i++) {
+        let p1 = mov[i]
         let n1 = nodes_[i]
         for (let j = i + 1; j < nodes_.length; j++) {
+          let p2 = mov[j]
           let n2 = nodes_[j]
-          let dx = n1.x - n2.x
-          let dy = n1.y - n2.y
+          let dx = p1[0] - p2[0]
+          let dy = p1[1] - p2[1]
           if (n1.linkedTo[n2.level][n2.id]) {
             let w = 1
             if (this.lweight) {
@@ -868,8 +887,6 @@ export default {
             mov[j][1] += fay
           }
           if ( Math.abs(dx) < __this.L && Math.abs(dy) < __this.L ) {
-            // let d = (dx**2 + dy**2) ** 0.5
-            // let f = 10 / d
             let r = this.repulsion
             let fx, fy
             if (Math.abs(dx) < 1) {
@@ -897,49 +914,55 @@ export default {
     vicgXX () {
       let nodes_ = __this.nodes[__this.curlevel]
       let ndata = this.networks[__this.curlevel].ndata
-      let mov = this.nodes[this.curlevel].map( n => [0, 0] )
+      let mov = this.nodes[this.curlevel].map( n => [n.x, n.y] )
       let step = this.fru_step / 1000
-      let thresholdXX = this.thresholdXX
       for (let i = 0; i < nodes_.length; i++) {
-        if (Math.random() < thresholdXX)
+        if (Math.random() > this.thresholdXX)
           continue
+        let p1 = mov[i]
         let n1 = nodes_[i]
         for (let j = i + 1; j < nodes_.length; j++) {
-          if (Math.random() < thresholdXX)
+          if (Math.random() > this.thresholdXX)
             continue
+          let p2 = mov[j]
           let n2 = nodes_[j]
-          let dx = n1.x - n2.x
-          let dy = n1.y - n2.y
-          let neighbors = ndata[n1.id].aux.neighbors
-          if (neighbors.includes(n2.id)) {
-            n1.x -= Math.sign(dx) * __this.attraction
-            n1.y -= Math.sign(dy) * __this.attraction
-            n2.x += Math.sign(dx) * __this.attraction
-            n2.y += Math.sign(dy) * __this.attraction
+          let dx = p1[0] - p2[0]
+          let dy = p1[1] - p2[1]
+          if (n1.linkedTo[n2.level][n2.id]) {
+            let w = 1
+            if (this.lweight) {
+              w = n1.linkedTo[n2.level][n2.id]
+              w = 1 + (w - 1) * this.w_emph
+            }
+            let fax = w * this.attraction * dx * step
+            let fay = w * this.attraction * dy * step
+            mov[i][0] -= fax
+            mov[i][1] -= fay
+            mov[j][0] += fax
+            mov[j][1] += fay
           }
           if ( Math.abs(dx) < __this.L && Math.abs(dy) < __this.L ) {
-            // let d = (dx**2 + dy**2) ** 0.5
-            // let f = 10 / d
-            let r = __this.repulsion
-            let fx = r / dx
-            let fy = r / dy
-            fx = (Math.abs(fx) > r ) ? r * Math.sign(fx) : fx
-            fy = (Math.abs(fy) > r ) ? r * Math.sign(fy) : fy
-            mov[n1.id][0] += fx
-            mov[n1.id][1] += fy
-            mov[n2.id][0] -= fx
-            mov[n2.id][1] -= fy
+            let r = this.repulsion
+            let fx, fy
+            if (Math.abs(dx) < 1) {
+              fx = r * Math.sign(dx) * step
+            } else {
+              fx = r / dx
+            }
+            if (Math.abs(dy) < 1) {
+              fy = r * Math.sign(dy) * step
+            } else {
+              fy = r / dy
+            }
+            mov[i][0] += fx
+            mov[i][1] += fy
+            mov[j][0] -= fx
+            mov[j][1] -= fy
           }
         }
-      }
-      for (let i = 0; i < nodes_.length; i++) {
-        let n = nodes_[i]
-        n.x += mov[i][0]
-        n.y += mov[i][1]
-      }
-      for (let i = 0; i < nodes_.length; i++) {
-        let n = nodes_[i]
-        __this.redrawLinks(n)
+        n1.x = mov[i][0]
+        n1.y = mov[i][1]
+        this.redrawLinks(n1)
       }
       this.mov = mov
     },
@@ -1185,7 +1208,7 @@ export default {
           __this.lregion.endFill()
           return
         }
-        if ((__this.tool === 'collapse' ||__this.tool === 'regionexplore' || __this.tool === 'drag') && __this.eregion) {
+        if ((__this.tool === 'collapse' || __this.tool === 'regionexplore' || __this.tool === 'drag') && __this.eregion) {
           if (__this.draggingnode && __this.selectednode.name !== 'rect') {
             __this.eregion.clear()
             delete __this.eregion
@@ -1254,7 +1277,7 @@ export default {
               n1.linkedTo.forEach( (nids, level) => {
                 nids.forEach( (w, nid) => {
                   let n2 = __this.nodes[level][nid]
-                  if (!nodes_.includes(n2) && !nodes__.includes(n2))
+                  if (!nodes_.includes(n2) && !nodes__.includes(n2) && !n2.isdestroyed)
                     nodes__.push(n2)
                 })
               })
@@ -1330,6 +1353,16 @@ export default {
           __this.tool = 'dragregion'
         }
         if (__this.tool === 'collapse' || __this.tool === 'regionexplore') {
+          if (__this.tool === 'collapse' && __this.curlevel === __this.networks.length - 1) {
+            __this.eregion.clear()
+            delete __this.eregion
+            return
+          }
+          if (__this.tool === 'regionexplore' && __this.curlevel === 0) {
+            __this.eregion.clear()
+            delete __this.eregion
+            return
+          }
           let scale = __this.app_.stage.scale.x
           let panx = __this.app_.stage.x
           let pany = __this.app_.stage.y
@@ -1349,7 +1382,7 @@ export default {
           let nodes = __this.nodes[__this.curlevel]
           let nodes_ = []
           nodes.forEach( n => {
-            if (!n.interactive)
+            if (!n.interactive || n.isdestroyed)
               return
             let b_ = n.getBounds()
             let b = {
@@ -1363,6 +1396,7 @@ export default {
             }
           })
           // test if nodes have more than one successor
+          console.log('finding nodes')
           if (nodes_.length > 0) {
             let tparent = __this.childparent[__this.curlevel][nodes_[0].id]
             let texit = false
@@ -1409,6 +1443,8 @@ export default {
           // destroy nodes and their links
           n.destroy()
           n.isdestroyed = true
+          n.visible = false
+          n.interactive = false
           n.links.forEach( l => {
             if (!l.isdestroyed) {
               l.destroy()
@@ -1516,8 +1552,7 @@ export default {
         this.networks_ = networks_.filter(i => {
           return (i.layer === 0) && (i.filename.split('.').pop() === 'ncol')
         })
-        this.network = this.networks_[2]
-        this.renderNetwork()
+        this.network = this.networks_[1]
         // this.renderNetwork()
       })
     },
@@ -2014,69 +2049,64 @@ export default {
         let py = (1 + p[1]) * height/2 + center[1]
         let node_ = this.nodes[level][nid]
         let ndata = this.networks[level].ndata
-        if (!node_) {
-          const node = new PIXI.Graphics()
-          let layer = fltwo <= nid ? 1 : 0
-          node.layer = layer
-          node.lineStyle(1, 0x000000)
-          node.beginFill(0xFFFFFF)
-          node.drawPolygon(this.layers_alternative[level][layer] ? l2path : this.path )
-          node.endFill()
-          node.tint = this.nodecolors[level * 2 + (fltwo <= nid ? 1 : 0)]
-          node.x = px
-          node.y = py
-          node.interactive = level === this.curlevel
-          node.buttonMode = true
-          node.alpha = 0.8
-          node.zIndex = 10
-          node
-            .on('pointerdown', clickNode)
-            .on('pointerup', releaseNode)
-            .on('pointerupoutside', releaseNode)
-            .on('pointermove', moveNode)
-          node.id = nid
-          node.level = level
-          node.links = []
-          node.linkedTo = this.networks.map( n => [] )
-          let ll = ndata[nid].aux.links_
-          ll.forEach( l  => {
-            let ne = l[0] === nid ? l[1] : l[0]
-            let w = l[2]
-            let target, tlevel
-            if ((this.nodes[level][ne] && !this.nodes[level][ne].isdestroyed) || nodes.includes(ne)) {
-              target = ne
-              tlevel = level
-            } else {
-              [target, tlevel] = this.findParent(ne, level)
-            }
-            if (typeof target === 'undefined') {
-              let [targets, tlevels, ws] = this.findChildren(ne, level, nid, level)
-              for (let each = 0; each < targets.length; each++) {
-                target = targets[each]
-                tlevel = tlevels[each]
-                w = ws[each]
-                if (node.linkedTo[tlevel][target]) {
-                  node.linkedTo[tlevel][target] += w
-                } else {
-                  node.linkedTo[tlevel][target] = w
-                }
-              }
-            } else {
+        const node = new PIXI.Graphics()
+        let layer = fltwo <= nid ? 1 : 0
+        node.layer = layer
+        node.lineStyle(1, 0x000000)
+        node.beginFill(0xFFFFFF)
+        node.drawPolygon(this.layers_alternative[level][layer] ? l2path : this.path )
+        node.endFill()
+        node.tint = this.nodecolors[level * 2 + (fltwo <= nid ? 1 : 0)]
+        node.x = px
+        node.y = py
+        node.interactive = level === this.curlevel
+        node.buttonMode = true
+        node.alpha = 0.8
+        node.zIndex = 10
+        node
+          .on('pointerdown', clickNode)
+          .on('pointerup', releaseNode)
+          .on('pointerupoutside', releaseNode)
+          .on('pointermove', moveNode)
+        node.id = nid
+        node.level = level
+        node.links = []
+        node.linkedTo = this.networks.map( n => [] )
+        let ll = ndata[nid].aux.links_
+        ll.forEach( l  => {
+          let ne = l[0] === nid ? l[1] : l[0]
+          let w = l[2]
+          let target, tlevel
+          if ((this.nodes[level][ne] && !this.nodes[level][ne].isdestroyed) || nodes.includes(ne)) {
+            target = ne
+            tlevel = level
+          } else {
+            [target, tlevel] = this.findParent(ne, level)
+          }
+          if (typeof target === 'undefined') {
+            let [targets, tlevels, ws] = this.findChildren(ne, level, nid, level)
+            for (let each = 0; each < targets.length; each++) {
+              target = targets[each]
+              tlevel = tlevels[each]
+              w = ws[each]
               if (node.linkedTo[tlevel][target]) {
                 node.linkedTo[tlevel][target] += w
               } else {
                 node.linkedTo[tlevel][target] = w
               }
             }
-          })
-          node.scale.x *= this.nodescales[level]
-          node.scale.y *= this.nodescales[level]
-          this.mcont.addChild(node)
-          this.nodes[level][nodes[i]] = node
-        } else {
-          node_.x = px
-          node_.y = py
-        }
+          } else {
+            if (node.linkedTo[tlevel][target]) {
+              node.linkedTo[tlevel][target] += w
+            } else {
+              node.linkedTo[tlevel][target] = w
+            }
+          }
+        })
+        node.scale.x *= this.nodescales[level]
+        node.scale.y *= this.nodescales[level]
+        this.mcont.addChild(node)
+        this.nodes[level][nodes[i]] = node
       }
     },
     findChildren (cid_, level, nid, levelnid) {
@@ -2337,7 +2367,7 @@ export default {
         this.otherlayer = level
         this.renderNetwork()
       } else if (e.srcElement.id === 'layoutbtn') {
-        if (e.button === 1) {
+        if (e.button === 0) {
           if (this.considerlinks === true && this.tool === 'layout')
             this.considerlinks = false
           else {
@@ -2348,8 +2378,8 @@ export default {
           if (this.considerlinks === false && this.tool === 'layout')
             this.considerlinks = true
           else {
-            this.setTool('layout')
             this.considerlinks = true
+            this.setTool('layout')
           }
         }
       }
@@ -2484,9 +2514,10 @@ export default {
       this.iinfo.scrollTop = this.iinfo.scrollHeight
     },
     joinManyNodes (nodes) {
-      let sx = __this.app_.stage.x
-      let sy = __this.app_.stage.y
-      let scale = __this.app_.stage.scale.x
+      console.log('join many')
+      let sx = this.app_.stage.x
+      let sy = this.app_.stage.y
+      let scale = this.app_.stage.scale.x
       let bounds = nodes.map( n => { 
         if (n.isdestroyed)
           return
@@ -2709,9 +2740,10 @@ export default {
         this.runLayout = this.vicg2
       } else if (k === 'vicgX') {
         this.runLayout = this.vicgX
-        this.formula = '$$f_{a,x} = attraction . dx, f_{a,y} = attraction . dy,\\; f_{r,x} = - repulsion / dy, f_{r,y} = repulsion / dy$$'
+        this.formula = '$$f_{a,x} = attraction . dx, f_{a,y} = attraction . dy$$ $$|dx|,|dy| > L \\Rightarrow f_{r,x} = - repulsion / dy, f_{r,y} = - repulsion / dy$$'
       } else if (k === 'vicgXX') {
         this.runLayout = this.vicgXX
+        this.formula = 'with probability p: $$f_{a,x} = attraction . dx, f_{a,y} = attraction . dy$$ $$|dx|,|dy| > L \\Rightarrow f_{r,x} = - repulsion / dy, f_{r,y} = - repulsion / dy$$'
       }
     },
     network (val) {
