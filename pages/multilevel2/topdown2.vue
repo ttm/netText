@@ -5,6 +5,7 @@
       <i class="fa fa-question-circle mhelp" style="font-size:28px;color:blue"></i>
     </nuxt-link>
   </h1>
+  <vue-mathjax :formula="formula"></vue-mathjax>
 <v-layout align-center justify-center row id="startstuff">
   <v-flex text-xs-center>
     <v-menu offset-y title="select or upload network" :disabled="mapping || loaded">
@@ -298,6 +299,7 @@
     >
       {{ layout ? layout.name : 'Select' }}
     </v-btn>
+    </nuxt-link>
     <v-list>
       <v-list-tile
         v-for="(lay, index) in layouts"
@@ -309,6 +311,15 @@
       </v-list-tile>
     </v-list>
   </v-menu>
+  <v-tooltip top>
+    <template v-slot:activator="{ on }">
+      <i class="fa fa-question-circle mhelp" style="font-size:28px;color:blue" v-on="on">
+      </i>
+    </template>
+    <vue-mathjax :formula="formula"></vue-mathjax>
+  </v-tooltip>
+      <span class="tooltiptext" id="mtt">
+</span>
   <v-btn
     @click="randPos()"
     title="iterate once"
@@ -326,6 +337,7 @@
     class="laybtn"
     style="margin-left:5px"
   ></v-text-field>
+  <v-checkbox v-model="llevel" label="level"> </v-checkbox>
   </v-layout>
   <v-layout row v-show="layout.tkey === 'vicgX'">
     <v-text-field
@@ -363,7 +375,7 @@
   </v-layout>
   <v-layout row v-show="layout.tkey === 'vicg1'">
     <v-text-field
-      :label="'D'"
+      :label="'dI'"
       :left="true"
       v-model="dI"
       type="number"
@@ -385,7 +397,7 @@
       style="margin-left:5px"
     ></v-text-field>
     <v-text-field
-      :label="'Ca'"
+      :label="'C_a'"
       :left="true"
       v-model="Ca"
       type="number"
@@ -393,6 +405,7 @@
       min="0.1"
       max="10"
       class="laybtn"
+      id='mca'
       style="margin-left:5px"
     ></v-text-field>
     <v-text-field
@@ -486,6 +499,7 @@ import $ from 'jquery'
 import * as d3 from 'd3'
 import { Chrome } from 'vue-color'
 import DialogDrag from 'vue-dialog-drag'
+import {VueMathjax} from 'vue-mathjax'
 
 
 function moveNode () {
@@ -579,9 +593,14 @@ export default {
         // { src: '/libs/pixi4.8.7.js' },
         { src: '/libs/pixi5.0.2.js' },
         { src: '/libs/vue-color.min.js' },
+        // { src: 'https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.min.js' },
+        // { src: '/libs/katex.min.js' },
+        { src: 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS_HTML' },
       ],
       link: [
-        { rel: 'stylesheet', href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css' }
+        { rel: 'stylesheet', href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css' },
+        // { rel: 'stylesheet', href: 'https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.min.css' },
+        // { rel: 'stylesheet', href: '/libs/katex.min.css' },
       ],
     }
   },
@@ -638,30 +657,34 @@ export default {
       repulsion: 10,
       lprocess: 0,
       fru_C: 0.5,
-      fru_step: 2,
+      fru_step: 5,
       lweight: false,
       Ca: 1,
       Ca2: 1,
       Cr: 1,
       Cr2: 1,
       dI: 2,
-      alphaa: 1,
+      alphaa: 3,
       alphar: 1,
       w_emph: 1,
       niterations: 0,
       thresholdXX: 0.1,
       L: 50,
+      llevel: false,
+      formula: '$$d = C\\sqrt{area/nodes},\\; f_a = d^2 / k, \\; f_r = -k^2 / d$$',
     }
   },
   components: {
     Chrome,
     DialogDrag,
+    'vue-mathjax': VueMathjax,
   },
   mounted () {
     window.__this = this
     this.runLayout = this.vicg1
     this.runLayout = this.vicgX
     this.runLayout = this.fruchter
+    this.getNodes = this.getAllNodes
     if (typeof PIXI === 'undefined') {
       console.log('ok, pixi not found')
       let ele = document.createElement("script");
@@ -688,34 +711,34 @@ export default {
         return this.lnodes
       } else {
         return __this.nodes[__this.curlevel].reduce( (t, n) => {
-          if (n)
+          if (n && !n.isdestroyed)
             t.push(n)
-          return t 
+          return t
         }, [])
       }
     },
     fruchter () {
-      let nodes_ = this.getLNodes()
+      let nodes_ = this.getNodes()
       let ndata = this.networks[__this.curlevel].ndata
       let mov = nodes_.map( n => [0, 0] )
       let area = this.larea ? this.larea : this.carea
       let k = this.fru_C * (area / nodes_.length ) ** 0.5
       let k2 = k ** 2
       let step = this.fru_step / 1000
-      let counti = 0
-      nodes_.forEach( (n1, i) => {
-        let countj = 0
-        nodes_.splice(i).forEach( (n2, j) => {
+      for (let i = 0; i < nodes_.length; i++) {
+        let n1 = nodes_[i]
+        for (let j = i + 1; j < nodes_.length; j++) {
+          let n2 = nodes_[j]
           let dx = n1.x - n2.x
           let dy = n1.y - n2.y
           let d = (dx**2 + dy**2) ** 0.5
           let fr = k2 / d
-          let neighbors = ndata[n1.id].aux.neighbors
           let fa = 0
-          if (neighbors.includes(n2.id)) {
+          // if (neighbors.includes(n2.id)) {
+          if (n1.linkedTo[n2.level][n2.id]) {
             let w = 1
             if (this.lweight) {
-              w = ndata[n1.id].aux.w[n2.id]
+              w = n1.linkedTo[n2.level][n2.id]
               w = 1 + (w - 1) * this.w_emph
             }
             fa = w * d ** 2 / k
@@ -724,37 +747,31 @@ export default {
           f = Math.abs(f) > 1000 ? 1000 * Math.sign(f) : f
           let fx = f * dx / d
           let fy = f * dy / d
-          mov[counti][0] -= fx * step
-          mov[counti][1] -= fy * step
-          mov[countj][0] += fx * step
-          mov[countj][1] += fy * step
-          countj++
-        })
-        counti++
-      })
-      counti = 0
-      nodes_.forEach( n => {
-        n.x += mov[i][0]
-        n.y += mov[i][1]
-        __this.redrawLinks(n)
-        counti++
-      })
+          mov[i][0] -= fx * step
+          mov[i][1] -= fy * step
+          mov[j][0] += fx * step
+          mov[j][1] += fy * step
+        }
+        n1.x += mov[i][0]
+        n1.y += mov[i][1]
+        this.redrawLinks(n1)
+      }
       this.mov = mov
     },
     fa2 () {
       console.log('fa')
     },
     vicg1 () {
-      let nodes_ = __this.nodes[__this.curlevel]
+      let nodes_ = this.getNodes()
       let ndata = this.networks[__this.curlevel].ndata
-      let mov = this.nodes[this.curlevel].map( n => [0, 0] )
+      let mov = nodes_.map( n => [0, 0] )
       let step = this.fru_step / 1000
       let alphaa = this.alphaa
       let Ca = this.Ca
-      let Ca2 = this.Ca2
+      let Ca2 = Number(this.Ca2)
       let alphar = this.alphar
       let Cr = this.Cr
-      let Cr2 = this.Cr2
+      let Cr2 = Number(this.Cr2)
       let dI = this.dI
       for (let i = 0; i < nodes_.length; i++) {
         let n1 = nodes_[i]
@@ -778,17 +795,14 @@ export default {
           f = Math.abs(f) > 1000 ? 1000 * Math.sign(f) : f
           let fx = f * dx / d
           let fy = f * dy / d
-          mov[n1.id][0] -= fx * step
-          mov[n1.id][1] -= fy * step
-          mov[n2.id][0] += fx * step
-          mov[n2.id][1] += fy * step
+          mov[i][0] -= fx * step
+          mov[i][1] -= fy * step
+          mov[j][0] += fx * step
+          mov[j][1] += fy * step
         }
-      }
-      for (let i = 0; i < nodes_.length; i++) {
-        let n = nodes_[i]
-        n.x += mov[i][0]
-        n.y += mov[i][1]
-        __this.redrawLinks(n)
+        n1.x += mov[i][0]
+        n1.y += mov[i][1]
+        __this.redrawLinks(n1)
       }
       this.mov = mov
       console.log('v1')
@@ -2558,16 +2572,35 @@ export default {
       this.colorAny = c
       this.cAllDialog = true
     },
+    getAllNodes () {
+      let nodes = []
+      this.nodes.forEach( lnodes => {
+        lnodes.forEach( n => {
+          if (!n.isdestroyed)
+            nodes.push(n)
+        })
+      })
+      return nodes
+    },
   },
   watch: {
+    llevel (val) {
+      if (val) {
+        this.getNodes = this.getLNodes
+      } else {
+        this.getNodes = this.getAllNodes
+      }
+    },
     layout (val) {
       let k = val.tkey
       if (k === 'fru') {
         this.runLayout = this.fruchter
+        this.formula = '$$d = C\\sqrt{area/nodes},\\; f_a = d^2 / k, \\; f_r = -k^2 / d$$'
       } else if (k === 'fa2') {
         this.runLayout = this.fa2
       } else if (k === 'vicg1') {
         this.runLayout = this.vicg1
+        this.formula = '$$f_a = C_a . (d / d_I )^{\\alpha_a} + C_a\', \\; f_r = -C_r . (d_I / d)^{\\alpha_r} + C_r\'$$'
       } else if (k === 'vicg2') {
         this.runLayout = this.vicg2
       } else if (k === 'vicgX') {
@@ -2746,6 +2779,44 @@ export default {
 .laybtn2 {
   width: 30px;
 }
-/* vim: set ft=vue: */
+.tooltip {
+  position: relative;
+  display: inline-block;
+}
 
+.tooltip .tooltiptext {
+  visibility: hidden;
+  background-color: #555;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px 0;
+  position: absolute;
+  z-index: 1;
+  bottom: 125%;
+  left: 50%;
+  margin-left: -60px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.tooltip .tooltiptext::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #555 transparent transparent transparent;
+}
+
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+  opacity: 1;
+}
+.MathJax {
+  font-size: 1.3em !important;
+}
+/* vim: set ft=vue: */
 </style>
