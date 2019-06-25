@@ -5,7 +5,6 @@
       <i class="fa fa-question-circle mhelp" style="font-size:28px;color:blue"></i>
     </nuxt-link>
   </h1>
-  <vue-mathjax :formula="formula"></vue-mathjax>
 <v-layout align-center justify-center row id="startstuff">
   <v-flex text-xs-center>
     <v-menu offset-y title="select or upload network" :disabled="mapping || loaded">
@@ -173,6 +172,8 @@
   >
     render network
   </v-btn>
+  <v-checkbox v-model="slayout" label="start with layout" v-show="!loaded"> </v-checkbox>
+  <v-checkbox v-model="ldialog" label="layout dialog" v-show="loaded"> </v-checkbox>
   <v-checkbox v-model="links" label="show links" v-show="loaded"> </v-checkbox>
   <textarea id="iinfo" v-show="loaded"></textarea>
   <v-spacer></v-spacer>
@@ -197,7 +198,7 @@
   <v-icon class="tbtn ptbtn" id="dragbtn" @click="setTool('drag')" title="drag nodes to reposition them, drag on canvas to attain a draggable selection of nodes (click outside region to reset tool)">gesture</v-icon>
   <v-icon class="tbtn ptbtn" id="regionexplorebtn" @click="setTool('regionexplore')" title="drag on canvas to open selection of nodes into child nodes (click and drag)">explore</v-icon>
   <v-icon class="tbtn ptbtn" id="collapsebtn" @click="setTool('collapse')" title="drag on canvas to collapse nodes into parent nodes (click and drag)">settings_backup_restore</v-icon>
-  <v-icon class="tbtn ptbtn" id="layoutbtn" @click="setTool('layout')" title="click on canvas and drag to make layout only on the nodes inside region">aspect_ratio</v-icon>
+  <v-icon class="tbtn ptbtn" id="layoutbtn" @contextmenu="mhandler($event)" @click="mhandler($event)" title="click on canvas and drag to make layout only on the nodes inside region. Consider/ignore links to outernodes with right/left click on this tool button. Click on canvas (no drag) to perform layout on all nodes">aspect_ratio</v-icon>
   <v-spacer></v-spacer>
   <v-icon class="tbtn" id="bcbtn" @contextmenu="randomColorize($event,'bg')" @click="mhandler($event)" title="choose/randomize background color with left/right click">format_color_fill</v-icon>
   <v-icon class="tbtn" id="zmbtn" @click="mhandler($event)" @contextmenu="mhandler($event)" title="zoom in/out with left/right click">zoom_in</v-icon>
@@ -288,7 +289,7 @@
   </div>
   </v-card>
 </v-dialog>
-<dialog-drag id="dialog-1" title="layout options" :options="{left:860, top: 550}">
+<dialog-drag id="dialog-1" title="layout options" :options="{buttonPin: false, buttonClose: false}" v-show="!ldialog">
   <v-layout column>
   <v-layout row>
   <v-menu offset-y title="select the layout">
@@ -323,21 +324,10 @@
   <v-btn
     @click="randPos()"
     title="iterate once"
+    color="green"
   >
     randomize
   </v-btn>
-  <v-text-field
-    :label="'step x 10e-3'"
-    :left="true"
-    v-model="fru_step"
-    type="number"
-    step="0.1"
-    min="0.1"
-    max="20"
-    class="laybtn"
-    style="margin-left:5px"
-  ></v-text-field>
-  <v-checkbox v-model="llevel" label="level"> </v-checkbox>
   </v-layout>
   <v-layout row v-show="layout.tkey === 'vicgX'">
     <v-text-field
@@ -397,7 +387,7 @@
       style="margin-left:5px"
     ></v-text-field>
     <v-text-field
-      :label="'C_a'"
+      :label="'Ca'"
       :left="true"
       v-model="Ca"
       type="number"
@@ -454,9 +444,18 @@
     ></v-text-field>
   </v-layout>
   <v-layout row>
-    <v-checkbox v-model="lprocess" label="iterate"
+  <v-text-field
+    :label="'step x 10e-3'"
+    :left="true"
+    v-model="fru_step"
+    type="number"
+    step="0.1"
+    min="0.1"
+    max="20"
     class="laybtn"
-    > </v-checkbox>
+    style="margin-left:5px"
+  ></v-text-field>
+  <v-checkbox v-model="llevel" label="level"> </v-checkbox>
     <v-checkbox v-model="lweight" label="weight"
     class="laybtn"
     > </v-checkbox>
@@ -473,12 +472,17 @@
     ></v-text-field>
   </v-layout>
   <v-layout row>
+    <v-checkbox v-model="lprocess" label="iterate"
+    class="laybtn"
+    > </v-checkbox>
     <v-btn
       @click="iterate_once = true"
       title="iterate once"
+      color="green"
     >
       iterate
     </v-btn>
+    <v-spacer></v-spacer>
     <v-text-field
       :label="'iterations'"
       v-model="niterations"
@@ -593,14 +597,10 @@ export default {
         // { src: '/libs/pixi4.8.7.js' },
         { src: '/libs/pixi5.0.2.js' },
         { src: '/libs/vue-color.min.js' },
-        // { src: 'https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.min.js' },
-        // { src: '/libs/katex.min.js' },
         { src: 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS_HTML' },
       ],
       link: [
         { rel: 'stylesheet', href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css' },
-        // { rel: 'stylesheet', href: 'https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.min.css' },
-        // { rel: 'stylesheet', href: '/libs/katex.min.css' },
       ],
     }
   },
@@ -664,7 +664,7 @@ export default {
       Cr: 1,
       Cr2: 1,
       dI: 2,
-      alphaa: 3,
+      alphaa: 2,
       alphar: 1,
       w_emph: 1,
       niterations: 0,
@@ -672,6 +672,8 @@ export default {
       L: 50,
       llevel: false,
       formula: '$$d = C\\sqrt{area/nodes},\\; f_a = d^2 / k, \\; f_r = -k^2 / d$$',
+      ldialog: false,
+      slayout: false,
     }
   },
   components: {
@@ -685,6 +687,9 @@ export default {
     this.runLayout = this.vicgX
     this.runLayout = this.fruchter
     this.getNodes = this.getAllNodes
+    let mdialog =document.getElementById('dialog-1')
+    mdialog.__vue__.left = 840
+    mdialog.__vue__.top = 600
     if (typeof PIXI === 'undefined') {
       console.log('ok, pixi not found')
       let ele = document.createElement("script");
@@ -706,6 +711,12 @@ export default {
     }
   },
   methods: {
+    cfunc (e) {
+      this.nev = e
+    },
+    bfunc (e) {
+      this.mev = e
+    },
     getLNodes () {
       if (this.lnodes) {
         return this.lnodes
@@ -1186,7 +1197,12 @@ export default {
           let minx = Math.min(r1[0], r2[0])
           let miny = Math.min(r1[1], r2[1])
           __this.larea = (maxx - minx) * (maxy - miny)
-          let nodes = __this.nodes[__this.curlevel]
+          let nodes
+          if (__this.llevel) {
+            nodes = __this.nodes[__this.curlevel]
+          } else {
+            nodes = __this.getAllNodes()
+          }
           let nodes_ = []
           nodes.forEach( n => {
             if (n.isdestroyed)
@@ -1202,6 +1218,21 @@ export default {
               nodes_.push(n)
             }
           })
+          if (__this.considerlinks) {
+            // add nodes that are linked to nodes
+            let nodes__ = []
+            nodes_.forEach( n1 => {
+              n1.linkedTo.forEach( (nids, level) => {
+                nids.forEach( (w, nid) => {
+                  let n2 = __this.nodes[level][nid]
+                  if (!nodes_.includes(n2) && !nodes__.includes(n2))
+                    nodes__.push(n2)
+                })
+              })
+            })
+            console.log(nodes__)
+            nodes_.push(...nodes__)
+          }
           __this.lnodes = nodes_
           return
         }
@@ -1707,10 +1738,35 @@ export default {
     },
     placeOnCanvas0 (nodes, links, level, width, height, center) {
       // for the initial rendering of the network
-      let layout = nodes.reduce( (l, n) => {
-        l[n] = [2*Math.random() -1, 2*Math.random() -1]
-        return l
-      }, {})
+      if (!this.slayout) {
+        let layout = nodes.reduce( (l, n) => {
+          l[n] = [2*Math.random() -1, 2*Math.random() -1]
+          return l
+        }, {})
+        this.plotNetwork(nodes, links, level, width, height, center, layout)
+      } else {
+        let turl = process.env.flaskURL + '/layoutOnDemand/'
+        $.ajax(
+          turl,
+          {
+            data: JSON.stringify({
+              layout: 'spring',
+              dim: 2,
+              nodes: nodes,
+              links: links,
+              first: true,
+              lonely: false,
+              l0: []
+            }),
+            contentType : 'application/json',
+            type : 'POST',
+          },
+        ).done( layout => {
+          this.plotNetwork(nodes, links, level, width, height, center, layout)
+        })
+      }
+    },
+    plotNetwork (nodes, links, level, width, height, center, layout) {
       this.mkLines(links, level, width, height, center, layout)
       this.mkNodes0(nodes, level, width, height, center, layout)
       this.attachLinks()
@@ -1721,21 +1777,12 @@ export default {
       this.app_.ticker.add( (delta) => {
         if (!__this.lprocess && !__this.iterate_once)
           return
-        // console.log(delta)
-        // this.nodes[level][nodes[i]] = node
         if (__this.runLayout) {
           __this.runLayout()
           __this.niterations++
         }
 
         __this.iterate_once = false
-        // __this.nodes[__this.curlevel].forEach( n => {
-        //   __this.nodes[__this.curlevel].forEach( n2 => {
-        //   })
-        //   n.x += 10 * (Math.random() - 0.5)
-        //   n.y += 10 * (Math.random() - 0.5)
-        //   __this.redrawLinks(n)
-        // })
       })
     },
     placeOnCanvas (nodes, links, level, width, height, center) {
@@ -2259,6 +2306,22 @@ export default {
         let level = Number(e.srcElement.id.slice(3))
         this.otherlayer = level
         this.renderNetwork()
+      } else if (e.srcElement.id === 'layoutbtn') {
+        if (e.button === 1) {
+          if (this.considerlinks === true && this.tool === 'layout')
+            this.considerlinks = false
+          else {
+            this.considerlinks = false
+            this.setTool('layout')
+          }
+        } else {
+          if (this.considerlinks === false && this.tool === 'layout')
+            this.considerlinks = true
+          else {
+            this.setTool('layout')
+            this.considerlinks = true
+          }
+        }
       }
     },
     resizeNodes (direction) {
@@ -2574,13 +2637,17 @@ export default {
     },
     getAllNodes () {
       let nodes = []
-      this.nodes.forEach( lnodes => {
-        lnodes.forEach( n => {
-          if (!n.isdestroyed)
-            nodes.push(n)
+      if (this.lnodes) {
+        return this.lnodes
+      } else {
+        this.nodes.forEach( lnodes => {
+          lnodes.forEach( n => {
+            if (!n.isdestroyed)
+              nodes.push(n)
+          })
         })
-      })
-      return nodes
+        return nodes
+      }
     },
   },
   watch: {
