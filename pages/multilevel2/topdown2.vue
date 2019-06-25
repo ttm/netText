@@ -328,6 +328,7 @@
   >
     randomize
   </v-btn>
+  <v-checkbox v-model="manhattan" label="Manhattan"> </v-checkbox>
   </v-layout>
   <v-layout row v-show="layout.tkey === 'vicgX'">
     <v-text-field
@@ -343,6 +344,16 @@
       :label="'attraction'"
       :left="true"
       v-model="attraction"
+      type="number"
+      step="0.5"
+      min="0.1"
+      class="laybtn"
+      style="margin-left:5px"
+    ></v-text-field>
+    <v-text-field
+      :label="'L'"
+      :left="true"
+      v-model="L"
       type="number"
       step="0.5"
       min="0.1"
@@ -635,8 +646,8 @@ export default {
       ],
       // layout: {name: 'VICG - optimal', tkey: 'vicg2'},
       // layout: {name: 'VICG - theoretic', tkey: 'vicg1'},
-      // layout: {name: 'VICG - optimalX', tkey: 'vicgX'},
       layout: {name: 'Fruchterman-Reingold', tkey: 'fru'},
+      // layout: {name: 'VICG - optimalX', tkey: 'vicgX'},
       curlevel: 0,
       loaded: false,
       mapping: false,
@@ -674,6 +685,7 @@ export default {
       formula: '$$d = C\\sqrt{area/nodes},\\; f_a = d^2 / k, \\; f_r = -k^2 / d$$',
       ldialog: false,
       slayout: false,
+      manhattan: false,
     }
   },
   components: {
@@ -683,13 +695,17 @@ export default {
   },
   mounted () {
     window.__this = this
+    this.calcDist = this.eucDist
     this.runLayout = this.vicg1
-    this.runLayout = this.vicgX
     this.runLayout = this.fruchter
+    this.runLayout = this.vicgX
+    this.layout = {name: 'VICG - optimalX', tkey: 'vicgX'}
     this.getNodes = this.getAllNodes
     let mdialog =document.getElementById('dialog-1')
-    mdialog.__vue__.left = 840
-    mdialog.__vue__.top = 600
+    // mdialog.__vue__.left = 840
+    // mdialog.__vue__.top = 600
+    mdialog.__vue__.left = 440
+    mdialog.__vue__.top = 400
     if (typeof PIXI === 'undefined') {
       console.log('ok, pixi not found')
       let ele = document.createElement("script");
@@ -711,6 +727,12 @@ export default {
     }
   },
   methods: {
+    eucDist (d1, d2) {
+      return ( d1**2 + d2**2 )**0.5
+    },
+    manDist (d1, d2) {
+      return Math.abs(d1) + Math.abs(d2)
+    },
     cfunc (e) {
       this.nev = e
     },
@@ -742,7 +764,7 @@ export default {
           let n2 = nodes_[j]
           let dx = n1.x - n2.x
           let dy = n1.y - n2.y
-          let d = (dx**2 + dy**2) ** 0.5
+          let d = this.calcDist(dx, dy)
           let fr = k2 / d
           let fa = 0
           // if (neighbors.includes(n2.id)) {
@@ -790,7 +812,7 @@ export default {
           let n2 = nodes_[j]
           let dx = n1.x - n2.x
           let dy = n1.y - n2.y
-          let d = (dx**2 + dy**2) ** 0.5
+          let d = this.calcDist(dx, dy)
           let fr = Cr * ((dI/d) ** alphar) + Cr2
           let neighbors = ndata[n1.id].aux.neighbors
           let fa = 0
@@ -824,44 +846,51 @@ export default {
     vicgX () {
       let nodes_ = __this.nodes[__this.curlevel]
       let ndata = this.networks[__this.curlevel].ndata
-      let mov = this.nodes[this.curlevel].map( n => [0, 0] )
-      let step = this.fru_step
+      let mov = this.nodes[this.curlevel].map( n => [n.x, n.y] )
+      let step = this.fru_step / 1000
       for (let i = 0; i < nodes_.length; i++) {
         let n1 = nodes_[i]
         for (let j = i + 1; j < nodes_.length; j++) {
           let n2 = nodes_[j]
           let dx = n1.x - n2.x
           let dy = n1.y - n2.y
-          let neighbors = ndata[n1.id].aux.neighbors
-          if (neighbors.includes(n2.id)) {
-            mov[n1.id][0] -= Math.sign(dx) * __this.attraction
-            mov[n1.id][1] -= Math.sign(dy) * __this.attraction
-            mov[n2.id][0] += Math.sign(dx) * __this.attraction
-            mov[n2.id][1] += Math.sign(dy) * __this.attraction
+          if (n1.linkedTo[n2.level][n2.id]) {
+            let w = 1
+            if (this.lweight) {
+              w = n1.linkedTo[n2.level][n2.id]
+              w = 1 + (w - 1) * this.w_emph
+            }
+            let fax = w * this.attraction * dx * step
+            let fay = w * this.attraction * dy * step
+            mov[i][0] -= fax
+            mov[i][1] -= fay
+            mov[j][0] += fax
+            mov[j][1] += fay
           }
           if ( Math.abs(dx) < __this.L && Math.abs(dy) < __this.L ) {
             // let d = (dx**2 + dy**2) ** 0.5
             // let f = 10 / d
-            let r = __this.repulsion
-            let fx = r / dx
-            let fy = r / dy
-            fx = (Math.abs(fx) > r ) ? r * Math.sign(fx) : fx
-            fy = (Math.abs(fy) > r ) ? r * Math.sign(fy) : fy
-            mov[n1.id][0] += fx * step
-            mov[n1.id][1] += fy * step
-            mov[n2.id][0] -= fx * step
-            mov[n2.id][1] -= fy * step
+            let r = this.repulsion
+            let fx, fy
+            if (Math.abs(dx) < 1) {
+              fx = r * Math.sign(dx) * step
+            } else {
+              fx = r / dx
+            }
+            if (Math.abs(dy) < 1) {
+              fy = r * Math.sign(dy) * step
+            } else {
+              fy = r / dy
+            }
+            mov[i][0] += fx
+            mov[i][1] += fy
+            mov[j][0] -= fx
+            mov[j][1] -= fy
           }
         }
-      }
-      for (let i = 0; i < nodes_.length; i++) {
-        let n = nodes_[i]
-        n.x += mov[i][0]
-        n.y += mov[i][1]
-      }
-      for (let i = 0; i < nodes_.length; i++) {
-        let n = nodes_[i]
-        __this.redrawLinks(n)
+        n1.x = mov[i][0]
+        n1.y = mov[i][1]
+        this.redrawLinks(n1)
       }
       this.mov = mov
     },
@@ -1487,7 +1516,8 @@ export default {
         this.networks_ = networks_.filter(i => {
           return (i.layer === 0) && (i.filename.split('.').pop() === 'ncol')
         })
-        this.network = this.networks_[1]
+        this.network = this.networks_[2]
+        this.renderNetwork()
         // this.renderNetwork()
       })
     },
@@ -2651,6 +2681,13 @@ export default {
     },
   },
   watch: {
+    manhattan (val) {
+      if (val) {
+        this.calcDist = this.manDist
+      } else {
+        this.calcDist = this.eucDist
+      }
+    },
     llevel (val) {
       if (val) {
         this.getNodes = this.getLNodes
@@ -2672,6 +2709,7 @@ export default {
         this.runLayout = this.vicg2
       } else if (k === 'vicgX') {
         this.runLayout = this.vicgX
+        this.formula = '$$f_{a,x} = attraction . dx, f_{a,y} = attraction . dy,\\; f_{r,x} = - repulsion / dy, f_{r,y} = repulsion / dy$$'
       } else if (k === 'vicgXX') {
         this.runLayout = this.vicgXX
       }
