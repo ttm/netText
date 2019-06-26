@@ -1438,19 +1438,14 @@ export default {
       let gpositions = parents.reduce( (gpos, p) => {
         let nodes_ = pgroups[p]
         let pos = nodes_.reduce( (pos_, n) => {
+          // destroy nodes and their links
           pos_[0] += n.x
           pos_[1] += n.y
-          // destroy nodes and their links
           n.destroy()
           n.isdestroyed = true
           n.visible = false
           n.interactive = false
-          n.links.forEach( l => {
-            if (!l.isdestroyed) {
-              l.destroy()
-              l.isdestroyed = true
-            }
-          })
+          this.eraseLinks(n)
           return pos_
         }, [0, 0])
         gpos[p] = [pos[0] / nodes_.length, pos[1] / nodes_.length]
@@ -1470,7 +1465,6 @@ export default {
 
         let px = p[0]
         let py = p[1]
-        let node_ = this.nodes[level][nid]
         let ndata = this.networks[level].ndata
 
         const node = new PIXI.Graphics()
@@ -1572,10 +1566,31 @@ export default {
           this.curlevel = networks.length - 1
         else {
           this.nodes.forEach( nn => {
-            nn.forEach( n => n.clear() )
+            nn.forEach( n => {
+              if (!n.isdestroyed) {
+                n.clear() 
+                n.destroy()
+                n.isdestroyed = true
+              }
+            })
           })
           this.links_.forEach( ll => {
-            Object.values(ll).forEach( l => l.clear() )
+            Object.values(ll).forEach( l => {
+              if (!l.isdestroyed) {
+                l.clear() 
+                l.destroy()
+                l.isdestroyed = true
+              }
+            })
+          })
+          Object.values(this.links__).forEach( ll => {
+            Object.values(ll).forEach( l => {
+              if (!l.isdestroyed) {
+                l.clear() 
+                l.destroy()
+                l.isdestroyed = true
+              }
+            })
           })
           this.curlevel = this.otherlayer
         }
@@ -1663,17 +1678,17 @@ export default {
       this.childparent = [] // [level][childid] = parentid of node which 
       this.links_ = [] // for dict nid1-nid2 = link
       this.links__ = {}
-      for (let level = 0; level <= this.curlevel; level++) {
-        for (let level_ = level + 1; level_ <= this.curlevel; level_++) {
+      for (let level = 0; level < this.networks.length; level++) {
+        for (let level_ = level + 1; level_ < this.networks.length; level_++) {
           this.links__[level + '-' + level_] = {}
         }
       }
-      for (let level = 0; level <= this.curlevel; level++) {
+      for (let level = 0; level < this.networks.length; level++) {
         this.links_.push({})
         this.nodes.push([])
         this.opennodes.push({})
         this.childparent.push({})
-        this.nodescales.push((1 / (this.curlevel - level + 1))**0.5)
+        this.nodescales.push((1 / (this.networks.length - level))**0.5)
         let links = this.networks[level].links
         let children = this.networks[level].children
         let parents = this.networks[level].parents
@@ -1850,47 +1865,6 @@ export default {
         __this.iterate_once = false
       })
     },
-    placeOnCanvas (nodes, links, level, width, height, center) {
-      let turl = process.env.flaskURL + '/layoutOnDemand/'
-      let [lonely, rest] = this.separateLonelyNodes(nodes, links)
-      let nodes_ = rest
-      let l0 = []
-      if (this.layout.slice(2) === 'bipartite') {
-        let fltwo = this.networks[level].fltwo
-        nodes_.forEach( n => {
-          if (fltwo > n)
-            l0.push(n)
-        })
-      }
-      $.ajax(
-        turl,
-        {
-          data: JSON.stringify({
-            layout: this.layout,
-            dim: 2,
-            nodes: nodes_,
-            links: links,
-            first: level === this.networks.length - 1,
-            lonely: Object.keys(lonely).length !== 0,
-            l0: l0
-          }),
-          contentType : 'application/json',
-          type : 'POST',
-        },
-      ).done( layout => {
-        this.xxlayout = layout
-        let layout_ = {...lonely, ...layout}
-        this.mdbug = [
-          lonely, rest, nodes, layout, layout_, links, nodes_
-        ]
-        this.mkLines(links, level, width, height, center, layout_)
-        this.mkNodes(nodes, level, width, height, center, layout_)
-        if (!this.loaded)
-          this.zoom('-')
-        this.loaded = true
-        this.updateElementsCount()
-      })
-    },
     updateElementsCount () {
       let nvis_ = []
       for (let i = 0; i < this.networks.length; i++) {
@@ -1976,22 +1950,6 @@ export default {
         }
       }
     },
-    mkHLines (links) {
-      links.forEach( l => {
-        let n1 = l.cnode
-        let n2 = l.pnode
-        let level = n1.level + '-' + n2.level
-        let line = this.mkLine([n1.x, n1.y], [n2.x, n2.y], l.weight, level)
-        this.links__[level][n1.id + '-' + n2.id] = line
-      })
-    },
-    mkLines_ (links, level) {
-      links.forEach( l => {
-        let n1 = this.nodes[level][l[0]]
-        let n2 = this.nodes[level][l[1]]
-        let line = this.mkLine([n1.x, n1.y], [n2.x, n2.y], l[2], level)
-      })
-    },
     mkLine (p1, p2, weight, level) {
       let line = new PIXI.Graphics()
       let level_
@@ -2015,6 +1973,7 @@ export default {
     eraseLinks(node) {
       node.links.forEach( l => {
         if (!l.isdestroyed) {
+          l.clear()
           l.destroy()
           l.isdestroyed = true
         }
@@ -2564,16 +2523,17 @@ export default {
       this.placeOnCanvasChildren(children_, path_[0], path_[1], c, nodes[0].level - 1)
 
       this.linkChildren(children_, nodes[0].level - 1)
-      // this.mkHibridLinks(rect, children_)
-      // mk hibrid links
-      // draw them
     },
     linkChildren (nodes, level) {
       nodes.forEach( nid => {
         let n1 = this.nodes[level][nid]
+        if (n1.isdestroyed)
+          return
         n1.linkedTo.forEach( (nids, level2) => {
           nids.forEach( (w, nid2) => {
             let n2 = this.nodes[level2][nid2]
+            if (n2.isdestroyed)
+              return
             let level_, lid, ll
             if (n1.level === n2.level) {
               level_ = level
@@ -2607,72 +2567,6 @@ export default {
           })
         })
       })
-    },
-    mkHibridLinks (snode, cnodes) {
-      this.c = cnodes
-      this.s = snode
-      // for each children, find the nodes to which it is linked
-      let cndata = this.networks[snode.level - 1].ndata
-      let links = []
-      let hlinks = []
-      cnodes.forEach( c => {
-        let cn = this.nodes[snode.level - 1][c]
-        let links = cndata[c].aux.links_
-        links.forEach( l => {
-          let neigh = l[0] === c ? l[1] : l[0]
-          let weight = l[2]
-          // check if node is made, if it is, make the link
-          let target
-          if (this.nodes[snode.level - 1][neigh]) {
-            console.log('neigh found')
-            target = this.nodes[snode.level - 1][neigh]
-            links.push(l)
-          } else { // if not, find parent of neighbor, make link
-            console.log('parent found')
-            let pid = cndata[neigh].mdata.successor
-            target = this.nodes[snode.level][pid]
-            hlinks.push({
-              weight: weight,
-              cnode: cn,
-              pnode: target
-            })
-          }
-        })
-      })
-      this.mkLines_(links)
-      this.mkHLines(hlinks, snode.level - 1)
-    },
-    joinMetanodes (node) {
-      let MLdata = this.networks[node.level].ndata[node.id].MLdata
-      if (!MLdata.isopen) {
-        this.iinfo.textContent += '\nplease choose an opened metanode'
-        this.iinfo.scrollTop = this.iinfo.scrollHeight
-        return
-      }
-      if (!this.specified_metanode) {
-        this.specified_metanode = node
-        this.temptint = node.tint
-        node.tint = 0x00FFFF
-      } else {
-        let n1 = this.specified_metanode
-        n1.tint = this.temptint
-        let n2 = node
-        let nodes = [n1, n2]
-        // let nodes_ = []
-        // nodes.forEach( n => {
-        //   n.ids.forEach( id => {
-        //     if (id !== n1.id & id !== n2.id) {
-        //       let tnode = this.nodes[n1.level][id]
-        //       nodes_.push(tnode)
-        //     }
-        //   })
-        // })
-        // let nodes__ = [...nodes, ...nodes_]
-        // nodes__.sort( function (a, b) { return a.id - b.id } )
-        // this.joinManyNodes(nodes__)
-        this.joinManyNodes(nodes)
-        this.specified_metanode = undefined
-      }
     },
     chLevel (val) {
       this.curlevel = val
