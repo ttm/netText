@@ -115,14 +115,30 @@ Communicability
   ></v-text-field>
   </v-flex>
 </v-layout>
+<v-layout row>
   <v-radio-group v-model="cdmethod" :label="'find communities using:'"
     class="setstuff"
     :disabled="loaded && !dirty"
     row
   >
     <v-radio class="hopt" :label="'angles'" :value="'an'"></v-radio>
-    <v-radio :label="'positions'" :value="'pos'"></v-radio>
+    <v-radio :label="'distances'" :value="'dist'"></v-radio>
   </v-radio-group>
+  <v-divider
+    inset
+    vertical
+    dark
+    style="margin-right:10px"
+  ></v-divider>
+  <v-radio-group v-model="cddim" :label="'dimensionality:'"
+    class="setstuff"
+    :disabled="loaded && !dirty"
+    row
+  >
+    <v-radio class="hopt" :label="'full'" :value="'nd'"></v-radio>
+    <v-radio :label="'reduced'" :value="'rd'"></v-radio>
+  </v-radio-group>
+</v-layout>
 </v-card>
 </v-layout>
 <v-layout row>
@@ -455,6 +471,7 @@ export default {
       colortonode: '',
       dirty: true,
       cdmethod: 'an',
+      cddim: 'nd',
     }
   },
   watch: {
@@ -689,6 +706,7 @@ export default {
           temp: this.temp,
           mangle: this.mangle,
           cdmethod: this.cdmethod,
+          cddim: this.cddim,
 
           dim: this.dimensions,
           inits: this.inits,
@@ -987,5 +1005,8 @@ h1 {
 }
 .hopt {
   margin-left: 30px;
+}
+.boxradio {
+  border: 1px solid;
 }
 </style>
