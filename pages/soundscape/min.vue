@@ -40,22 +40,22 @@
   <div id="waveform" style="border: 1px solid;"></div>
   <div v-show="spec0"  @click="spec0 = false" id="waveform-spec" style="border: 1px solid;"></div>
   <div>
-    <v-btn color="success" @click="wss[0].skipBackward()">
+    <v-btn color="success" @click="wss[0].skipBackward()" :disabled="!fileloaded">
       <i class="fa fa-step-backward sspace"></i>
       Backward
     </v-btn>
-    <v-btn color="success" @click="wss[0].skipForward()">
+    <v-btn color="success" @click="wss[0].skipForward()" :disabled="!fileloaded">
       <i class="fa fa-step-forward sspace"></i>
       Forward
     </v-btn>
-    <v-btn color="success" @click="play(0)">
+    <v-btn color="success" @click="play(0)" :disabled="!fileloaded">
       <i class="fa fa-play sspace"></i>
       Play
       /
       <i class="fa fa-pause ssspace"></i>
       Pause
     </v-btn>
-    <v-btn color="success" @click="wss[0].regions.clear()">
+    <v-btn color="success" @click="wss[0].regions.clear()" :disabled="!fileloaded">
       <i class="fas fa-broom sspace"></i>
       Clear
     </v-btn>
@@ -67,7 +67,7 @@
       :label="'components'"
       class="setstuff3"
     ></v-text-field>
-    <v-btn color="warning" @click="analyze()">
+    <v-btn color="warning" @click="analyze()" :disabled="!fileloaded">
       <i class="fas fa-microchip sspace"></i>
       Analyze
     </v-btn>
@@ -152,11 +152,18 @@ export default {
       lsec: '',
       ncomponents: 3,
       loaded: false,
+      fileloaded: false,
     }
   },
   methods: {
     loadFile () {
+      for (let i = 0; i < this.wss.length; i++) {
+        this.wss[i].destroy()
+      }
+      this.wss = []
       this.createWaveform(this.soundfile, 'waveform')
+      this.fileloaded = true
+      this.analyzed = false
     },
     upload (e) {
       this.loading = true
@@ -223,7 +230,7 @@ export default {
       })
     },
     selectComp (ind) {
-      for (let i = 1; i < 4; i++) {
+      for (let i = 1; i < this.ncomponents + 1; i++) {
         if (i === ind) {
           $('#pbtn' + i).css('background-color', '#FFFF77')
         } else {
@@ -261,7 +268,7 @@ export default {
     },
     analyze () {
       if (Object.keys(this.wss[0].regions.list).length === 0) {
-        alert('click and drag on the waveform to make a region befor analyzing')
+        alert('click and drag on the waveform to make a region before analyzing')
         return
       } else if (this.wss.length > 1) {
         for (let i = 1; i < this.wss.length; i++) {
@@ -333,6 +340,7 @@ export default {
   },
   watch: {
     soundfile (val) {
+      this.lsec = ''
       let turl = process.env.flaskURL + '/sfileInfo/'
       $.ajax(
         turl,
