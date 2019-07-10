@@ -7,7 +7,6 @@
   </h1>
   network: 
 <v-menu offset-y class="setstuff"
-  :disabled="loaded && !dirty"
 >
   <v-btn
     slot="activator"
@@ -19,10 +18,9 @@
     class="scroll-y"
   >
     <v-list-tile
-      v-for="s in soundfiles"
+      v-for="(s, index) in soundfiles"
       :key="index"
       @click="soundfile = s"
-      :disabled="loaded && !dirty"
     >
       <v-list-tile-title color="primary">{{ s }}</v-list-tile-title>
     </v-list-tile>
@@ -62,10 +60,18 @@
       Clear
     </v-btn>
   </div>
-  <v-btn color="warning" @click="analyze()">
-    <i class="fas fa-microchip sspace"></i>
-    Analyze
-  </v-btn>
+  <v-layout row>
+    <v-text-field
+      v-model="ncomponents"
+      type="number"
+      :label="'components'"
+      class="setstuff3"
+    ></v-text-field>
+    <v-btn color="warning" @click="analyze()">
+      <i class="fas fa-microchip sspace"></i>
+      Analyze
+    </v-btn>
+  </v-layout>
   <div v-show="analyzed">
   <v-divider style="margin-top:20px;margin-bottom:10px;"></v-divider>
   <div class="comp">
@@ -413,6 +419,10 @@ export default {
   padding-left: 3px;
   padding-right: 3px;
   cursor: pointer;
+}
+.setstuff3 {
+  width: 10px;
+  flex: 0.1 1 auto;
 }
 </style>
 
