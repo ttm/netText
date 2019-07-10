@@ -85,41 +85,21 @@
   <div id="waveform2" style="border: 1px solid;"></div>
   <div v-show="spec1"  @click="spec1 = false" id="waveform2-spec" style="border: 1px solid;"></div>
 
+<div id='cdiv'>
+<div v-for="(comp, index) in parseInt(ncomponents)">
   <div class="comp">
-    component 1
-      <i class="fa fa-step-backward sspace_" @click="wss[2].skipBackward()"></i>
-      <i class="fa fa-step-forward sspace_" @click="wss[2].skipForward()"></i>
-      <i class="fa fa-play sspace_" @click="pause(2)"></i>
-      <i class="fas fa-broom sspace_" @click="wss[2].regions.clear()"></i>
-      <div class="pbtn" @click="selectComp(1)" id="pbtn1"> select </div>
-      <div @click="spec2 = !spec2" class="sbtn">{{spec2 ? '-' : '+'}} spectrogram</div>
+    component {{ index + 1 }}
+      <i class="fa fa-step-backward sspace_" @click="wss[index+2].skipBackward()"></i>
+      <i class="fa fa-step-forward sspace_" @click="wss[index+2].skipForward()"></i>
+      <i class="fa fa-play sspace_" @click="pause(index+2)"></i>
+      <i class="fas fa-broom sspace_" @click="wss[index+2].regions.clear()"></i>
+      <div class="pbtn" @click="selectComp(index + 1)" v-bind:id="'pbtn' + (index + 1)"> select </div>
+      <div @click="specs[index] = !specs[index]" class="sbtn">{{specs[index] ? '-' : '+'}} spectrogram</div>
   </div>
-  <div id="waveform3" style="border: 1px solid;"></div>
-  <div v-show="spec2"  @click="spec2 = false" id="waveform3-spec" style="border: 1px solid;"></div>
-
-  <div class="comp">
-    component 2
-      <i class="fa fa-step-backward sspace_" @click="wss[3].skipBackward()"></i>
-      <i class="fa fa-step-forward sspace_" @click="wss[3].skipForward()"></i>
-      <i class="fa fa-play sspace_" @click="pause(3)"></i>
-      <i class="fas fa-broom sspace_" @click="wss[3].regions.clear()"></i>
-      <div class="pbtn" @click="selectComp(2)" id="pbtn2"> select </div>
-      <div @click="spec3 = !spec3" class="sbtn">{{spec3 ? '-' : '+'}} spectrogram</div>
-  </div>
-  <div id="waveform4" style="border: 1px solid;"></div>
-  <div v-show="spec3"  @click="spec3 = false" id="waveform4-spec" style="border: 1px solid;"></div>
-
-  <div class="comp">
-    component 3:
-      <i class="fa fa-step-backward sspace_" @click="wss[4].skipBackward()"></i>
-      <i class="fa fa-step-forward sspace_" @click="wss[4].skipForward()"></i>
-      <i class="fa fa-play sspace_" @click="pause(4)"></i>
-      <i class="fas fa-broom sspace_" @click="wss[4].regions.clear()"></i>
-      <div class="pbtn" @click="selectComp(3)" id="pbtn3"> select </div>
-      <div @click="spec4 = !spec4" class="sbtn">{{spec4 ? '-' : '+'}} spectrogram</div>
-  </div>
-  <div id="waveform5" style="border: 1px solid;"></div>
-  <div v-show="spec4"  @click="spec4 = false" id="waveform5-spec" style="border: 1px solid;"></div>
+  <div v-bind:id="'waveform' + (index + 3)" style="border: 1px solid;"></div>
+  <div v-show="specs[index]"  @click="specs[index] = false" v-bind:id="'waveform' + (index + 3) + '-spec'" style="border: 1px solid;"></div>
+</div>
+</div>
 
   <v-btn color="warning" @click="findEvents()">
     <i class="fas fa-microchip sspace"></i>
@@ -165,11 +145,13 @@ export default {
       spec3: false,
       spec4: false,
       spec5: false,
+      specs: {0: false, 1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false, 9: false, 10: false, 11: false, 12: false, 13: false, 14: false, 15: false, 16: false, 17: false, 18: false, 19: false},
       loading: false,
       soundfiles: [],
       soundfile: '',
       lsec: '',
       ncomponents: 3,
+      loaded: false,
     }
   },
   methods: {
@@ -299,6 +281,7 @@ export default {
       let [s, e] = [reg.start, reg.end]
       console.log(s, e)
       let turl = process.env.flaskURL + '/anSound/'
+      this.loaded = true
       $.ajax(
         turl,
         {
@@ -306,6 +289,7 @@ export default {
             fname: this.soundfile,
             s: s,
             e: e,
+            ncomp: this.ncomponents
           }),
           contentType : 'application/json',
           type : 'POST',
@@ -317,6 +301,7 @@ export default {
         for (let i = 0; i < this.ncomponents; i++) {
           let cfn = this.soundfile.replace('.wav', 'MMMCOMPONENT' + i + '.wav')
           this.createWaveform (cfn, 'waveform' + (i + 3))
+          this.specs[i] = false
         }
         this.analyzed = true
         this.loading = false
