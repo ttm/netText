@@ -5,6 +5,36 @@
       <i class="fa fa-question-circle mhelp" style="font-size:28px;color:blue"></i>
     </nuxt-link>
   </h1>
+  network: 
+<v-menu offset-y class="setstuff"
+  :disabled="loaded && !dirty"
+>
+  <v-btn
+    slot="activator"
+    color="primary"
+  >
+    {{ soundfile ? soundfile : 'Loading...' }}
+  </v-btn>
+  <v-list
+    class="scroll-y"
+  >
+    <v-list-tile
+      v-for="s in soundfiles"
+      :key="index"
+      @click="soundfile = s"
+      :disabled="loaded && !dirty"
+    >
+      <v-list-tile-title color="primary">{{ s }}</v-list-tile-title>
+    </v-list-tile>
+    <v-list-tile>
+<input type="file" @change="upload">
+    </v-list-tile>
+  </v-list>
+</v-menu>
+( length: {{ this.lsec ? this.lsec.toFixed(2) + ' seconds' : 'loading...'}} )
+  <v-btn color="warning" @click="loadFile()">
+    Load
+  </v-btn>
   <div class="comp">
     sound to be analysed
   <div @click="spec0 = !spec0" class="sbtn">{{spec0 ? '-' : '+'}} spectrogram</div>
@@ -130,9 +160,61 @@ export default {
       spec4: false,
       spec5: false,
       loading: false,
+      soundfiles: [],
+      soundfile: '',
+      lsec: '',
+      ncomponents: 3,
     }
   },
   methods: {
+    loadFile () {
+      this.createWaveform(this.soundfile, 'waveform')
+    },
+    upload (e) {
+      this.loading = true
+      let reader = new FileReader()
+      let file = e.target.files[0]
+      reader.onload = () => {
+        console.log(reader.result, '<<<<<<< HERE')
+        let path = e.path || (e.composedPath && e.composedPath())
+        let turl = process.env.flaskURL + '/saveSound/'
+        this.mdata = JSON.stringify({
+          fname: path[0].files[0].name,
+          fdata: reader.result,
+        })
+        $.ajax(
+          turl,
+          {
+            data: this.mdata,
+            contentType : 'application/json',
+            type : 'POST',
+          },
+        ).done( an => {
+          this.loading = false
+          this.findSoundfiles()
+        })
+      }
+      // reader.readAsBinaryString(file)
+      reader.readAsDataURL(file)
+    },
+    findSoundfiles () {
+      let turl = process.env.flaskURL + '/getSoundfiles/'
+      console.log('ajax start', turl)
+      console.log(turl)
+      $.ajax(
+        turl,
+        {
+          data: {},
+          contentType : 'application/json',
+          type : 'POST',
+        }
+      ).done( sfs => {
+        console.log('ajax end')
+        // nets[0].{filename, _id, nnodes, nlinks}
+        this.soundfiles = sfs
+        this.soundfile = this.soundfiles[0]
+      })
+    },
     findEvents () {
       let turl = process.env.flaskURL + '/findEvents/'
       if (1) {
@@ -215,6 +297,7 @@ export default {
         turl,
         {
           data: JSON.stringify({
+            fname: this.soundfile,
             s: s,
             e: e,
           }),
@@ -223,10 +306,12 @@ export default {
         },
       ).done( an => {
         this.an = an
-        this.createWaveform ('birds_.wav', 'waveform2')
-        this.createWaveform ('component0.wav', 'waveform3')
-        this.createWaveform ('component1.wav', 'waveform4')
-        this.createWaveform ('component2.wav', 'waveform5')
+        let efn = this.soundfile.replace('.wav', 'MMMEXCERPT.wav')
+        this.createWaveform (efn, 'waveform2')
+        for (let i = 0; i < this.ncomponents; i++) {
+          let cfn = this.soundfile.replace('.wav', 'MMMCOMPONENT' + i + '.wav')
+          this.createWaveform (cfn, 'waveform' + (i + 3))
+        }
         this.analyzed = true
         this.loading = false
       })
@@ -255,11 +340,30 @@ export default {
       this.wss.push(wavesurfer)
     },
   },
+  watch: {
+    soundfile (val) {
+      let turl = process.env.flaskURL + '/sfileInfo/'
+      $.ajax(
+        turl,
+        // {see: 'this', and: 'thisother', num: 5}
+        {
+          data: JSON.stringify({
+            fname: this.soundfile
+          }),
+          contentType : 'application/json',
+          type : 'POST',
+        }
+      ).done( duration => { 
+        this.lsec = duration
+      })
+    },
+  },
   mounted () {
     this.rcounter = 0
     this.wss = []
     window.__this = this
-    this.createWaveform('birds.wav', 'waveform')
+    this.findSoundfiles()
+    // this.createWaveform('birds.wav', 'waveform')
   },
 }
 
