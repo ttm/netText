@@ -511,7 +511,7 @@ export default {
         'k-means',
         'Hierarchical (Ward)',
         'Spectral',
-        'Affinity Propagation',
+        // 'Affinity Propagation',
       ],
       clustmet: 'k-means',
       nneighbors: 5,
