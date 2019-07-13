@@ -432,6 +432,22 @@ function downloadCSV(args) {
     document.body.removeChild(link)
 }
 
+const drnames = {
+  'PCA': 'PCA',
+  'UMAP': 'UMAP',
+  't-SNE': 'TSNE',
+  'LocallyLinearEmbedding': 'LLE',
+  'ISOMAP': 'ISOMAP',
+  'MDS': 'MDS'
+}
+
+const cmnames = {
+  'k-means': 'KM',
+  'Hierarchical (Ward)': 'AG',
+  'Spectral': 'SP',
+  'Affinity Propagation': 'AF'
+}
+
 export default {
   head () {
     return {
@@ -478,7 +494,7 @@ export default {
       cdim: 3,
       dimredmets: [
         'PCA',
-        'UMAP',
+        // 'UMAP',
         't-SNE',
         'LocallyLinearEmbedding',
         'ISOMAP',
@@ -724,26 +740,30 @@ export default {
       }
     },
     renderNetwork () {
-      $.post(
+      $.ajax(
         // `http://rfabbri.vicg.icmc.usp.br:5000/communicability/`,
-        process.env.flaskURL + '/communicability/',
+        process.env.flaskURL + '/communicability2/',
         // `http://127.0.0.1:5000/communicability/`,
         // {see: 'this', and: 'thisother', num: 5}
         {
-          netid: this.network._id,
-          temp: this.temp,
-          mangle: this.mangle,
+          data: JSON.stringify({
+            netid: this.network._id,
+            temp: this.temp,
+            mangle: this.mangle,
 
-          dimredmet: this.dimredmet,
-          cdim: this.cdim,
-          nclu: this.nclu,
-          ncluin: this.ncluin,
-          nneighbors: this.nneighbors,
-          clustmet: this.clustmet,
+            dimredmet: drnames[this.dimredmet],
+            cdim: this.cdim,
+            nclu: this.nclu,
+            ncluin: this.ncluin,
+            nneighbors: this.nneighbors,
+            clustmet: cmnames[this.clustmet],
 
-          dim: this.dimensions,
-          dimredmetL: this.dimredmetL,
-          nneighborsL: this.nneighborsL,
+            dim: this.dimensions,
+            dimredmetL: drnames[this.dimredmetL],
+            nneighborsL: this.nneighborsL,
+          }),
+          contentType : 'application/json',
+          type : 'POST',
         }
       ).done( network => { 
         if (this.draw_net) {
