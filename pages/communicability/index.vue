@@ -1,5 +1,5 @@
 <template>
-<span>
+<span style="width:800px">
   <h1>ComNetVis
   <nuxt-link to="/communicability/about">
     <i class="fa fa-question-circle mhelp" style="font-size:28px;color:darkblue"></i>
@@ -33,8 +33,8 @@
 </v-menu>
 ( nodes: {{ network ? network.nnodes : '---' }}, links: {{ network ? network.nlinks : '---' }} )
 <v-layout row>
-<v-card flat dark style="padding:20px;width:800px;">
-Communicability
+<v-card flat dark style="padding:20px;width:800px;display:block;">
+Communicability calculation
 <v-layout row>
   <v-flex class="px-3">
   <v-slider
@@ -81,7 +81,102 @@ Communicability
   ></v-text-field>
   </v-flex>
 </v-layout>
+</v-card>
+</v-layout>
+<v-layout row>
+<v-card flat dark :width="'800px'" abanana="'asd'" style="padding:20px;width:800px;margin-top:10px;">
+  Community detection
+
+<v-layout align-center justify-start row v-show="cdim !== network.nnodes">
+  <span style="color: rgba(255, 255, 255, 0.7); font-size: 16px;">
+    dimensionality reduction method:
+  </span>
+<v-menu offset-y class="setstuff"
+  :disabled="loaded && !dirty"
+>
+  <v-btn
+    slot="activator"
+    color="primary"
+  >
+    {{ dimredmet }}
+  </v-btn>
+  <v-list
+    class="scroll-y"
+  >
+    <v-list-tile
+      v-for="(met, index) in dimredmets"
+      :key="index"
+      @click="dimredmet = met"
+      :disabled="loaded && !dirty"
+    >
+      <v-list-tile-title color="primary">{{ met }}</v-list-tile-title>
+    </v-list-tile>
+  </v-list>
+</v-menu>
+  <v-flex shrink style="width: 50px" ml-3>
+  <v-text-field
+    v-show="wneigh.includes(dimredmet)"
+    v-model="nneighbors"
+    type="number"
+    :label="'neighbors'"
+    title="neighbors"
+    class="setstuff"
+    :disabled="loaded && !dirty"
+  ></v-text-field>
+  </v-flex>
+</v-layout>
+<v-layout row>
+  <v-flex class="px-3">
+  <v-slider
+    v-model="cdim"
+    :max="network.nnodes"
+    :min="1"
+    :label="'dimensions'"
+    :step="1"
+    class="setstuff"
+    :disabled="loaded && !dirty"
+  ></v-slider>
+  </v-flex>
+  <v-flex shrink style="width: 50px">
+  <v-text-field
+    v-model="cdim"
+    class="mt-0 setstuff"
+    hide-details
+    single-line
+    :step="1"
+    type="number"
+    :disabled="loaded && !dirty"
+  ></v-text-field>
+  </v-flex>
+</v-layout>
 <v-layout align-center justify-start row>
+  <span style="color: rgba(255, 255, 255, 0.7); font-size: 16px;">
+    clustering algorithm:
+  </span>
+<v-menu offset-y class="setstuff"
+  :disabled="loaded && !dirty"
+>
+  <v-btn
+    slot="activator"
+    color="primary"
+  >
+    {{ clustmet }}
+  </v-btn>
+  <v-list
+    class="scroll-y"
+  >
+    <v-list-tile
+      v-for="(met, index) in clustmets"
+      :key="index"
+      @click="clustmet = met"
+      :disabled="loaded && !dirty"
+    >
+      <v-list-tile-title color="primary">{{ met }}</v-list-tile-title>
+    </v-list-tile>
+  </v-list>
+</v-menu>
+</v-layout>
+<v-layout align-center justify-start row v-show="clustmet !== 'Affinity Propagation'">
   <span style="color:rgba(255,255,255,0.7);font-size:16px;">
     number of communities:
   </span>
@@ -115,36 +210,49 @@ Communicability
   ></v-text-field>
   </v-flex>
 </v-layout>
-<v-layout row>
-  <v-radio-group v-model="cdmethod" :label="'find communities using:'"
-    class="setstuff"
-    :disabled="loaded && !dirty"
-    row
-  >
-    <v-radio class="hopt" :label="'angles'" :value="'an'"></v-radio>
-    <v-radio :label="'distances'" :value="'dist'"></v-radio>
-  </v-radio-group>
-  <v-divider
-    inset
-    vertical
-    dark
-    style="margin-right:10px"
-  ></v-divider>
-  <v-radio-group v-model="cddim" :label="'dimensionality:'"
-    class="setstuff"
-    :disabled="loaded && !dirty"
-    row
-  >
-    <v-radio class="hopt" :label="'full'" :value="'nd'"></v-radio>
-    <v-radio :label="'reduced'" :value="'rd'"></v-radio>
-  </v-radio-group>
-</v-layout>
 </v-card>
 </v-layout>
 <v-layout row>
 <v-card flat dark style="padding:20px;width:800px;margin-top:10px;margin-bottom:10px;">
-Dimensionality Reduction
-<v-layout row>
+  Node-link layout
+<v-layout align-center justify-start row v-show="cdim !== network.nnodes">
+  <span style="color: rgba(255, 255, 255, 0.7); font-size: 16px;">
+    dimensionality reduction method:
+  </span>
+<v-menu offset-y class="setstuff"
+  :disabled="loaded && !dirty"
+>
+  <v-btn
+    slot="activator"
+    color="primary"
+  >
+    {{ dimredmetL }}
+  </v-btn>
+  <v-list
+    class="scroll-y"
+  >
+    <v-list-tile
+      v-for="(met, index) in dimredmets"
+      :key="index"
+      @click="dimredmetL = met"
+      :disabled="loaded && !dirty"
+    >
+      <v-list-tile-title color="primary">{{ met }}</v-list-tile-title>
+    </v-list-tile>
+  </v-list>
+</v-menu>
+  <v-flex shrink style="width: 50px" ml-3>
+  <v-text-field
+    v-show="wneigh.includes(dimredmetL)"
+    v-model="nneighborsL"
+    type="number"
+    :label="'neighbors'"
+    title="neighbors"
+    class="setstuff"
+    :disabled="loaded && !dirty"
+  ></v-text-field>
+  </v-flex>
+<v-spacer></v-spacer>
   <v-radio-group v-model="dimensions" :label="'dimensions of layout'"
     class="setstuff"
     :disabled="loaded && !dirty"
@@ -152,111 +260,6 @@ Dimensionality Reduction
     <v-radio :label="'2'" :value="2"></v-radio>
     <v-radio :label="'3'" :value="3"></v-radio>
   </v-radio-group>
-  <v-radio-group v-model="dimredtype" :label="'type of dim reduction'" style="margin-left:20px;"
-    class="setstuff"
-    :disabled="loaded && !dirty"
-  >
-    <v-radio :label="'MDS'" :value="'MDS'"></v-radio>
-    <v-radio :label="'t-SNE'" :value="'t-SNE'"></v-radio>
-  </v-radio-group>
-</v-layout>
-<v-layout row>
-  <v-flex class="px-3">
-  <v-slider
-    v-model="iters"
-    :max="1000"
-    :min="minIters"
-    :label="'iterations'"
-    :step="1"
-    class="setstuff"
-    :disabled="loaded && !dirty"
-  ></v-slider>
-  </v-flex>
-  <v-flex shrink style="width: 50px">
-  <v-text-field
-    v-model="iters"
-    class="mt-0 setstuff"
-    hide-details
-    single-line
-    type="number"
-    :disabled="loaded && !dirty"
-  ></v-text-field>
-  </v-flex>
-</v-layout>
-<v-layout row
-  v-if="dimredtype === 'MDS'"
->
-  <v-flex class="px-3">
-  <v-slider
-    v-model="inits"
-    :max="100"
-    :min="1"
-    :label="'initializations'"
-    :step="1"
-    class="setstuff"
-    :disabled="loaded && !dirty"
-  ></v-slider>
-  </v-flex>
-  <v-flex shrink style="width: 50px">
-  <v-text-field
-    v-model="inits"
-    class="mt-0 setstuff"
-    hide-details
-    single-line
-    type="number"
-    :disabled="loaded && !dirty"
-  ></v-text-field>
-  </v-flex>
-</v-layout>
-<v-layout row
-  v-if="dimredtype === 't-SNE'"
->
-  <v-flex class="px-3">
-  <v-slider
-    v-model="perplexity"
-    :max="1000"
-    :min="1"
-    :label="'perplexity'"
-    :step="1"
-    class="setstuff"
-    :disabled="loaded && !dirty"
-  ></v-slider>
-  </v-flex>
-  <v-flex shrink style="width: 50px">
-  <v-text-field
-    v-model="perplexity"
-    class="mt-0 setstuff"
-    hide-details
-    single-line
-    type="number"
-    :disabled="loaded && !dirty"
-  ></v-text-field>
-  </v-flex>
-</v-layout>
-<v-layout row
-  v-if="dimredtype === 't-SNE'"
->
-  <v-flex class="px-3">
-  <v-slider
-    v-model="lrate"
-    :max="1000"
-    :min="1"
-    :label="'learning rate'"
-    :step="1"
-    class="setstuff"
-    :disabled="loaded && !dirty"
-  ></v-slider>
-  </v-flex>
-  <v-flex shrink style="width: 50px">
-  <v-text-field
-    v-model="lrate"
-    class="mt-0 setstuff"
-    hide-details
-    single-line
-    type="number"
-    :disabled="loaded && !dirty"
-  ></v-text-field>
-  </v-flex>
 </v-layout>
 </v-card>
 </v-layout>
@@ -472,6 +475,31 @@ export default {
       dirty: true,
       cdmethod: 'an',
       cddim: 'nd',
+      cdim: 3,
+      dimredmets: [
+        'PCA',
+        'UMAP',
+        't-SNE',
+        'LocallyLinearEmbedding',
+        'ISOMAP',
+        'MDS'
+      ],
+      wneigh: [
+        'ISOMAP',
+        'LocallyLinearEmbedding',
+        'UMAP',
+      ],
+      dimredmet: 'PCA',
+      dimredmetL: 'PCA',
+      clustmets: [
+        'k-means',
+        'Hierarchical (Ward)',
+        'Spectral',
+        'Affinity Propagation',
+      ],
+      clustmet: 'k-means',
+      nneighbors: 5,
+      nneighborsL: 5,
     }
   },
   watch: {
@@ -705,17 +733,17 @@ export default {
           netid: this.network._id,
           temp: this.temp,
           mangle: this.mangle,
-          cdmethod: this.cdmethod,
-          cddim: this.cddim,
 
-          dim: this.dimensions,
-          inits: this.inits,
-          iters: this.iters,
-          dimredtype: this.dimredtype,
-          lrate: this.lrate,
-          perplexity: this.perplexity,
+          dimredmet: this.dimredmet,
+          cdim: this.cdim,
           nclu: this.nclu,
           ncluin: this.ncluin,
+          nneighbors: this.nneighbors,
+          clustmet: this.clustmet,
+
+          dim: this.dimensions,
+          dimredmetL: this.dimredmetL,
+          nneighborsL: this.nneighborsL,
         }
       ).done( network => { 
         if (this.draw_net) {
