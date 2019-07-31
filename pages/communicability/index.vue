@@ -215,7 +215,7 @@ Communicability calculation
 <v-layout row>
 <v-card flat dark style="padding:20px;width:800px;margin-top:10px;margin-bottom:10px;">
   Node-link layout
-<v-layout align-center justify-start row v-show="cdim !== network.nnodes">
+<v-layout align-center justify-start row>
   <span style="color: rgba(255, 255, 255, 0.7); font-size: 16px;">
     dimensionality reduction method:
   </span>
@@ -304,7 +304,7 @@ Communicability calculation
 <v-flex>
 <table id='ltable' v-show="loaded">
   <tr>
-    <th class="lthead">Cluster</th>
+    <th class="lthead">Community</th>
     <th class="lthead">Show</th>
     <th class="lthead">Hue</th>
     <th class="lthead">Size</th>
