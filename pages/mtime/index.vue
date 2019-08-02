@@ -78,6 +78,11 @@ export default {
       link: [
         { rel: 'stylesheet', href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css' }
       ],
+      meta: [
+        // hid is used as unique identifier. Do not use `vmid` for it as it will not work
+        // { hid: 'description', name: 'description', content: 'My custom description' },
+        { name: "google-site-verification", content: "_7QyOvNFeTE-F03YCYZWs15DeiokzdL7ykVdJqy-3hk" }
+      ]
     }
   },
   data () {
