@@ -37,8 +37,9 @@ export default {
   plugins: [
     {
       src: '~/plugins/pixiPlug',
-      ssr: false
+      ssr: false,
       // mode: 'client'
-    }
+    },
+    { src: '~plugins/ga.js', ssr: false },
   ]
 }
