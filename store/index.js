@@ -22,6 +22,11 @@ export const plugins = [
       userObj: 'User'
     }
   }),
+  service('usage', {
+    instanceDefaults: {
+      usageObj: 'Usage'
+    }
+  }),
   service('ansettings', {
     instanceDefaults: {
       networkObj: 'Networks'
@@ -37,5 +42,5 @@ export const state = () => ({
 export const mutations = {
   increment (state) {
     state.counter++
-  }
+  },
 }
