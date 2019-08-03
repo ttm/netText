@@ -528,16 +528,7 @@ export default {
   },
   computed: {
     allset () {
-      let mstr = "~ settings ~"
-      mstr += '\ntemp: ' + this.temp + '\nangle: ' + this.mangle
-      mstr += '\ndimred method / dim: ' + this.dimredmet + ' / ' + this.cdim
-      mstr += '\nclust method / ncom: ' + this.clustmet + ' / ' + this.nc[0] + '-' + this.nc[1]
-      mstr += '\ndimred method / dim: ' + this.dimredmetL + ' / ' + this.dimensions
-      mstr += "\n\n~ stats ~"
-      // from mean of the time it took with the same settings and similar sized networks:
-      mstr += '\ntime estimated: '
-      mstr += '\nnumber of similar runs: '
-      return mstr
+      return this.mkTimeString()
     },
   },
   watch: {
@@ -596,6 +587,38 @@ export default {
     },
   },
   methods: {
+    mkTimeString () {
+      let mstr = "~ settings ~"
+      mstr += '\ntemp: ' + this.temp + '\nangle x10e-6: ' + this.mangle
+      mstr += '\ndimred method / dim: ' + this.dimredmet + ' / ' + this.cdim
+      mstr += '\nclust method / ncom: ' + this.clustmet + ' / ' + this.nc[0] + '-' + this.nc[1]
+      mstr += '\ndimred method / dim: ' + this.dimredmetL + ' / ' + this.dimensions
+      mstr += "\n\n~ time span expected ~"
+      // from mean of the time it took with the same settings and similar sized networks:
+      mstr += '\ntime estimated: '
+      mstr += '\nnumber of similar runs: '
+      if (this.receivedTime) {
+        mstr += "\n\n~ time span found ~"
+        mstr += '\ncommunication: ' + this.cliserduration.toFixed(3)
+        mstr += '\n::: server calculations: '
+        let total = this.cliserduration
+        for (let task in this.network_data.durations) {
+          mstr += '\n' + task + ': ' + this.network_data.durations[task].toFixed(3)
+          total += this.network_data.durations[task]
+        }
+        mstr += '\n(subtotal: ' + (total - this.cliserduration).toFixed(3) + ')'
+        if (this.plotFinishedTime) {
+          mstr += '\n::: plot: ' + this.plotduration.toFixed(3)
+          total += this.plotduration
+        }
+        mstr += '\n::: total: ' + total.toFixed(3)
+      }
+      return mstr
+    },
+    placeTimeString() {
+      let a = document.getElementById('timebox')
+      a.innerHTML = this.mkTimeString()
+    },
     cgNclus () {
       this.ncluin = this.nc[0]
       this.nclu = this.nc[1]
@@ -712,6 +735,7 @@ export default {
         // nets[0].{filename, _id, nnodes, nlinks}
         this.networks_ = nets
         this.network = this.networks_[0]
+        this.placeTimeString()
       })
     },
     upload (e) {
@@ -766,6 +790,8 @@ export default {
       }
     },
     renderNetwork () {
+      delete this.receivedTime
+      this.placeTimeString()
       this.saveSettings()
       $.ajax(
         // `http://rfabbri.vicg.icmc.usp.br:5000/communicability/`,
@@ -827,24 +853,31 @@ export default {
     saveReturn () {
       // when returning from the server
       this.receivedTime = performance.now()
-      let dur = this.receivedTime - this.sentTime
+      let total = Object.values(__this.network_data.durations).reduce(
+        (v, i) => v += i,
+      0)
+      let dur = this.receivedTime - this.sentTime - total * 1000
+      this.cliserduration = dur / 1000
       this.$store.dispatch('usage/patch', [this.mset._id, {
         serverdurations: this.network_data.durations,
         cliserduration: dur,
       }]).then( (res) => {
         this.mset2 = res
       })
+      this.placeTimeString()
     },
     savePlotFinished () {
       this.plotFinishedTime = performance.now()
       // as soon as plot is finished
       let dur = this.plotFinishedTime - this.receivedTime
+      this.plotduration = dur / 1000
       this.$store.dispatch('usage/patch', [this.mset._id, {
         plotduration: dur,
       }]).then( (res) => {
         this.mset3 = res
       })
       console.log(dur)
+      this.placeTimeString()
     },
     plotData () {
       if (!this.babylon_initialized) {
