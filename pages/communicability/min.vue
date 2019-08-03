@@ -32,8 +32,6 @@
   </v-list>
 </v-menu>
 ( nodes: {{ network ? network.nnodes : '---' }}, links: {{ network ? network.nlinks : '---' }} )
-<div style="width: 100%; overflow: hidden;">
-    <div style="width: 70%; float: left;">
 <v-layout row>
 <v-card flat dark style="padding:20px;width:800px;display:block;">
 Communicability calculation
@@ -265,12 +263,6 @@ Communicability calculation
 </v-layout>
 </v-card>
 </v-layout>
-</div>
-  <div style="text-align:center">
-  <h3 style="text-aligin:center;">execution time</h3>
-  <textarea id="timebox" style="border:1px solid;width: 25%;height: 500px;margin-left:10px;"></textarea>
-  </div>
-</div>
 <v-layout row ml-4>
 <v-btn
   slot="activator"
@@ -526,25 +518,7 @@ export default {
       nneighborsL: 5,
     }
   },
-  computed: {
-    allset () {
-      let mstr = "~ settings ~"
-      mstr += '\ntemp: ' + this.temp + '\nangle: ' + this.mangle
-      mstr += '\ndimred method / dim: ' + this.dimredmet + ' / ' + this.cdim
-      mstr += '\nclust method / ncom: ' + this.clustmet + ' / ' + this.nc[0] + '-' + this.nc[1]
-      mstr += '\ndimred method / dim: ' + this.dimredmetL + ' / ' + this.dimensions
-      mstr += "\n\n~ stats ~"
-      // from mean of the time it took with the same settings and similar sized networks:
-      mstr += '\ntime estimated: '
-      mstr += '\nnumber of similar runs: '
-      return mstr
-    },
-  },
   watch: {
-    allset (val) {
-      let a = document.getElementById('timebox')
-      a.innerHTML = val
-    },
     cdialog (val) {
       if (!val) {
         if (!this.colortonode.hex)
@@ -766,7 +740,6 @@ export default {
       }
     },
     renderNetwork () {
-      this.saveSettings()
       $.ajax(
         // `http://rfabbri.vicg.icmc.usp.br:5000/communicability/`,
         process.env.flaskURL + '/communicability2/',
@@ -793,58 +766,15 @@ export default {
           type : 'POST',
         }
       ).done( network => { 
-        this.network_data = network
-        this.saveReturn()
         if (this.draw_net) {
           console.log('destroy stuff here')
         }
         this.draw_net = true
+        this.network_data = network
         let ev = network.ev
         this.nclusters = this.ncluin + ev.indexOf(Math.max(...ev))
         this.plotData()
-        this.savePlotFinished()
       })
-    },
-    saveSettings () {
-      this.sentTime = performance.now()
-      // before sending to the server for calculations
-      // timestamp is given by the server
-      this.$store.dispatch('usage/create', {
-        temp: this.temp,
-        mangle: this.mangle,
-        dimredmet: this.dimredmet,
-        cdim: this.cdim,
-        clustmet: this.clustmet,
-        nc: this.nc,
-        dimredmetL: this.dimredmetL,
-        dimensions: this.dimensions,
-        file: this.network,
-        nnodes: this.network.nnodes,
-      }).then( res => {
-        this.mset = res
-      })
-    },
-    saveReturn () {
-      // when returning from the server
-      this.receivedTime = performance.now()
-      let dur = this.receivedTime - this.sentTime
-      this.$store.dispatch('usage/patch', [this.mset._id, {
-        serverdurations: this.network_data.durations,
-        cliserduration: dur,
-      }]).then( (res) => {
-        this.mset2 = res
-      })
-    },
-    savePlotFinished () {
-      this.plotFinishedTime = performance.now()
-      // as soon as plot is finished
-      let dur = this.plotFinishedTime - this.receivedTime
-      this.$store.dispatch('usage/patch', [this.mset._id, {
-        plotduration: dur,
-      }]).then( (res) => {
-        this.mset3 = res
-      })
-      console.log(dur)
     },
     plotData () {
       if (!this.babylon_initialized) {

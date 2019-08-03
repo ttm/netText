@@ -151,15 +151,15 @@ export default {
         console.log('browser fingerprint recognized')
       }
     },
-    updateUsage () { // TTM Stoped here
-      let tobj = {
-        currSession: {
-          started: performance.now(),
-          other: '123'
-        }
-      },
-      this.$store.dispatch('usage/update', [this._usageid, tobj])
-    },
+    // updateUsage () { // TTM Stoped here
+    //   let tobj = {
+    //     currSession: {
+    //       started: performance.now(),
+    //       other: '123'
+    //     }
+    //   },
+    //   this.$store.dispatch('usage/update', [this._usageid, tobj])
+    // },
     mkFP () {
       Fingerprint2.get(function (components) {
         console.log(components) // an array of components: {key: ..., value: ...}
