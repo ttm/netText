@@ -456,6 +456,10 @@ const cmnames = {
   'Affinity Propagation': 'AF'
 }
 
+function resolve(path, obj=self, separator='.') {
+    var properties = Array.isArray(path) ? path : path.split(separator)
+    return properties.reduce((prev, curr) => prev && prev[curr], obj)
+}
 
 export default {
   head () {
@@ -588,24 +592,32 @@ export default {
     },
   },
   methods: {
-    meanStd (prop, setn) {
-      let ds
+    meanStd (prop, setn, inc = true) {
+      let mdata
       if (setn === 0) {
-        ds = this.usages2.data.map( d => d[prop] )
+        mdata = this.usages2.data
       } else if (setn === 1) {
-        ds = this.usages.data.map( d => d[prop] )
+        mdata = this.usages.data
+      } else if (setn === 2) {
+        mdata = this.usages3_
       } else {
         throw 'set of runs not recognized'
       }
+      let ds = mdata.map( d => resolve(prop, d) )
       let ds_ = ds.filter( d => d !== undefined )
-      let nincomplete = ds.length - ds_.length
       let mds = '-'
       let sds = '-'
       if (ds_.length) {
         mds = math.mean(ds_).toFixed(2)
         sds = math.std(ds_).toFixed(2)
       }
-      return [mds, sds, nincomplete]
+      let msds = mds + ' / ' + sds
+      let nincomplete = ds.length - ds_.length
+      if (inc) {
+        return [msds, nincomplete]
+      } else {
+        return msds + ', (-' + nincomplete + ')'
+      }
     },
     mkTimeString () {
       if (!this.network)
@@ -632,7 +644,7 @@ export default {
       }
       this.$store.dispatch('usage/find', { query: query }).then( (res) => {
         this.usages = res
-        let [mdursB, sdursB, nincomplete] = this.meanStd('totaldur', 1)
+        let [msdursB, nincomplete] = this.meanStd('totaldur', 1)
         this.nincomplete = nincomplete
 
         let query2 = {
@@ -641,76 +653,140 @@ export default {
         this.$store.dispatch('usage/find', { query: query2 }).then( (res2) => {
           console.log(res2)
           this.usages2 = res2
-          let [mdurs2B, sdurs2B, nincomplete2] = this.meanStd('totaldur', 0)
+          let [msdurs2B, nincomplete2] = this.meanStd('totaldur', 0)
           this.nincomplete2 = nincomplete2
 
           mstr += "\n\n~~ same network ~~"
-          mstr += '\ntotal mean / std: ' + mdurs2B + ' / ' + sdurs2B
-          // mstr += '\ncommunication: ' + this.cliserduration.toFixed(3)
-          // mstr += '\n::: server calculations: '
-          // let total = this.cliserduration
-          // for (let task in this.network_data.durations) {
-          //   mstr += '\n' + task + ': ' + this.network_data.durations[task].toFixed(3)
-          //   total += this.network_data.durations[task]
-          // }
-          // mstr += '\n(subtotal: ' + (total - this.cliserduration).toFixed(3) + ')'
-          // if (this.plotFinishedTime) {
-          //   mstr += '\n::: plot: ' + this.plotduration.toFixed(3)
-          //   total += this.plotduration
-          // }
-          // mstr += '\n::: total: ' + total.toFixed(3)
-
           if (this.usages2.data.length === 0 ) {
-            mstr += '\nsimilar runs: *NOT FOUND*'
+            mstr += '\nruns: *NOT FOUND*'
+            mstr += '\n::: total mean / std: ' + msdurs2B
           } else {
+            mstr += '\nruns: ' + this.usages2.data.length
             mstr += '\nincompletes ~ net size: ' + this.nincomplete2
             if (this.nincomplete2) {
               mstr += ' (*FOUND*)'
             }
-            mstr += '\nsimilar runs: ' + this.usages2.data.length
+            mstr += '\n::: total mean / std: ' + msdurs2B
+            mstr += '\n: plot: ' + this.meanStd('plotduration', 0, false)
+            mstr += '\n: communication: ' + this.meanStd('cliserduration', 0, false)
+            mstr += '\n: server: '
+            for (let task in this.usages2.data[0].serverdurations) {
+               mstr += '\n' + task + ': ' + this.meanStd('serverdurations.' + task, 0, false)
+            //   total += this.network_data.durations[task]
+            }
           }
 
           mstr += "\n\n~~ networks of similar size ~~"
-          if (mdursB > 0) {
-            mstr += '\ntime mean / std: ' + mdursB + ' / ' + sdursB
-          } else {
-            mstr += '\ntime mean / std: - / -'
-          }
           if (this.usages.data.length === 0 ) {
-            mstr += '\nsimilar runs: *NOT FOUND*'
+            mstr += '\nruns: *NOT FOUND*'
+            mstr += '\n:::total mean / std: ' + msdursB
           } else {
+            mstr += '\nruns: ' + this.usages.data.length
             mstr += '\nincompletes ~ net size: ' + this.nincomplete
             if (this.nincomplete) {
               mstr += ' (*FOUND*)'
             }
-            mstr += '\nsimilar runs: ' + this.usages.data.length
+            mstr += '\n:::total mean / std: ' + msdursB
+            mstr += '\n: plot: ' + this.meanStd('plotduration', 1, false)
+            mstr += '\n: communication: ' + this.meanStd('cliserduration', 1, false)
+            mstr += '\n: server: '
+            for (let task in this.usages.data[0].serverdurations) {
+               mstr += '\n' + task + ': ' + this.meanStd('serverdurations.' + task, 1, false)
+            //   total += this.network_data.durations[task]
+            }
           }
 
-          if (this.receivedTime) {
-            mstr += "\n\n~ time span found ~"
+          if (this.usages.data.length + this.usages2.data.length === 0 ) {
+            this.$store.dispatch('usage/find').then( () => {
+              this.usages3 =  this.$store.getters['usage/list']
+              // this.usages3 = res3
+              // filter as possible
+              this.snetsizes = this.usages3.map( u => u.nnodes )
+              this.snetsizes_ = [...new Set(this.snetsizes)]
+              this.snetsizes_.sort( (a, b) => b - a )
+              let tstr = 'sizes: '
+              let tstr_ = ''
+              let somereturn = false
+              for (let i = 0; i < this.snetsizes_.length; i++) {
+                let nextsize = this.snetsizes_[i]
+                this.allnets = this.usages3.filter( u => u.nnodes === nextsize )
+                this.allnets_ = this.allnets.filter( u => u.subtotaldur !== undefined )
+                if (this.allnets_.length === 0) {
+                  // it did not return from server
+                  tstr += nextsize + ' no return, '
+                } else {
+                  tstr += nextsize + ' return, '
+                  if (!somereturn) {
+                    console.log(somereturn, nextsize)
+                    if (nextsize < this.network.nnodes) {
+                      somereturn = true
+                      console.log('YES')
+                      this.usages3_ = this.allnets_
+                      let [msdurs3, nincomplete3] = this.meanStd('totaldur', 2)
+                      this.nincomplete3 = nincomplete3
+                      tstr_ += '\n~ largest network after chosen ~'
+                      tstr_ += '\nnnodes: ' + nextsize
+                      if (this.usages3.length === 0 ) {
+                        tstr_ += '\nruns: *NOT FOUND*'
+                        tstr_ += '\n::: total mean / std: ' + msdurs3
+                      } else {
+                        tstr_ += '\nruns: ' + this.usages3.length
+                        tstr_ += '\nincompletes ~ net size: ' + this.nincomplete3
+                        if (this.nincomplete3) {
+                          tstr_ += ' (*FOUND*)'
+                        }
+                        tstr_ += '\n:::total mean / std: ' + msdurs3
+                        tstr_ += '\n: plot: ' + this.meanStd('plotduration', 2, false)
+                        tstr_ += '\n: communication: ' + this.meanStd('cliserduration', 2, false)
+                        tstr_ += '\n: server: '
+                        for (let task in this.usages3[0].serverdurations) {
+                           tstr_ += '\n' + task + ': ' + this.meanStd('serverdurations.' + task, 2, false)
+                        //   total += this.network_data.durations[task]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              this.tstr = tstr
+              this.tstr_ = tstr_
+              mstr += '\n\n' + tstr
+              mstr += '\n' + tstr_
 
-            
-            mstr += '\ncommunication: ' + this.cliserduration.toFixed(3)
-            mstr += '\n::: server calculations: '
-            let total = this.cliserduration
-            for (let task in this.network_data.durations) {
-              mstr += '\n' + task + ': ' + this.network_data.durations[task].toFixed(3)
-              total += this.network_data.durations[task]
-            }
-            mstr += '\n(subtotal: ' + (total - this.cliserduration).toFixed(3) + ')'
-            if (this.plotFinishedTime) {
-              mstr += '\n::: plot: ' + this.plotduration.toFixed(3)
-              total += this.plotduration
-            }
-            mstr += '\n::: total: ' + total.toFixed(3)
+              return this.finishTimeString(mstr)
+            })
+          } else {
+            return this.finishTimeString(mstr)
           }
-          // make the find for all runs of the same network:
-          let a = document.getElementById('timebox')
-          a.innerHTML = mstr
-          a.readOnly = true
-          return mstr
         })
       })
+    },
+    finishTimeString (mstr) {
+        if (this.receivedTime) {
+          mstr += "\n\n~ time span found ~"
+
+          
+          mstr += '\ncommunication: ' + this.cliserduration.toFixed(3)
+          mstr += '\n::: server calculations: '
+          let total = this.cliserduration
+          for (let task in this.network_data.durations) {
+            mstr += '\n' + task + ': ' + this.network_data.durations[task].toFixed(3)
+            total += this.network_data.durations[task]
+          }
+          mstr += '\n(subtotal: ' + (total - this.cliserduration).toFixed(3) + ')'
+          if (this.plotFinishedTime) {
+            mstr += '\n::: plot: ' + this.plotduration.toFixed(3)
+            total += this.plotduration
+          }
+          mstr += '\n::: total: ' + total.toFixed(3)
+        }
+        // make the find for all runs of the same network:
+        let a = document.getElementById('timebox')
+        a.innerHTML = mstr
+        a.scrollTop = a.scrollHeight
+        a.readOnly = true
+
+        return mstr
     },
     placeTimeString() {
       this.mkTimeString()
