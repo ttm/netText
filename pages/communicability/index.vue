@@ -268,7 +268,7 @@ Communicability calculation
 </div>
   <div style="text-align:center">
   <h3 style="text-aligin:center;">execution time</h3>
-  <textarea id="timebox" style="border:1px solid;width: 25%;height: 500px;margin-left:10px;"></textarea>
+  <textarea readonly id="timebox" style="border:1px solid;width: 25%;height: 500px;margin-left:10px;"></textarea>
   </div>
 </div>
 <v-layout row ml-4>
@@ -588,36 +588,116 @@ export default {
   },
   methods: {
     mkTimeString () {
+      if (!this.network)
+        return
       let mstr = "~ settings ~"
       mstr += '\ntemp: ' + this.temp + '\nangle x10e-6: ' + this.mangle
       mstr += '\ndimred method / dim: ' + this.dimredmet + ' / ' + this.cdim
       mstr += '\nclust method / ncom: ' + this.clustmet + ' / ' + this.nc[0] + '-' + this.nc[1]
       mstr += '\ndimred method / dim: ' + this.dimredmetL + ' / ' + this.dimensions
-      mstr += "\n\n~ time span expected ~"
-      // from mean of the time it took with the same settings and similar sized networks:
-      mstr += '\ntime estimated: '
-      mstr += '\nnumber of similar runs: '
-      if (this.receivedTime) {
-        mstr += "\n\n~ time span found ~"
-        mstr += '\ncommunication: ' + this.cliserduration.toFixed(3)
-        mstr += '\n::: server calculations: '
-        let total = this.cliserduration
-        for (let task in this.network_data.durations) {
-          mstr += '\n' + task + ': ' + this.network_data.durations[task].toFixed(3)
-          total += this.network_data.durations[task]
-        }
-        mstr += '\n(subtotal: ' + (total - this.cliserduration).toFixed(3) + ')'
-        if (this.plotFinishedTime) {
-          mstr += '\n::: plot: ' + this.plotduration.toFixed(3)
-          total += this.plotduration
-        }
-        mstr += '\n::: total: ' + total.toFixed(3)
+
+      let query = {
+        nnodes: {
+          $gt: this.network.nnodes / 1.2,
+          $lt: this.network.nnodes * 1.2
+        },
       }
-      return mstr
+      if (this.mset) {
+        query._id = {
+          $ne: this.mset._id
+        }
+      }
+      query.file = {
+        $ne: this.network._id,
+      }
+      this.$store.dispatch('usage/find', { query: query }).then( (res) => {
+        this.usages = res
+        let mdurs = 0
+        let sdurs = 0
+        if (this.usages.data.length > 0) {
+          let durs_ = this.usages.data.map( u => u.totaldur )
+          let durs = durs_.filter( d => d !== undefined )
+          this.nincompletes = durs_.length - durs.length
+          console.log(durs)
+          if (durs.length) {
+            mdurs = math.mean(durs)
+            sdurs = math.std(durs)
+          }
+        }
+
+        let query2 = {
+          file: this.network._id,
+        }
+        this.$store.dispatch('usage/find', { query: query2 }).then( (res2) => {
+          console.log(res2)
+          this.usages2 = res2
+          let mdurs2 = 0
+          let sdurs2 = 0
+          if (this.usages2.data.length > 0) {
+            let durs2_ = this.usages2.data.map( u => u.totaldur )
+            let durs2 = durs2_.filter( d => d !== undefined )
+            this.nincompletes2 = durs2_.length - durs2.length
+            console.log(durs2)
+            if (durs2.length) {
+              mdurs2 = math.mean(durs2)
+              sdurs2 = math.std(durs2)
+            }
+          }
+
+          mstr += "\n\n~~ same network ~~"
+          if (mdurs2 === 0) {
+            mstr += '\ntime mean / std: - / -'
+          } else {
+            mstr += '\ntime mean / std: ' + mdurs2.toFixed(2) + ' / ' + sdurs2.toFixed(2)
+          }
+          if (this.usages2.data.length === 0 ) {
+            mstr += '\nsimilar runs: *NOT FOUND*'
+          } else {
+            mstr += '\nincompletes ~ net size: ' + this.nincompletes
+            mstr += '\nsimilar runs: ' + this.usages2.data.length
+          }
+
+          mstr += "\n\n~~ networks of similar size ~~"
+          if (mdurs > 0) {
+            mstr += '\ntime mean / std: ' + mdurs.toFixed(2) + ' / ' + sdurs.toFixed(2)
+          } else {
+            mstr += '\ntime mean / std: - / -'
+          }
+          if (this.usages.data.length === 0 ) {
+            mstr += '\nsimilar runs: *NOT FOUND*'
+          } else {
+            mstr += '\nincompletes ~ net size: ' + this.nincompletes2
+            mstr += '\nsimilar runs: ' + this.usages.data.length
+          }
+
+          if (this.receivedTime) {
+            mstr += "\n\n~ time span found ~"
+
+            
+            mstr += '\ncommunication: ' + this.cliserduration.toFixed(3)
+            mstr += '\n::: server calculations: '
+            let total = this.cliserduration
+            for (let task in this.network_data.durations) {
+              mstr += '\n' + task + ': ' + this.network_data.durations[task].toFixed(3)
+              total += this.network_data.durations[task]
+            }
+            mstr += '\n(subtotal: ' + (total - this.cliserduration).toFixed(3) + ')'
+            if (this.plotFinishedTime) {
+              mstr += '\n::: plot: ' + this.plotduration.toFixed(3)
+              total += this.plotduration
+            }
+            mstr += '\n::: total: ' + total.toFixed(3)
+          }
+          // make the find for all runs of the same network:
+          let a = document.getElementById('timebox')
+          a.innerHTML = mstr
+          a.readOnly = true
+          return mstr
+        })
+      })
     },
     placeTimeString() {
-      let a = document.getElementById('timebox')
-      a.innerHTML = this.mkTimeString()
+      this.mkTimeString()
     },
     cgNclus () {
       this.ncluin = this.nc[0]
@@ -821,14 +901,6 @@ export default {
       ).done( network => { 
         this.network_data = network
         this.saveReturn()
-        if (this.draw_net) {
-          console.log('destroy stuff here')
-        }
-        this.draw_net = true
-        let ev = network.ev
-        this.nclusters = this.ncluin + ev.indexOf(Math.max(...ev))
-        this.plotData()
-        this.savePlotFinished()
       })
     },
     saveSettings () {
@@ -844,7 +916,7 @@ export default {
         nc: this.nc,
         dimredmetL: this.dimredmetL,
         dimensions: this.dimensions,
-        file: this.network,
+        file: this.network._id,
         nnodes: this.network.nnodes,
       }).then( res => {
         this.mset = res
@@ -858,22 +930,34 @@ export default {
       0)
       let dur = this.receivedTime - this.sentTime - total * 1000
       this.cliserduration = dur / 1000
+      this.total_ = total + this.cliserduration
       this.$store.dispatch('usage/patch', [this.mset._id, {
         serverdurations: this.network_data.durations,
-        cliserduration: dur,
+        cliserduration: dur / 1000,
+        subtotaldur: this.total_,
       }]).then( (res) => {
         this.mset2 = res
+        if (this.draw_net) {
+          console.log('destroy stuff here')
+        }
+        this.draw_net = true
+        let ev = this.network_data.ev
+        this.nclusters = this.ncluin + ev.indexOf(Math.max(...ev))
+        this.plotData()
+        this.savePlotFinished()
       })
-      this.placeTimeString()
     },
     savePlotFinished () {
       this.plotFinishedTime = performance.now()
       // as soon as plot is finished
       let dur = this.plotFinishedTime - this.receivedTime
       this.plotduration = dur / 1000
+      console.log('plot duration', this.plotduration)
       this.$store.dispatch('usage/patch', [this.mset._id, {
-        plotduration: dur,
+        plotduration: dur / 1000,
+        totaldur: this.total_ + this.plotduration,
       }]).then( (res) => {
+        console.log('plot duration2', this.plotduration, res)
         this.mset3 = res
       })
       console.log(dur)
@@ -1021,7 +1105,7 @@ export default {
       camera.wheelPrecision = 100
       this.ipos = [camera.beta, camera.alpha, camera.radius]
       this.camera = camera
-      new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(0, 1, 0), this.scene)
+      // new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(0, 1, 0), this.scene)
       let selff = this
       this.engine.runRenderLoop(function () {
         selff.scene.render()
