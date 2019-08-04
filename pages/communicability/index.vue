@@ -456,6 +456,7 @@ const cmnames = {
   'Affinity Propagation': 'AF'
 }
 
+
 export default {
   head () {
     return {
@@ -587,6 +588,25 @@ export default {
     },
   },
   methods: {
+    meanStd (prop, setn) {
+      let ds
+      if (setn === 0) {
+        ds = this.usages2.data.map( d => d[prop] )
+      } else if (setn === 1) {
+        ds = this.usages.data.map( d => d[prop] )
+      } else {
+        throw 'set of runs not recognized'
+      }
+      let ds_ = ds.filter( d => d !== undefined )
+      let nincomplete = ds.length - ds_.length
+      let mds = '-'
+      let sds = '-'
+      if (ds_.length) {
+        mds = math.mean(ds_).toFixed(2)
+        sds = math.std(ds_).toFixed(2)
+      }
+      return [mds, sds, nincomplete]
+    },
     mkTimeString () {
       if (!this.network)
         return
@@ -612,18 +632,8 @@ export default {
       }
       this.$store.dispatch('usage/find', { query: query }).then( (res) => {
         this.usages = res
-        let mdurs = 0
-        let sdurs = 0
-        if (this.usages.data.length > 0) {
-          let durs_ = this.usages.data.map( u => u.totaldur )
-          let durs = durs_.filter( d => d !== undefined )
-          this.nincompletes = durs_.length - durs.length
-          console.log(durs)
-          if (durs.length) {
-            mdurs = math.mean(durs)
-            sdurs = math.std(durs)
-          }
-        }
+        let [mdursB, sdursB, nincomplete] = this.meanStd('totaldur', 1)
+        this.nincomplete = nincomplete
 
         let query2 = {
           file: this.network._id,
@@ -631,42 +641,48 @@ export default {
         this.$store.dispatch('usage/find', { query: query2 }).then( (res2) => {
           console.log(res2)
           this.usages2 = res2
-          let mdurs2 = 0
-          let sdurs2 = 0
-          if (this.usages2.data.length > 0) {
-            let durs2_ = this.usages2.data.map( u => u.totaldur )
-            let durs2 = durs2_.filter( d => d !== undefined )
-            this.nincompletes2 = durs2_.length - durs2.length
-            console.log(durs2)
-            if (durs2.length) {
-              mdurs2 = math.mean(durs2)
-              sdurs2 = math.std(durs2)
-            }
-          }
+          let [mdurs2B, sdurs2B, nincomplete2] = this.meanStd('totaldur', 0)
+          this.nincomplete2 = nincomplete2
 
           mstr += "\n\n~~ same network ~~"
-          if (mdurs2 === 0) {
-            mstr += '\ntime mean / std: - / -'
-          } else {
-            mstr += '\ntime mean / std: ' + mdurs2.toFixed(2) + ' / ' + sdurs2.toFixed(2)
-          }
+          mstr += '\ntotal mean / std: ' + mdurs2B + ' / ' + sdurs2B
+          // mstr += '\ncommunication: ' + this.cliserduration.toFixed(3)
+          // mstr += '\n::: server calculations: '
+          // let total = this.cliserduration
+          // for (let task in this.network_data.durations) {
+          //   mstr += '\n' + task + ': ' + this.network_data.durations[task].toFixed(3)
+          //   total += this.network_data.durations[task]
+          // }
+          // mstr += '\n(subtotal: ' + (total - this.cliserduration).toFixed(3) + ')'
+          // if (this.plotFinishedTime) {
+          //   mstr += '\n::: plot: ' + this.plotduration.toFixed(3)
+          //   total += this.plotduration
+          // }
+          // mstr += '\n::: total: ' + total.toFixed(3)
+
           if (this.usages2.data.length === 0 ) {
             mstr += '\nsimilar runs: *NOT FOUND*'
           } else {
-            mstr += '\nincompletes ~ net size: ' + this.nincompletes
+            mstr += '\nincompletes ~ net size: ' + this.nincomplete2
+            if (this.nincomplete2) {
+              mstr += ' (*FOUND*)'
+            }
             mstr += '\nsimilar runs: ' + this.usages2.data.length
           }
 
           mstr += "\n\n~~ networks of similar size ~~"
-          if (mdurs > 0) {
-            mstr += '\ntime mean / std: ' + mdurs.toFixed(2) + ' / ' + sdurs.toFixed(2)
+          if (mdursB > 0) {
+            mstr += '\ntime mean / std: ' + mdursB + ' / ' + sdursB
           } else {
             mstr += '\ntime mean / std: - / -'
           }
           if (this.usages.data.length === 0 ) {
             mstr += '\nsimilar runs: *NOT FOUND*'
           } else {
-            mstr += '\nincompletes ~ net size: ' + this.nincompletes2
+            mstr += '\nincompletes ~ net size: ' + this.nincomplete
+            if (this.nincomplete) {
+              mstr += ' (*FOUND*)'
+            }
             mstr += '\nsimilar runs: ' + this.usages.data.length
           }
 
