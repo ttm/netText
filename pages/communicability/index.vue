@@ -266,9 +266,21 @@ Communicability calculation
 </v-card>
 </v-layout>
 </div>
-  <div style="text-align:center">
+  <div style="text-align:center; margin-left: 10px;">
   <h3 style="text-aligin:center;">execution time</h3>
-  <textarea readonly id="timebox" style="border:1px solid;width: 25%;height: 500px;margin-left:10px;"></textarea>
+  <div id="timebox2" style="text-align: center; overflow-y: auto; border:1px solid; width: 25%; height: 200px; margin-left: 72%;">
+  </div>
+  <div id="timebox" style="text-align: center; overflow-y: auto; border:1px solid; width: 25%; height: 200px; margin-left: 72%;">
+    <p
+      v-for="index in 100"
+      :key="index"
+      @click="clickPar(index - 1)"
+      class="timepar"
+      v-show="showpar[index - 1]"
+      v-bind:id="'idt' + (index - 1)"
+    >
+    </p>
+  </div>
   </div>
 </div>
 <v-layout row ml-4>
@@ -529,6 +541,7 @@ export default {
       clustmet: 'k-means',
       nneighbors: 5,
       nneighborsL: 5,
+      showpar: new Array(100).fill(true)
     }
   },
   computed: {
@@ -592,6 +605,9 @@ export default {
     },
   },
   methods: {
+    clickPar (index) {
+      console.log(index)
+    },
     meanStd (prop, setn, inc = true) {
       let mdata
       if (setn === 0) {
@@ -721,10 +737,10 @@ export default {
                     if (nextsize < this.network.nnodes) {
                       somereturn = true
                       console.log('YES')
-                      this.usages3_ = this.allnets_
+                      this.usages3_ = this.allnets_ // aqui selecao
                       let [msdurs3, nincomplete3] = this.meanStd('totaldur', 2)
                       this.nincomplete3 = nincomplete3
-                      tstr_ += '\n~ largest network after chosen ~'
+                      tstr_ += '\n~ largest network after selected net ~'
                       tstr_ += '\nnnodes: ' + nextsize
                       if (this.usages3.length === 0 ) {
                         tstr_ += '\nruns: *NOT FOUND*'
@@ -782,9 +798,15 @@ export default {
         }
         // make the find for all runs of the same network:
         let a = document.getElementById('timebox')
-        a.innerHTML = mstr
-        a.scrollTop = a.scrollHeight
-        a.readOnly = true
+        // a.innerHTML = mstr
+        // a.scrollTop = a.scrollHeight
+        // a.readOnly = true
+        let ss = mstr.split('\n')
+        this.sss = [ss, mstr]
+        ss.forEach( (s, i) => {
+          let b = document.getElementById('miid' + (i))
+          b.innerHTML = s
+        })
 
         return mstr
     },
@@ -1246,7 +1268,44 @@ export default {
         e.scaling.y *= 1 + val
         e.scaling.z *= 1 + val
       })
-    }
+    },
+    upPars () {
+      let  mdata = this.sss[0]
+      this.mdatas = mdata
+      this.pdiv = d3.select('#timebox2')
+        .selectAll('p')
+        .data(mdata) 
+        .html(d => d + '<span onclick="console.log(\'HA\')">HA</span>')
+        .style('display', d => {
+          if (Math.random() < 0.3) {
+            return 'none'
+          } else {
+            return 'block'
+          }
+        })
+    },
+    mkPars () {
+      this.pdiv = d3.select('#timebox2')
+      let mdata
+      if (this.sss) {
+        mdata = this.sss[1]
+      } else {
+        mdata = new Array(100).fill(1)
+      }
+      this.mps = this.pdiv
+        .selectAll('p')
+        .data(mdata) 
+        .enter().append('p')
+        .attr('id', (d, i) => 'miid' + i)
+        .attr('class', 'ciid')
+        .style('display', d => {
+          if (Math.random() < 0.3) {
+            return 'none'
+          } else {
+            return 'block'
+          }
+        })
+    },
   },
   components: {
     Chrome,
@@ -1254,6 +1313,7 @@ export default {
   mounted () {
     window.__this = this
     window.__self = this
+    this.mkPars()
     this.colors = ColourValues.map(c => this.parseColor(c))
     this.prev_size = 1
     // d3.select('canvas')
@@ -1335,5 +1395,13 @@ h1 {
 }
 .boxradio {
   border: 1px solid;
+}
+.timepar {
+  text-align: left;
+  margin: 0px 0px 0px 2px;
+}
+.ciid {
+  text-align: left;
+  margin: 0px 0px 0px 2px;
 }
 </style>
