@@ -267,7 +267,15 @@ Communicability calculation
 </v-layout>
 </div>
   <div style="text-align:center; margin-left: 10px;">
-  <h3 style="text-aligin:center;">execution time</h3>
+  <div>
+    <h3 style="text-aligin:center;">execution time</h3>
+      <v-checkbox
+      v-model="checkbox"
+      :label="'detect browser'"
+      title="detect browser (and computer) to start gathering running time for your case. Will only show statistics for your browser/machine."
+      style="text-align:center; margin-left: 72%;"
+    ></v-checkbox>
+  </div>
   <div id="timebox2" style="text-align: center; overflow-y: auto; border:1px solid; width: 25%; height: 500px; margin-left: 72%;">
   </div>
     <p
@@ -477,6 +485,7 @@ export default {
     return {
       script: [
         { src: '/libs/math5.10.3.js' },
+        { src: 'https://cdnjs.cloudflare.com/ajax/libs/fingerprintjs2/2.1.0/fingerprint2.min.js' },
       ],
       link: [
         { rel: 'stylesheet', href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.8.2/css/all.min.css' }
@@ -540,7 +549,8 @@ export default {
       clustmet: 'k-means',
       nneighbors: 5,
       nneighborsL: 5,
-      showpar: new Array(100).fill(true)
+      showpar: new Array(100).fill(true),
+      checkbox: false,
     }
   },
   computed: {
@@ -549,6 +559,14 @@ export default {
     },
   },
   watch: {
+    checkbox (val) {
+      if (val) {
+        this.mkFP()
+      } else {
+        if (this.cc__)
+          delete this.cc__
+      }
+    },
     allset (val) {
       let a = document.getElementById('timebox') // TTM timebox2 adaptation
       a.innerHTML = val
@@ -604,6 +622,25 @@ export default {
     },
   },
   methods: {
+    mkFP () {
+      Fingerprint2.get(function (components) {
+        __this.fingerprint = components
+        __this.fp = __this.fingerprint.filter(
+          i => ['canvas', 'fonts', 'userAgent'].includes(i.key)
+        )
+        __this.fp_ = __this.fp.reduce( (total, item) => {
+          total[item.key] = item.value
+          return total
+        }, {})
+        let c = __this.fp_.canvas
+        let cc = c[0] + c[1] + __this.fp_.fonts + __this.fp_.userAgent
+        __this.c__ = c
+        __this.cc__ = cc
+        let a = __this.cc__.slice(0, 50)
+        let b = __this.cc__.slice(__this.cc__.length - 50)
+        alert('fingerprint detected. Filtering for user/browser/machine statistics is under development' + a + ' ... ' + b)
+      })
+    },
     getParams (mreturn) {
       let temp = []
       let mangle = []
@@ -1083,6 +1120,7 @@ export default {
         file: this.network._id,
         filename: this.network.filename,
         nnodes: this.network.nnodes,
+        browser: this.cc__,
       }).then( res => {
         this.mset = res
       })
@@ -1453,6 +1491,8 @@ export default {
     Chrome,
   },
   mounted () {
+    this.Fingerprint2 = Fingerprint2
+    // this.mkFP()
     window.__this = this
     window.__self = this
     this.allthis = []
