@@ -268,9 +268,8 @@ Communicability calculation
 </div>
   <div style="text-align:center; margin-left: 10px;">
   <h3 style="text-aligin:center;">execution time</h3>
-  <div id="timebox2" style="text-align: center; overflow-y: auto; border:1px solid; width: 25%; height: 200px; margin-left: 72%;">
+  <div id="timebox2" style="text-align: center; overflow-y: auto; border:1px solid; width: 25%; height: 500px; margin-left: 72%;">
   </div>
-  <div id="timebox" style="text-align: center; overflow-y: auto; border:1px solid; width: 25%; height: 200px; margin-left: 72%;">
     <p
       v-for="index in 100"
       :key="index"
@@ -551,7 +550,7 @@ export default {
   },
   watch: {
     allset (val) {
-      let a = document.getElementById('timebox')
+      let a = document.getElementById('timebox') // TTM timebox2 adaptation
       a.innerHTML = val
     },
     cdialog (val) {
@@ -605,6 +604,40 @@ export default {
     },
   },
   methods: {
+    getParams (mreturn) {
+      let temp = []
+      let mangle = []
+      let dimredmet = []
+      let cdim = []
+      let clustmet = []
+      let nc = []
+      let dimredmetL = []
+      let dimensions = []
+      let filename = []
+      for (let i = 0; i < mreturn.length; i++) {
+        let item = mreturn[i]
+        temp.push(item.temp)
+        mangle.push(item.mangle)
+        dimredmet.push(item.dimredmet)
+        cdim.push(item.cdim)
+        clustmet.push(item.clustmet)
+        nc.push(item.nc[0] + '-' + item.nc[1])
+        dimredmetL.push(item.dimredmetL)
+        dimensions.push(item.dimensions)
+        filename.push(item.filename)
+      }
+      let mstr = ''
+      mstr += '\ntemp: ' + temp.join(', ')
+      mstr += '\nangle x10e-6: ' + mangle.join(', ')
+      mstr += '\ndimred method: ' + dimredmet.join(', ')
+      mstr += '\ndim: ' + cdim.join(', ')
+      mstr += '\nclust method: ' + clustmet.join(', ')
+      mstr += '\nncom: ' + nc.join(', ')
+      mstr += '\ndimred method: ' + dimredmetL.join(', ')
+      mstr += '\ndim: ' + dimensions.join(', ')
+      mstr += '\nfilenames: ' + filename.join(', ')
+      return mstr
+    },
     clickPar (index) {
       console.log(index)
     },
@@ -639,6 +672,7 @@ export default {
       if (!this.network)
         return
       let mstr = "~ settings ~"
+      mstr += '\nnetwork: ' + this.network.filename + ' (' + this.network.nnodes + ', ' + this.network.nlinks + ')'
       mstr += '\ntemp: ' + this.temp + '\nangle x10e-6: ' + this.mangle
       mstr += '\ndimred method / dim: ' + this.dimredmet + ' / ' + this.cdim
       mstr += '\nclust method / ncom: ' + this.clustmet + ' / ' + this.nc[0] + '-' + this.nc[1]
@@ -670,6 +704,10 @@ export default {
           console.log(res2)
           this.usages2 = res2
           let [msdurs2B, nincomplete2] = this.meanStd('totaldur', 0)
+          this.infostrs = [
+            'the settings in the interface',
+            this.getParams(this.usages2.data),
+          ]
           this.nincomplete2 = nincomplete2
 
           mstr += "\n\n~~ same network ~~"
@@ -686,13 +724,24 @@ export default {
             mstr += '\n: plot: ' + this.meanStd('plotduration', 0, false)
             mstr += '\n: communication: ' + this.meanStd('cliserduration', 0, false)
             mstr += '\n: server: '
-            for (let task in this.usages2.data[0].serverdurations) {
-               mstr += '\n' + task + ': ' + this.meanStd('serverdurations.' + task, 0, false)
-            //   total += this.network_data.durations[task]
+            let hasserver = this.usages2.data.map( d => d.serverdurations )
+            let index
+            let hasserver_ = hasserver.filter( (d, i) => {
+              if (d !== undefined) {
+                index = i
+              }
+              return d !== undefined 
+            })
+            if (hasserver_.length) {
+              for (let task in this.usages2.data[index].serverdurations) {
+                 mstr += '\n' + task + ': ' + this.meanStd('serverdurations.' + task, 0, false)
+              //   total += this.network_data.durations[task]
+              }
             }
           }
 
           mstr += "\n\n~~ networks of similar size ~~"
+          this.infostrs.push(this.getParams(this.usages.data))
           if (this.usages.data.length === 0 ) {
             mstr += '\nruns: *NOT FOUND*'
             mstr += '\n:::total mean / std: ' + msdursB
@@ -715,6 +764,8 @@ export default {
           if (this.usages.data.length + this.usages2.data.length === 0 ) {
             this.$store.dispatch('usage/find').then( () => {
               this.usages3 =  this.$store.getters['usage/list']
+              this.infostrs.push(this.getParams(this.usages3))
+              this.infostrs.push('found from rendering the network on your screen')
               // this.usages3 = res3
               // filter as possible
               this.snetsizes = this.usages3.map( u => u.nnodes )
@@ -772,6 +823,7 @@ export default {
               return this.finishTimeString(mstr)
             })
           } else {
+            this.infostrs.push('found from rendering the network on your screen')
             return this.finishTimeString(mstr)
           }
         })
@@ -779,9 +831,7 @@ export default {
     },
     finishTimeString (mstr) {
         if (this.receivedTime) {
-          mstr += "\n\n~ time span found ~"
-
-          
+          mstr += "\n\n~~ time span found ~~"
           mstr += '\ncommunication: ' + this.cliserduration.toFixed(3)
           mstr += '\n::: server calculations: '
           let total = this.cliserduration
@@ -797,17 +847,17 @@ export default {
           mstr += '\n::: total: ' + total.toFixed(3)
         }
         // make the find for all runs of the same network:
-        let a = document.getElementById('timebox')
+        // let a = document.getElementById('timebox') // TTM timebox2 adaptation
         // a.innerHTML = mstr
         // a.scrollTop = a.scrollHeight
-        // a.readOnly = true
         let ss = mstr.split('\n')
         this.sss = [ss, mstr]
-        ss.forEach( (s, i) => {
-          let b = document.getElementById('miid' + (i))
-          b.innerHTML = s
-        })
+        // ss.forEach( (s, i) => {
+        //   let b = document.getElementById('miid' + (i))
+        //   b.innerHTML = s
+        // })
 
+        this.upPars()
         return mstr
     },
     placeTimeString() {
@@ -1031,6 +1081,7 @@ export default {
         dimredmetL: this.dimredmetL,
         dimensions: this.dimensions,
         file: this.network._id,
+        filename: this.network.filename,
         nnodes: this.network.nnodes,
       }).then( res => {
         this.mset = res
@@ -1272,17 +1323,107 @@ export default {
     upPars () {
       let  mdata = this.sss[0]
       this.mdatas = mdata
+      d3.selectAll("#timebox2 > *").remove()
       this.pdiv = d3.select('#timebox2')
         .selectAll('p')
         .data(mdata) 
-        .html(d => d + '<span onclick="console.log(\'HA\')">HA</span>')
-        .style('display', d => {
-          if (Math.random() < 0.3) {
-            return 'none'
+        .enter().append('p')
+        .attr('id', (d, i) => 'miid' + i)
+        .attr('class', 'ciid')
+        .on('click', (d, i) => {
+          console.log('before loop')
+          // let line0 = i
+          let line0 = i
+          let item0 = d3.select('#miid' + line0)
+          __this.item0 = item0
+          if (item0.text()[0] !== '~') {
+            do {
+              line0--
+            } while (d3.select('#miid' + line0).text()[0] !== '~')
+          }
+          __this.item0_ = d3.select('#miid' + line0)
+
+          // change + to -
+
+          let display
+          __this.mthing2 = this
+          let sign
+          let color
+          if (__this.showpar[line0]) {
+            // hide util next ~
+            display = 'none'
+            // change + to -, maybe color
+            sign = '-'
+            color = '#aaffaa'
+            __this.showpar[line0] = false
           } else {
-            return 'block'
+            // show util next ~
+            display = 'block'
+            // change - to +, maybe color
+            sign = '+'
+            color = '#ccccff'
+            __this.showpar[line0] = true
+          }
+          let line = line0 + 1
+          while (1) {
+            console.log('in loop' + line, display, sign, color, __this.showpar[i])
+            let tid = '#miid' + line
+            let item = d3.select(tid)
+            if (item.empty() || item.text()[0] === '~')
+              break
+            item 
+              .style('display', display)
+              .style('background', color)
+            line++
           }
         })
+        .html( (d, i) => {
+          __this.mthing = this
+          __this.showpar[i] = true
+          let tid = '#miid' + i
+          let item = d3.select(tid)
+          __this.allthis.push(item)
+          let ap = ''
+          let aclass = 'spanbt'
+          if (d[0] === '~') {
+            ap = ' <span class="spanbt2">+</span>'
+            console.log('atitle')
+            if (i !== 0) {
+              aclass += ' ltitle'
+            }
+          }
+          return '<span class="' + aclass + '" onclick="console.log(\'HA' + i +  '\')">'+  d + ap + '</span>'
+        })
+        .style('background', (d, i) => {
+          let item = d3.select('#miid' + i)
+          if (item.text()[0] === '~') {
+            return 'ffaaaa'
+          } else {
+            return '#ccccff'
+          }
+        })
+        .attr('title', (d, i) => {
+          if (i === 0)
+            __this.ntitle = 0
+          let item = d3.select('#miid' + i)
+          let it = item.text()
+          if ( it.startsWith('~~') ) {
+            __this.ntitle++
+          }
+          let title = this.infostrs[__this.ntitle]
+          return title
+        })
+        // .style('display', d => {
+        //   if (d[0] !== '~') {
+        //     return 'none'
+        //   } else {
+        //     return 'block'
+        //   }
+        // })
+      // this.pdiv
+      //   .attr('scrollTop', 
+      let a = document.getElementById('timebox2')
+      a.scrollTop = a.scrollHeight
     },
     mkPars () {
       this.pdiv = d3.select('#timebox2')
@@ -1299,11 +1440,12 @@ export default {
         .attr('id', (d, i) => 'miid' + i)
         .attr('class', 'ciid')
         .style('display', d => {
-          if (Math.random() < 0.3) {
-            return 'none'
-          } else {
-            return 'block'
-          }
+          // if (Math.random() < 0.3) {
+          //   return 'none'
+          // } else {
+          //   return 'block'
+          // }
+          return true
         })
     },
   },
@@ -1313,6 +1455,8 @@ export default {
   mounted () {
     window.__this = this
     window.__self = this
+    this.allthis = []
+    this.md3 = d3
     this.mkPars()
     this.colors = ColourValues.map(c => this.parseColor(c))
     this.prev_size = 1
@@ -1403,5 +1547,15 @@ h1 {
 .ciid {
   text-align: left;
   margin: 0px 0px 0px 2px;
+}
+.spanbt {
+  cursor: pointer;
+}
+.spanbt2 {
+  background: #aaffaa;
+}
+.ltitle {
+  display: inline-block;
+  margin-top: 15px;
 }
 </style>
