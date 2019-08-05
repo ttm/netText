@@ -1308,7 +1308,7 @@ export default {
       camera.wheelPrecision = 100
       this.ipos = [camera.beta, camera.alpha, camera.radius]
       this.camera = camera
-      // new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(0, 1, 0), this.scene)
+      new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(0, 1, 0), this.scene)
       let selff = this
       this.engine.runRenderLoop(function () {
         selff.scene.render()
