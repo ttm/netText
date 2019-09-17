@@ -1,8 +1,9 @@
 <template>
   <span>
-    {{ urlstring }}
-    (MyNSA: {{urlstring2}})
+    <h1>{{ urlstring }}
+    (MyNSA: {{urlstring2}})</h1>
 
+    <p>
     Page for hidden pages. Index (without the URLs):
     <ul>
       <li>
@@ -15,6 +16,7 @@
       <li>
       </li>
     </ul>
+    </p>
   </span>
 </template>
 
