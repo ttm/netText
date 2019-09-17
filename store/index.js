@@ -27,6 +27,11 @@ export const plugins = [
       usageObj: 'Usage'
     }
   }),
+  service('mynsa', {
+    instanceDefaults: {
+      usageObj: 'Mynsa'
+    }
+  }),
   service('ansettings', {
     instanceDefaults: {
       networkObj: 'Networks'

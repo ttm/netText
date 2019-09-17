@@ -80,7 +80,6 @@ export default {
         this.serverlog2 = data
       })
     },
-    },
     infoRelated () {
       this.statemsg = 'data from server received, placing text (WAIT)...'
       // put textual
