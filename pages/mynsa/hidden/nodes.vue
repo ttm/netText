@@ -17,15 +17,46 @@
         Link to MyNSA base URL, where the networks are nodes.
       </li>
     </ul>
+    <div>
+      Participants: {{ npart }}, Friendships: {{ nrel }},<br /> 
+      Data contributions: {{ nsnap }}, Facebook data donations: {{ nsnapfb }}
+    </div>
+    <br />
+    <div>
+      Total timing: {{ (mset.mvmapt - mset.mstartt).toFixed(3) }}s reach 100%.
+      Mounted start: {{ (mset.mrequestt - mset.mstartt).toFixed(3) }}s,<br /> 
+      Data callback: {{ (mset.mdatat - mset.mrequestt).toFixed(3) }}s,<br /> 
+      Text info: {{ (mset.infot - mset.mdatat).toFixed(3) }},<br /> 
+      Visual mapping: {{ (mset.mvmapt - mset.minfot).toFixed(3) }}<br /> 
+    </div>
   </span>
 </template>
 
 <script>
 import $ from 'jquery'
+function formatInt (tint_) {
+  let tint = tint_.toString()
+  let s = ''
+  for (let i = 0; i < tint.length; i++) {
+    if (i % 3 === 0 && i !== 0)
+      s += ','
+    s += tint[tint.length - i - 1]
+  }
+  let ss = s.split("")
+  console.log(ss)
+  ss.reverse()
+  console.log(ss)
+  return ss.join("")
+}
+
 export default {
-  created () {
+  data () {
     return {
       mcreatedt: 1, // performance.now(),
+      npart: 'loading...',
+      nrel: 'loading...',
+      nsnap: 'loading...',
+      nsnapfb: 'loading...',
     }
   },
   methods: {
@@ -48,6 +79,13 @@ export default {
         }
       ).done( data => { 
         this.serverlog = data
+        this.alldata = data.all.more_
+        let a = this.alldata
+        this.npart =   formatInt( a[2] )
+        this.nrel =    formatInt( a[3] )
+        this.nsnap =   formatInt( a[0].length )
+        this.nsnapfb = formatInt( a[1].length )
+
         this.dataTime = performance.now()
         this.$store.dispatch('mynsa/patch', [this.mset._id, {
           mdatat: this.dataTime / 1000,
@@ -79,7 +117,8 @@ export default {
     mVMap () {
       this.mvmapTime = performance.now()
       this.$store.dispatch('mynsa/patch', [this.mset._id, {
-        mvmapt: this.mvmapTime / 1000
+        mvmapt: this.mvmapTime / 1000,
+        mmount: true,
       }])
     },
   },
