@@ -18,15 +18,17 @@
       </li>
     </ul>
     <div>
-      Participants: {{ npart }}, Friendships: {{ nrel }},<br /> 
-      Data contributions: {{ nsnap }}, Facebook data donations: {{ nsnapfb }}
+      Participants: {{ npart }}, Friendships: {{ nrel }}, Interactions: 3,030,433<br /> 
+      Data contributions: {{ nsnap }},
+      <br />
+      Facebook data donations: {{ nsnapfb }}, 63 ego networks,  ....
     </div>
     <br />
-    <div>
+    <div v-if="mset.mmount">
       Total timing: {{ (mset.mvmapt - mset.mstartt).toFixed(3) }}s reach 100%.
       Mounted start: {{ (mset.mrequestt - mset.mstartt).toFixed(3) }}s,<br /> 
       Data callback: {{ (mset.mdatat - mset.mrequestt).toFixed(3) }}s,<br /> 
-      Text info: {{ (mset.infot - mset.mdatat).toFixed(3) }},<br /> 
+      Text info: {{ (mset.minfot - mset.mdatat).toFixed(3) }},<br /> 
       Visual mapping: {{ (mset.mvmapt - mset.minfot).toFixed(3) }}<br /> 
     </div>
   </span>
