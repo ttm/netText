@@ -21,15 +21,22 @@
       Participants: {{ npart }}, Friendships: {{ nrel }}, Interactions: 3,030,433<br /> 
       Data contributions: {{ nsnap }},
       <br />
-      Facebook data donations: {{ nsnapfb }}, 63 ego networks,  ....
+63 are ego snapshots, 54 are group snapshots; 50 have interaction links, 89 have friendship links; 43 have text content associated to participant activity.
+
+      <br />
+      Facebook data donations: {{ nsnapfb }}
     </div>
     <br />
-    <div v-if="mset.mmount">
+    <div v-if="mset && mset.mmount">
       Total timing: {{ (mset.mvmapt - mset.mstartt).toFixed(3) }}s reach 100%.
       Mounted start: {{ (mset.mrequestt - mset.mstartt).toFixed(3) }}s,<br /> 
       Data callback: {{ (mset.mdatat - mset.mrequestt).toFixed(3) }}s,<br /> 
       Text info: {{ (mset.minfot - mset.mdatat).toFixed(3) }},<br /> 
       Visual mapping: {{ (mset.mvmapt - mset.minfot).toFixed(3) }}<br /> 
+    </div>
+    <br />
+    <div>
+      canvas with whole network reduced to ~10 participants and N superparticipants.
     </div>
   </span>
 </template>
