@@ -75,7 +75,9 @@ function clickNode (event) {
   this.clickcount++
   if (this.clickcount >= 4) {
     console.log('open')
-    window.location.href = "aux/fb--" + this.name;
+    window.tthis = __this
+    // window.location.href = "aux/fb--" + this.name;
+    __this.$router.push('/mynsa/aux/fb--' + this.name)
   }
 }
 function releaseNode () {
@@ -144,6 +146,28 @@ export default {
       } else {
         this.mtexts.push(text)
       }
+    },
+    getNames () {
+      // choose a random snapshot
+      console.log('rname try')
+      let rsnap = this.snaps[Math.floor(Math.random() * this.snaps.length)]
+      let ruri = rsnap[1]
+      $.ajax(
+        // `http://rfabbri.vicg.icmc.usp.br:5000/communicability/`,
+        process.env.flaskURL + '/mynsaParticipants/',
+        // `http://127.0.0.1:5000/communicability/`,
+        // {see: 'this', and: 'thisother', num: 5}
+        {
+          data: JSON.stringify({
+            muri: ruri
+          }),
+          contentType : 'application/json',
+          type : 'POST',
+        }
+      ).done( data => { 
+        console.log('rname ok')
+        this.rnames = data
+      })
     },
     getSnapshots () {
       this.requestTime = performance.now()
@@ -330,8 +354,18 @@ export default {
       this.period = 0.001
       this.ellapsed = 0
       this.foo = 0
+      this.mnow = performance.now()
       this.app_.ticker.add( (delta) => {
         // console.log(delta, (performance.now() - this.foo)/10)
+        let tdif = (performance.now() - this.mnow)
+        if ( tdif > 5000) {
+          console.log(tdif)
+          this.mnow = performance.now()
+          if (this.snaps) {
+            console.log('snap')
+            this.getNames()
+          }
+        }
         this.foo = performance.now()
         this.ellapsed += delta
         // console.log(delta, this.ellapsed, this.period, 'not')

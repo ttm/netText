@@ -1,7 +1,7 @@
 <template>
   <span>
     <h1>
-      Nodes (MyNSA)
+      Nós, Nodes (MyNSA)
     </h1>
     <h3>
     </h3>

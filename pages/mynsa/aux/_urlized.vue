@@ -32,6 +32,11 @@ export default {
       // ask for stats && potential networks && all related networks in a graph
       // listar alias potenciais p nomes:
       // fabri fabbri, etc
+      if (name.startsWith('fb--')) {
+        this.fbnet = true
+      } else {
+        this.fbnet = false
+      }
       $.ajax(
         // `http://rfabbri.vicg.icmc.usp.br:5000/communicability/`,
         process.env.flaskURL + '/mynsa/',
@@ -42,6 +47,7 @@ export default {
             name__: name__,
             name_: name_,
             name: name,
+            fbnet: this.fbnet
           }),
           contentType : 'application/json',
           type : 'POST',
