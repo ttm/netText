@@ -17,6 +17,8 @@
 </template>
 
 <script>
+  // this is the minima version of gadget. its workings is on the hearts of every gadget.
+  // qua out  2 23:02:59 -03 2019
 import Tone from 'tone'
 import $ from 'jquery'
 import * as d3 from 'd3'

@@ -17,8 +17,8 @@
 </template>
 
 <script>
-  // this page is dedicated to continuous development
-  // qua out  2 23:01:39 -03 2019
+// with all the basic stuff in https://tonejs.github.io
+// qua out  2 22:59:24 -03 2019
 import Tone from 'tone'
 import $ from 'jquery'
 import * as d3 from 'd3'
@@ -460,7 +460,6 @@ export default {
         noise.volume.linearRampToValueAtTime(-Infinity, time + 6)
         // synth.frequency = self.freq
       }
-      // mk wind better TTT (does it work?)
       Tone.Transport.schedule(triggerSynth, 0)
     },
   },

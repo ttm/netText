@@ -17,6 +17,8 @@
 </template>
 
 <script>
+  // the first variation of gadget
+  // qua out  2 23:03:35 -03 2019
 import Tone from 'tone'
 import $ from 'jquery'
 import * as d3 from 'd3'

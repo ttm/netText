@@ -17,6 +17,8 @@
 </template>
 
 <script>
+  // second variation of minimal gadget. A masterpiece
+  // qua out  2 23:00:48 -03 2019
 import Tone from 'tone'
 import $ from 'jquery'
 import * as d3 from 'd3'
