@@ -90,6 +90,7 @@ export default {
   },
   mounted () {
     window.__this = this
+    window.t = this
     this.Tone = Tone
     this.mInit()
   },
