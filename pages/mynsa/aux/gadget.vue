@@ -31,15 +31,29 @@ function updateTime () {
 
 function clickNode () {
   console.log('click - pid: ' + this.pid)
+  if (this.mpath.length == 6) { // triangle, firth pivot
+    __this.synths.poly.triggerAttack(['C4', 'E4', 'G4', 'B4']) 
+  } else if (this.mpath.length == 8) { // square, second pivot
+    __this.synths.poly.triggerAttack(['C4', 'C2', 'G6', 'A4']) 
+  } else {
+    __this.synths.poly.triggerAttack(['C2', 'D2', 'B2', 'F2']) 
+  }
 }
 function releaseNode () {
   console.log('release - pid: ' + this.pid)
+  if (this.mpath.length == 6) { // triangle, firth pivot
+    __this.synths.poly.triggerRelease(['C4', 'E4', 'G4', 'B4']) 
+  } else if (this.mpath.length == 8) { // square, second pivot
+    __this.synths.poly.triggerRelease(['C4', 'C2', 'G6', 'A4']) 
+  } else {
+    __this.synths.poly.triggerRelease(['C2', 'D2', 'B2', 'F2']) 
+  }
 }
 function releaseNode2 () {
-  console.log('release2 - pid: ' + this.pid)
+  // console.log('release2 - pid: ' + this.pid)
 }
 function moveNode () {
-  console.log('move - pid: ' + this.pid)
+  // console.log('move - pid: ' + this.pid)
 }
 
 export default {
@@ -99,7 +113,6 @@ export default {
     mAfterInit () {
         this.startDAW()
         this.initPixi()
-        this.initSynths()
         this.sporkLoop()
         this.sporkLoop2()
         // this.sporkThing()
@@ -116,7 +129,7 @@ export default {
           Tone.Transport.toggle()
       }
       Tone.Transport.toggle()
-      this.sporkAudioWidget()
+      this.initSynths()
     },
     initPixi () {
       this.app_ = new PIXI.Application()
@@ -134,20 +147,25 @@ export default {
       this.synth3 = new Tone.Synth().toMaster()
       this.synth4 = new Tone.Synth().toMaster()
       this.synth5 = new Tone.Synth().toMaster()
+      this.initCustomSynths()
+    },
+    initCustomSynths () {
+      this.synths = {}
+      this.initToneSynth()
+      this.initChordSynth()
+      this.initDistSynth()
+      this.initPWMSynth()
     },
     initGraphics () {
       this.mkPaths()
       this.drawPivots()
     },
     drawPivots () {
+      // use draw pivots
       this.pivot = this.drawSomething()
       this.pivot2 = this.drawSomething(this.pathrect)
       this.pivot2.tint = 0xFFFF00
       this.pivot3 = this.drawSomething(this.pathhex)
-        .on('pointerdown', clickNode)
-        .on('pointerup', releaseNode)
-        .on('pointerupoutside', releaseNode)
-        .on('pointermove', moveNode)
       this.x = this.pivot.x
       this.y = this.pivot.y
       this.x2 = this.pivot2.x
@@ -155,6 +173,9 @@ export default {
       this.c = this.pivot3.tint
       this.r = this.pivot3.rotation
       this.pivot3.scale.set(4)
+      this.pivot2.scale.set(2)
+      this.pivot.scale.set(4)
+
       // c_r pivots c e r
       // x, x2, pivots x e x2, pid = c, r, x, x2, 
       // aí inicializa aqui a variavel com o parametro do Something()
@@ -163,15 +184,6 @@ export default {
       // computed? TTM
       // aperta bbte é p acumular, aperta pouco é p soltar:
       // do-in p ux?
-    },
-    drawPivot (tok) {
-      let tok_ = tok.replace
-      this.pivot3 = this.drawSomething(this.pathhex)
-        .on('pointerdown', clickNode)
-        .on('pointerup', releaseNode)
-        .on('pointerupoutside', releaseNode2)
-        .on('pointermove', moveNode)
-      this.pivot3.pid = tok
     },
     mGetData () {
       let turl = process.env.flaskURL + '/mGadget/'
@@ -202,13 +214,19 @@ export default {
       this.freq = mdata.all[0] + 200
       this.sporkLoop3()
       this.sporkPart()
+      this.initFilterSynth()
       this.mdata = mdata
       // parametrize PIXI and Tone with data
       // start more studd
       // spork some widgets
     },
-    sporkAudioWidget () {
-      var synthA = new Tone.Synth({
+    initChordSynth () {
+      //creates 4 instances of the Tone.Synth
+      var polySynth = new Tone.PolySynth(4, Tone.Synth).toMaster()
+      this.synths.poly = polySynth
+    },
+    initToneSynth () {
+      let synthA = new Tone.Synth({
         oscillator: {
           type: 'fmsquare',
           modulationType: 'sawtooth',
@@ -223,7 +241,7 @@ export default {
         }
       }).toMaster()
 
-      var synthB = new Tone.Synth({
+      let synthB = new Tone.Synth({
         oscillator: {
           type: 'triangle8'
         },
@@ -237,6 +255,9 @@ export default {
       $( "#reddiv" ).mousedown( () => {
         synthA.triggerAttack(this.note)
         synthB.triggerAttack('C4')
+        this.synths.filter[1].frequency.setValueAtTime('B5', 0)
+        this.synths.filter[0].volume.linearRampToValueAtTime(20, 2)
+        this.synths.filter[0].volume.linearRampToValueAtTime(-Infinity, 3)
         console.log('down')
       });
       $( "#reddiv" ).mouseup( () => {
@@ -244,6 +265,10 @@ export default {
         synthB.triggerRelease()
         console.log('up')
       });
+      this.synths.tone = [
+        synthA,
+        synthB,
+      ]
     },
     sporkThing () {
       this.synth.triggerAttackRelease('C4', 0.5, 0)
@@ -267,6 +292,7 @@ export default {
         synth.triggerAttackRelease(self.note, '8n', time)
         self.x2 += 40 * (Math.random() -0.5)
         self.y2 += 40 * (Math.random() -0.5)
+        self.synths.dist.triggerAttack(['C4', 'E4', 'G4', 'B4'])
       }
 
       Tone.Transport.schedule(triggerSynth, 0)
@@ -282,6 +308,7 @@ export default {
         synth.triggerAttackRelease('16n', time)
         self.x += 10 * (Math.random() -0.5)
         self.y += 10 * (Math.random() -0.5)
+        self.synths.dist.triggerRelease(['C2', 'E2', 'G2', 'B4'])
       }
 
       Tone.Transport.schedule(triggerSynth, 0)
@@ -296,8 +323,10 @@ export default {
       let synth = new Tone.MembraneSynth().toMaster()
 
       //create a loop
+      let self = this
       let loop = new Tone.Loop(function(time){
-              synth.triggerAttackRelease("C1", "8n", time)
+        synth.triggerAttackRelease("C1", "8n", time)
+        self.synths.pwm.start()
       }, "4n")
 
       //play the loop between 0-2m on the transport
@@ -313,6 +342,7 @@ export default {
         synth.triggerAttackRelease(event.note, event.dur, time)
         self.r += (Math.random() -0.5) * Math.PI
         self.c += 0x00FFF0
+        self.synths.pwm.stop()
       }, [
         { time : 0, note : 'C8', dur : '4n'},
         { time : {'4n' : 1, '8n' : 1}, note : 'E2', dur : '8n'},
@@ -364,8 +394,14 @@ export default {
       v.drawPolygon(path)
       v.endFill()
       v.tint = 0xFF0000
+      v.interactive = true
+      v.mpath = path
       this.app_.stage.addChild(v)
       return v
+        .on('pointerdown', clickNode)
+        .on('pointerup', releaseNode)
+        .on('pointerupoutside', releaseNode2)
+        .on('pointermove', moveNode)
     },
     getCenter () {
       let s = this.app_.stage
@@ -375,10 +411,54 @@ export default {
       }
       return c
     },
+    initDistSynth () {
+      let distortion = new Tone.Distortion(120)
+      let tremolo = new Tone.Tremolo(230).start()
+
+      let polySynth = new Tone.PolySynth(4, Tone.Synth).chain(distortion, tremolo, Tone.Master)
+
+      this.synths.dist = polySynth
+    },
+    initPWMSynth () {
+      //a pwm oscillator
+      let pwm = new Tone.PWMOscillator("Bb3").toMaster()
+      pwm.volume.value = -110
+      this.synths.pwm = pwm
+    },
+    initFilterSynth () {
+      //a pwm oscillator
+      let filter = new Tone.Filter({
+        type : 'bandpass',
+        Q : 12
+      }).toMaster()
+
+      //schedule a series of frequency changes
+      filter.frequency.setValueAtTime('C5', 0)
+      filter.frequency.setValueAtTime('E5', 0.5)
+      filter.frequency.setValueAtTime('G5', 1)
+      filter.frequency.setValueAtTime('B5', 1.5)
+      filter.frequency.setValueAtTime('C6', 2)
+      filter.frequency.linearRampToValueAtTime('C1', 3)
+
+      let noise = new Tone.Noise("brown").connect(filter).start(0).stop(3)
+
+      //schedule an amplitude curve
+      noise.volume.setValueAtTime(-20, 0)
+      noise.volume.linearRampToValueAtTime(20, 2)
+      noise.volume.linearRampToValueAtTime(-Infinity, 3)
+      this.synths.filter = [noise, filter]
+    },
   },
   watch: {
     x (val) {
       this.pivot.x = val
+      if (Math.random() < 0.1) {
+        let k = 'ABCDEFG'[Math.floor(6 * Math.random())]
+        let o = 1 + Math.floor(6 * Math.random())
+        let n = k + o
+        console.log('note changed: ', this.note)
+        this.note = n
+      }
     },
     y (val) {
       this.pivot.y = val
