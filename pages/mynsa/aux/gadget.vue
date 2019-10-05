@@ -414,6 +414,11 @@ export default {
       }
       return c
     },
+    changeLatency () {
+      // Tone.context.latencyHint = 'interactive', 'playback', 'balanced', 'fastest'
+      // Or set it to the number of seconds
+      // https://github.com/Tonejs/Tone.js/wiki/Performance
+    },
     initDistSynth () {
       let distortion = new Tone.Distortion(120)
       let tremolo = new Tone.Tremolo(230).start()
