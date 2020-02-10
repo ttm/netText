@@ -5,7 +5,7 @@
       <i class="fa fa-question-circle mhelp" style="font-size:28px;color:blue"></i>
     </nuxt-link>
   </h1>
-  network: 
+  sound file: 
 <v-menu offset-y class="setstuff"
 >
   <v-btn
